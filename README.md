@@ -18,6 +18,9 @@ A pure html site is rather burdonsome to create, and probably precludes doing ce
 
 - PHP at 7.2 or above.
 - Must author strict xHTML (that's XML, essentially)
+- content is assumed to have .html extension
+- the assumed layout is derived from index.html
+- html files are stored in a directory called pages
 
 
 ## TODO
