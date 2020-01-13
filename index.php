@@ -1,7 +1,7 @@
 <?php namespace Diatom;
 
 $_CONFIG = [
-  'author'  => 'Diatom Development``',
+  'author'  => 'Diatom Development',
   'time' => new \DateTime,
 ];
 
