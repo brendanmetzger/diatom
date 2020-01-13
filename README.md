@@ -8,6 +8,7 @@ I was going through old hard drives and organizing past work and I realized my f
 - provide methods organizing and creating content for user experience designers
 - there is only one file with a backend language (hence diatom)
 - content is authored by creating and organizing new html files (templates are html)
+- the name, brand, and initial conditions will melt away quickly, leaving an independant and unique creation to live on.
 
 
 
