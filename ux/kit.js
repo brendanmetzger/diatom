@@ -43,9 +43,6 @@ var getOffset = (function(touchscreen) {
   }  
 })(app.mobile);
 
-addEventListener('mousemove', function(evt) {
-  console.log(evt.theta);
-});
 
 var SVG = function (node, width, height) {
   this.NS = Object.freeze({

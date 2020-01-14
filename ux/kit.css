@@ -1,6 +1,20 @@
 * { box-sizing: border-box }
 
 body {
+  margin: 12%;
   font-family: 'Avenir Next';
   color: #333;
+}
+
+code {
+  border-radius: 0.25em;
+  padding: 0.25em;
+  background-color: rgba(0,0,0,0.05);
+  color: rgba(255,0,128,1);
+}
+
+
+.plain {
+  list-style: none;
+  padding:0;
 }
