@@ -19,7 +19,7 @@ The ultimate goal is to **build heavier, more interesting, more robust websites,
 
 ## Caveats
 
-A pure html site is rather burdonsome to create, and probably precludes doing certain things of interest, notably working with data. As such, the templating system is rather strict, and enforces perfection.
+A pure html site is rather burdensome to create, and probably precludes doing certain things of interest, notably working with data. As such, the templating system is rather strict, and enforces perfection.
 
 - PHP at 7.2 or above.
 - Must author strict xHTML (that's XML, essentially)
@@ -32,3 +32,10 @@ All of the above can, of course, be changed—but you wouldn't change a configur
 ## TODO
 
 [ ] Consider abandoning namespaces
+
+#### [ ] Implement lazy loader of async scripts
+
+The current W3 validation spec does not allow an attribute value on `async` to validate. So, something like
+`<script src="ux/file.js" async="true"></script>` would automatically be reevaluated to `<script src="ux/file.js" async=""/>` because it is empty, I think that converting scripts to the lazy loader and getting the relative file path correct automatically would be preferred, ie `<script>app.include('../../ux/file.js', false);</script>`
+
+#### [ ] Implement custom 'markdown' formatting library

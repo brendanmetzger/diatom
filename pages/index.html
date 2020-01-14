@@ -1,14 +1,37 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
   <head>
-    <meta charset="utf-8"/>
-    <meta http-equiv="x-ua-compatible" content="ie=edge"/>
-    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no"/>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <link rel="stylesheet" href="ux/kit.css" type="text/css" media="screen" />
     <title>[$author]</title>
-    <link rel="stylesheet" href="ux/kit.css" />
+    <script>
+      // <![CDATA[
+      addEventListener('DOMContentLoaded', (function(s, js, cb, cache) {
+        self.app = {
+          include: (...a) => js.push(['src','async'].reduce((s,v,i) => {s[v]=a[i]; return s}, s.cloneNode())),
+          release: (evt ) => { let f; while (f = cb.shift()) f.call(app, evt) },
+          module : (k   ) => (k in cache) ? cache[k] : app.define.bind(app, k),
+          define : (k, f) => (k in cache) ? cache[k] : cache[k] = f,
+          mobile : (/mobile|iPhone/i).test(navigator.userAgent),
+          remove : (k   ) => delete cache[k],
+          prepare: (f, w) => cb.push(f),
+        };
+        return (evt) => {
+          js.filter(s => !s.async).pop().addEventListener('load', app.release);
+          js.forEach(Node.prototype.appendChild.bind(document.head));
+        };
+      })(document.createElement('script'), [], [], Object.create(null)));
+      
+      document.documentElement.classList.add(['touch','click'][+app.mobile]);
+      
+      app.include('ux/kit.js', false);
+      // ]]>
+    </script>
   </head>
   <body>
-
-    <h1>Diatom Begins</h1>
+    <!-- replace content -->
+    <main>
+      <h1>Diatom Begins</h1>
+    </main>
   </body>
 </html>

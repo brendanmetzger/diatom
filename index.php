@@ -352,7 +352,12 @@ this requires adding a method to every model whenever that feature is needed. so
 
 <p>[$help\substr\item:title|0|1]</p>
 
-would attempt to do the function call automatically through composition of functions.
+would attempt to do the function call automatically through composition of functions, but I think something more Object oriented
+would perhaps read better...
+
+<p>[$title|slice(0,1)]</p>
+
+where all helper methods are assumed to be in some namespaced object/array that accept the item as the first argument.
 
 
 the pair method would have to do something like:
