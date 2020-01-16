@@ -370,7 +370,7 @@ PAIR method, and think that might work out elegantly. Continuing to ponder...
 */
 
 
-
+include('temp-format.php');
 
 
 echo Template::pages(($_GET['route'] ?: 'index') . '.' . ($_GET['ext'] ?: 'html'))->render($_CONFIG);

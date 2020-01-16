@@ -1,9 +1,18 @@
-* { box-sizing: border-box }
-
-body {
-  margin: 12%;
+/* Variables */
+:root {
+  --thin-rule: 1px solid rgba(0,0,0,0.1);
   font-family: 'Avenir Next';
   color: #333;
+}
+
+
+
+* { box-sizing: border-box }
+
+h1,h2,h3,h4,h5, div {margin: 0;}
+section {margin: 10rem 0;}
+body {
+  margin: 12%;
 }
 
 code {
@@ -17,4 +26,12 @@ code {
 .plain {
   list-style: none;
   padding:0;
+}
+
+.columns {columns: 25em auto;column-gap: 2rem;column-rule: var(--thin-rule);}
+
+section.columns > h2 {
+  margin: 0;
+  padding: 1rem;
+  border-bottom: var(--thin-rule);
 }

@@ -31,11 +31,11 @@
   <body>
     <!-- replace content -->
     <main>
-      <h1>Diatom</h1>
-      <section>
+      <h1 style="background-image:url(media/diatomea.jpg);background-size: auto 100%;padding-left: 1.5em; background-repeat: no-repeat;font-size: 12em;letter-spacing:-0.05em;color:rgba(0,0,0,0.75);text-shadow: -0.0125em -0.0125em 0em rgba(0,0,0,0.15);font-weight:400">Diatom</h1>
+      <section class="columns">
         <h2>Philosophy</h2>
         <p>I was going through old hard drives and organizing past work and I realized my first websites were from over 15 years ago. In the intervening years I had learned backend programming, used all the databases, frameworks, api's and platforms out there. But what struck me, was that anything done between 12 and 3 years ago is essentially non-functional without serious maintenance, and I certainly don't have the energy to install an outdated ruby to run a very outdated rails. But the stuff from 15 years ago is <em>perfectly intact</em> because it was just using html, css, and javascript in an organized file structure. Granted, it took me a lot of keystrokes to get the final output, but at least those keystrokes aren't gone. I spent years and years working on a few projects that I am still very proud of today under the full realization that I will never see or <em>use</em> them ever again, which is a bummer, because some of the interactive programs make the effort of that 15 year old work look like a walk in the park!</p>
-        <p>The ultimate goal is to <strong>build heavier, more interesting, more robust websites,</strong> that can almost function as applications, but are really just similar to the websites of yesterday. They can be trivial, exploratory, narrative-based, utilize data, and any number of other goals that might not require logins and cron jobs.</p>
+        <p>The ultimate goal is to <strong>build heavier, more interesting, more robust websites,</strong> that can almost function as applications, but are really just similar to the websites of yesteryear. They can be trivial, exploratory, narrative-based, utilize data, and any number of other goals that might not require logins and cron jobs.</p>
         <ul>
           <li>against my better instincts, make things as simple as possible (avoid custom configs, flexible architecture, fringe use cases)</li>
           <li>sites created in this platform will be viewable 15 years from now</li>
@@ -59,35 +59,7 @@
         </ul>
         <p>All of the above can, of course, be changed—but you wouldn't change a configuration file, you'd re-author parts of the program.</p>
       </section>
-      <section>
-        <h2>TODO</h2>
-        <ul class="plain">
-          <li>
-            <label>
-              <input type="checkbox" />
-              <span>Consider abandoning namespaces</span>
-            </label>
-          </li>
-          <li>
-            <label>
-              <input type="checkbox"/>
-              <span>Implement lazy loader of async scripts*</span>
-            </label>
-          </li>
-          <li>
-            <input type="checkbox"/>
-            <span>Implement custom 'markdown' formatting library</span>
-          </li>
-
-        </ul>
-        
-        <footer>
-          <p>* The current W3 validation spec does not allow an attribute value on <code>async</code> to validate. So, something like
-            <code>&lt;script src="ux/file.js" async="true"&gt;&lt;/script&gt;</code> would automatically be reevaluated to <code>&lt;script src="ux/file.js" async=""/&gt;</code> because it is empty, I think that converting scripts to the lazy loader and getting the relative file path correct automatically would be preferred, ie <code>&lt;script&gt;app.include('../../ux/file.js', false);&lt;/script&gt;</code></p>
-        </footer>
-
-        
-      </section>
+      <!-- insert pages/todo.html -->
     </main>
   </body>
 </html>

@@ -1,0 +1,30 @@
+<section style="border-top:var(--thin-rule);padding:5em 0 0;margin: 5em 0;">
+  <h2>TODO</h2>
+  <ul class="plain">
+    <li>
+      <label>
+        <input type="checkbox" />
+        <span>Consider abandoning namespaces</span>
+      </label>
+    </li>
+    <li>
+      <label>
+        <input type="checkbox"/>
+        <span>Implement lazy loader of <a href="#async">async scripts</a></span>
+      </label>
+    </li>
+    <li>
+      <input type="checkbox"/>
+      <span>Implement custom 'markdown' formatting library</span>
+    </li>
+
+  </ul>
+  
+  <footer>
+    <dl>
+      <dt id="async">Regarding the async attribute</dt>
+      <dd>The current W3 validation spec does not allow an attribute value on <code>async</code> to validate. So, something like
+      <code>&lt;script src="ux/file.js" async="true"&gt;&lt;/script&gt;</code> would automatically be reevaluated to <code>&lt;script src="ux/file.js" async=""/&gt;</code> because it is empty, I think that converting scripts to the lazy loader and getting the relative file path correct automatically would be preferred, ie <code>&lt;script&gt;app.include('../../ux/file.js', false);&lt;/script&gt;</code></dd>
+    </dl>
+  </footer>
+</section>
