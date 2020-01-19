@@ -9,10 +9,12 @@
 
 * { box-sizing: border-box }
 
-h1,h2,h3,h4,h5, div {margin: 0;}
+body, h1,h2,h3,h4,h5, div {margin: 0;}
 section {margin: 10rem 0;}
+
+
 body {
-  margin: 12%;
+  background-color:rgba(0,0,0,0.75);
 }
 
 code {
@@ -28,7 +30,7 @@ code {
   padding:0;
 }
 
-.columns {columns: 25em auto;column-gap: 2rem;column-rule: var(--thin-rule);}
+.columns {columns: 20em auto;column-gap: 2rem;column-rule: var(--thin-rule);column-fill:balance-all;}
 
 section.columns > h2 {
   margin: 0;

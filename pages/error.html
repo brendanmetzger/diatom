@@ -1,5 +1,23 @@
-<h2>Error</h2>
-<ul>
-  <!-- iterate errors -->
-  <li>[line $line  $message]</li>
-</ul>
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+    <title>[$message]</title>
+    <style>
+      :root {font-family: 'Courier New';font-size: 1em;background-color: #222; color: #fff;}
+      body {margin: 5%;}
+      pre {white-space:pre-wrap;}
+      a {color: #FF0010;}
+    </style>
+  </head>
+  <body>
+    <h2>[$message]</h2>
+    <ul>
+      <!-- iterate errors -->
+      <li>
+        <p>[line $line $message]</p>
+        <p><a href="[txmt://open?url=file://$file&amp;line=$line]">[$file]</a></p>
+      </li>
+    </ul>
+  </body>
+</html>

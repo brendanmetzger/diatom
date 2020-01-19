@@ -1,8 +1,9 @@
-<?php namespace Diatom;
+<?php libxml_use_internal_errors(true);
 
 $_CONFIG = [
   'author'  => 'Diatom Development',
   'time' => new \DateTime,
+  'base' => '/personal/projects/diatom',
 ];
 
 // Routing
@@ -17,6 +18,7 @@ $_HELP = [
   'time' => function (...$arguments) {
   },
 ];
+
 
 
 /****          ************************************************************************ TEMPLATE */
@@ -115,39 +117,28 @@ class Template {
   }
 }
 
-libxml_use_internal_errors(true);
-
 /****          ************************************************************************ DOCUMENT */
 class Document extends \DOMDocument {
   const   XMLDEC   = LIBXML_COMPACT|LIBXML_NOBLANKS|LIBXML_NOENT|LIBXML_NOXMLDECL;
-  private $xpath   = null, $input = null,
+  private $xpath   = null, $in = null,
           $options = [ 'preserveWhiteSpace' => false, 'formatOutput' => true ,
                        'resolveExternals'   => true , 'encoding'     => 'UTF-8',
                      ];
   
-  function __construct($input, $opts = [], $method = 'load') { parent::__construct('1.0', 'UTF-8');
-    
-    $this->input = $input;
-    
-    foreach (array_replace($this->options, $opts) as $property => $value)
-      $this->{$property} = $value;
-    
-    foreach (['Element','Text','Attr'] as $classname)
-      $this->registerNodeClass("\\DOM{$classname}", "\\Diatom\\{$classname}");
-    
-    if ($input instanceof Element) {
-      $this->input = $input->ownerDocument->saveXML($input);
-      $method = 'loadXML';
-    } else if (! file_exists($input)) throw new \InvalidArgumentException("Cannot load $input}");
+  function __construct($in, $opts = [], $method = 'load') { parent::__construct('1.0', 'UTF-8');
 
-    if (! $this->{$method}($this->input, self::XMLDEC)) {
-      $view = Template::pages('error.html')->render(['errors' => $this->errors()]);
-      $this->appendChild($this->importNode($view->documentElement, true));
-    }
+    foreach (array_replace($this->options, $opts) as $prop => $value) $this->{$prop} = $value;
+    foreach (['Element','Text','Attr'] as $c) $this->registerNodeClass("\\DOM{$c}", $c);
+    
+    if ($in instanceof Element && $method .= 'XML') $this->in = $in->ownerDocument->saveXML($in);
+    else if (! file_exists($in)) throw new \InvalidArgumentException("{$in} file does not exist.");
+    else $this->in = $in;
+    
+    if (! $this->{$method}($this->in, self::XMLDEC)) throw new ParseError('DOM parse error');
   }
 
   public function save($path = null) {
-    return $this->validate() && file_put_contents($path ?: $this->input, $this->saveXML(), LOCK_EX);
+    return $this->validate() && file_put_contents($path ?: $this->in, $this->saveXML(), LOCK_EX);
   }
 
   public function query(string $path, \DOMElement $context = null): \DOMNodeList {
@@ -157,14 +148,14 @@ class Document extends \DOMDocument {
   public function claim(string $id): \DOMElement {
     return $this->getElementById($id);
   }
-
-  public function errors(): Data {
-    return (new Data(libxml_get_errors()))->map(function ($error) { return (array) $error; });
-  }
   
   public function __toString() {
     return $this->saveXML();
   }  
+  
+  public static function error(): Data {
+    return (new Data(libxml_get_errors()))->map(function ($e) { return (array) $e; });
+  }
 }
 
 /****           ********************************************************************** INVOCABLE */
@@ -311,67 +302,28 @@ class Data extends \ArrayIterator {
   }
 }
 
-/****          ************************************************************************* REGISTRY */
-trait Registry {
-  public $data = [];
-  public function __get($key) {
-    return $this->data[$key] ?? null;
-  }
-  
-  public function __set($key, $value) {
-    $this->data[$key] = $value;
-  }
-  
-  public function merge(array $data) {
-    return array_merge($this->data, $data);
-  }
-}
-
-class Help implements \ArrayAccess {
-  public function offsetExists ($key) {}
-  public function offsetSet ($key, $value) {}
-  public function offsetUnset ($key) {}
-  public function offsetGet ($method) {
-    if (! is_callable($method)) throw new \Exception("{$method} is not callable");
-    return function (array $value) {
-      $method(...$value);
-    };
-  }
-    
-}
-
-
-/*
-
-helper methods in template? Say I wanted to the first character of a word—to accomplish, I've 
-always just generated a method in each individual model that might do a one off. (this can mildly bloat models, though this is a really really small problem)
-
-<p>[$item:firstletteroftitle]</p>
-
-this requires adding a method to every model whenever that feature is needed. something like
-
-<p>[$help\substr\item:title|0|1]</p>
-
-would attempt to do the function call automatically through composition of functions, but I think something more Object oriented
-would perhaps read better...
-
-<p>[$title|slice(0,1)]</p>
-
-where all helper methods are assumed to be in some namespaced object/array that accept the item as the first argument.
-
-
-the pair method would have to do something like:
-if(is_callable($out)) {
-  $out = $out(self::pair([$namespace, $data), ...explode('|', $namespace))]);
-}
-
-Thoughts: the template syntax, while intriguing, is looking a bit messy. I like the recursion of the
-PAIR method, and think that might work out elegantly. Continuing to ponder...
-*/
-
-
 include('temp-format.php');
 
 
-echo Template::pages(($_GET['route'] ?: 'index') . '.' . ($_GET['ext'] ?: 'html'))->render($_CONFIG);
+try {
+  
+} catch (InvalidArgumentException $e) {
+  
+}
 
+
+$request  = 'pages/' . ($_GET['route'] ?: 'index') . ($_GET['ext'] ?: '.html');
+try {
+  $template = Template::pages('index.html');
+
+  if ($request != 'index.html' ) {
+    $template->set('content', $request);
+  }
+
+  echo $template->render($_CONFIG);
+  
+} catch (ParseError $e) {
+  echo Template::pages('error.html')->render(['errors' => Document::error(), 'message' => $e->getMessage()]);
+} catch (Exception $e) {
+  echo '<pre>'.print_r($e, true).'</pre>';
+}
