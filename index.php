@@ -25,10 +25,6 @@ $_HELP = [
 class Template {
   
   private $parent, $document, $slugs = [], $templates = [];
-  
-  static public function __callStatic(string $dir, $path): self {
-    return new Self(sprintf('%s/%s', $dir, implode('/', $path)));
-  }
 
   public function __construct($input, ?self $parent = null) {
     $this->document = new Document($input);
@@ -153,7 +149,7 @@ class Document extends \DOMDocument {
     return $this->saveXML();
   }  
   
-  public static function error(): Data {
+  public static function errors(): Data {
     return (new Data(libxml_get_errors()))->map(function ($e) { return (array) $e; });
   }
 }
@@ -302,7 +298,7 @@ class Data extends \ArrayIterator {
   }
 }
 
-include('temp-format.php');
+include('markdom.php');
 
 
 try {
@@ -313,17 +309,20 @@ try {
 
 
 $request  = 'pages/' . ($_GET['route'] ?: 'index') . ($_GET['ext'] ?: '.html');
-try {
-  $template = Template::pages('index.html');
 
-  if ($request != 'index.html' ) {
+try {
+  $template = new Template('pages/index.html');
+
+  if ($request != 'pages/index.html' ) {
     $template->set('content', $request);
   }
 
   echo $template->render($_CONFIG);
   
 } catch (ParseError $e) {
-  echo Template::pages('error.html')->render(['errors' => Document::error(), 'message' => $e->getMessage()]);
+  echo (new Template('pages/error.html'))->render(['errors' => Document::errors(), 'message' => $e->getMessage()]);
 } catch (Exception $e) {
+
   echo '<pre>'.print_r($e, true).'</pre>';
+
 }
