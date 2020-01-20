@@ -2,13 +2,13 @@
 
 $_CONFIG = [
   'author'  => 'Diatom Development',
-  'time' => new \DateTime,
+  'time' => new DateTime,
   'base' => '/personal/projects/diatom',
 ];
 
 // Routing
 $_ROUTES = [
-  'index' => function ($template) {
+  'index' => function (Template $template) {
     // do things for template
   },
 ];
@@ -57,7 +57,7 @@ class Template {
     if ($parse) {
       foreach ($this->getSlugs() as [$node, $scope]) { try {
         $node(Data::PAIR($scope, $data));
-      } catch (\UnexpectedValueException $e) {
+      } catch (UnexpectedValueException $e) {
         $list = $this->cleanup($node->parentNode);
       }}
       
@@ -73,7 +73,7 @@ class Template {
     return $this;
   }
   
-  private function cleanup(\DOMNode $node, ?int $idx = null): void {
+  private function cleanup(DOMNode $node, ?int $idx = null): void {
     static $remove = [];
     if ($idx) {
       while ($path = array_pop($remove)) {
@@ -108,40 +108,40 @@ class Template {
     })($this->slugs);
   }
     
-  private function import(Document $import, \DOMNode $ref, $swap = 'replaceChild'): \DOMNode {
+  private function import(Document $import, DOMNode $ref, $swap = 'replaceChild'): DOMNode {
     return $ref->parentNode->{$swap}( $this->document->importNode($import->documentElement, true), $ref );    
   }
 }
 
 /****          ************************************************************************ DOCUMENT */
-class Document extends \DOMDocument {
+class Document extends DOMDocument {
   const   XMLDEC   = LIBXML_COMPACT|LIBXML_NOBLANKS|LIBXML_NOENT|LIBXML_NOXMLDECL;
   private $xpath   = null, $in = null,
           $options = [ 'preserveWhiteSpace' => false, 'formatOutput' => true ,
                        'resolveExternals'   => true , 'encoding'     => 'UTF-8',
                      ];
   
-  function __construct($in, $opts = [], $method = 'load') { parent::__construct('1.0', 'UTF-8');
+  function __construct($xml, $opts = [], $load = 'load') { parent::__construct('1.0', 'UTF-8');
 
     foreach (array_replace($this->options, $opts) as $prop => $value) $this->{$prop} = $value;
-    foreach (['Element','Text','Attr'] as $c) $this->registerNodeClass("\\DOM{$c}", $c);
+    foreach (['Element','Text','Attr'] as $c) $this->registerNodeClass("DOM{$c}", $c);
     
-    if ($in instanceof Element && $method .= 'XML') $this->in = $in->ownerDocument->saveXML($in);
-    else if (! file_exists($in)) throw new \InvalidArgumentException("{$in} file does not exist.");
-    else $this->in = $in;
+    if ($xml instanceof Element && $load .= 'XML') $this->xml = $xml->ownerDocument->saveXML($xml);
+    else if (! file_exists($xml)) throw new InvalidArgumentException("{$xml} file does not exist.");
+    else $this->xml = $xml;
     
-    if (! $this->{$method}($this->in, self::XMLDEC)) throw new ParseError('DOM parse error');
+    if (! $this->{$load}($this->xml, self::XMLDEC)) throw new ParseError('DOM parse error');
   }
 
   public function save($path = null) {
-    return $this->validate() && file_put_contents($path ?: $this->in, $this->saveXML(), LOCK_EX);
+    return $this->validate() && file_put_contents($path ?: $this->xml, $this->saveXML(), LOCK_EX);
   }
 
-  public function query(string $path, \DOMElement $context = null): \DOMNodeList {
-    return ($this->xpath ?: ($this->xpath = new \DOMXpath($this)))->query($path, $context);
+  public function query(string $path, DOMElement $context = null): DOMNodeList {
+    return ($this->xpath ?: ($this->xpath = new DOMXpath($this)))->query($path, $context);
   }
   
-  public function claim(string $id): \DOMElement {
+  public function claim(string $id): DOMElement {
     return $this->getElementById($id);
   }
   
@@ -167,20 +167,18 @@ trait invocable {
 }
 
 /****      ******************************************************************************** TEXT */
-class Text extends \DOMText {
-  use invocable;
-}
+class Text extends DOMText { use invocable; }
 
 /****      ******************************************************************************** ATTR */
-class Attr extends \DOMAttr {
+class Attr extends DOMAttr {
   use invocable;
   public function remove() {
     return ($elem = $this->ownerElement) ? $elem->removeAttribute($this->nodeName) : null;
   }
 }
 
-/****         *************************************************************************** ELEMENT */
-class Element extends \DOMElement implements \ArrayAccess {
+/****         ************************************************************************** ELEMENT */
+class Element extends DOMElement implements ArrayAccess {
   use invocable;
   
   public function selectAll(string $path) {
@@ -215,7 +213,7 @@ class Element extends \DOMElement implements \ArrayAccess {
     else if ($create)
       return $this->appendChild(($key[0] == '@') ? new Attr(substr($key, 1)) : new Element($key));
     else 
-      throw new \UnexpectedValueException($key);
+      throw new UnexpectedValueException($key);
   }
 
   public function offsetSet($key, $value) {
@@ -230,20 +228,20 @@ class Element extends \DOMElement implements \ArrayAccess {
     return ($parent = $this->parentNode) ? $parent->removeChild($this) : null;
   }
   
-  public function __call($key, $args): \DOMNode {
+  public function __call($key, $args): DOMNode {
     return $this->offsetSet($key, ...$args);
   }
 }
 
 /****      ******************************************************************************** DATA */
-class Data extends \ArrayIterator {
+class Data extends ArrayIterator {
   
   static private $store = [];
   
   static public function PAIR(array $namespace, $data) {
     while ($key = array_shift($namespace)) {
       if (! isset($data[$key]) && ! array_key_exists($key, $data)) {
-        throw new \UnexpectedValueException($key);
+        throw new UnexpectedValueException($key);
       }
       $data = $data[$key];      
     }
@@ -278,11 +276,11 @@ class Data extends \ArrayIterator {
   }
   
   public function filter(callable $callback) {
-    return new \CallbackFilterIterator($this, $callback);
+    return new CallbackFilterIterator($this, $callback);
   }
 
   public function limit($start, $length) {
-    return new \LimitIterator($this, $start, $length);
+    return new LimitIterator($this, $start, $length);
   }
   
   public function merge(array $data) {
@@ -301,18 +299,10 @@ class Data extends \ArrayIterator {
 include('markdom.php');
 
 
-try {
-  
-} catch (InvalidArgumentException $e) {
-  
-}
-
-
 $request  = 'pages/' . ($_GET['route'] ?: 'index') . ($_GET['ext'] ?: '.html');
 
 try {
   $template = new Template('pages/index.html');
-
   if ($request != 'pages/index.html' ) {
     $template->set('content', $request);
   }
