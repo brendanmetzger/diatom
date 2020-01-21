@@ -1,9 +1,11 @@
 <?php libxml_use_internal_errors(true);
 
 $_CONFIG = [
-  'author'  => 'Diatom Development',
+  'title'  => 'MCA Chicago Web Technology Audit',
   'time' => new DateTime,
-  'base' => '/personal/projects/diatom',
+  'topics' => array_map(function($path) {
+    return pathinfo($path);
+   }, glob('pages/*'))
 ];
 
 // Routing
@@ -127,6 +129,7 @@ class Document extends DOMDocument {
     foreach (['Element','Text','Attr'] as $c) $this->registerNodeClass("DOM{$c}", $c);
     
     if ($xml instanceof Element && $load .= 'XML') $this->xml = $xml->ownerDocument->saveXML($xml);
+    else if ($xml instanceof MarkDOM && $load .= 'XML') $this->xml = (string)$xml;
     else if (! file_exists($xml)) throw new InvalidArgumentException("{$xml} file does not exist.");
     else $this->xml = $xml;
     
@@ -304,13 +307,16 @@ $request  = 'pages/' . ($_GET['route'] ?: 'index') . ($_GET['ext'] ?: '.html');
 try {
   $template = new Template('pages/index.html');
   if ($request != 'pages/index.html' ) {
+    if ($_GET['ext'] == '.md') {
+      $request = new MarkDom(file_get_contents($request));
+    }
     $template->set('content', $request);
   }
 
   echo $template->render($_CONFIG);
   
 } catch (ParseError $e) {
-  echo (new Template('pages/error.html'))->render(['errors' => Document::errors(), 'message' => $e->getMessage()]);
+  echo (new Template('pages/_error.html'))->render(['errors' => Document::errors(), 'message' => $e->getMessage()]);
 } catch (Exception $e) {
 
   echo '<pre>'.print_r($e, true).'</pre>';
