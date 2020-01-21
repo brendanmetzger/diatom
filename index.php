@@ -120,8 +120,7 @@ class Document extends DOMDocument {
   const   XMLDEC   = LIBXML_COMPACT|LIBXML_NOBLANKS|LIBXML_NOENT|LIBXML_NOXMLDECL;
   private $xpath   = null, $in = null,
           $options = [ 'preserveWhiteSpace' => false, 'formatOutput' => true ,
-                       'resolveExternals'   => true , 'encoding'     => 'UTF-8',
-                     ];
+                       'resolveExternals'   => true , 'encoding'     => 'UTF-8' ];
   
   function __construct($xml, $opts = [], $load = 'load') { parent::__construct('1.0', 'UTF-8');
 
@@ -153,6 +152,7 @@ class Document extends DOMDocument {
   }  
   
   public static function errors(): Data {
+    // 7.4 ->map(fn ($e) => (array) $e );
     return (new Data(libxml_get_errors()))->map(function ($e) { return (array) $e; });
   }
 }
@@ -285,11 +285,7 @@ class Data extends ArrayIterator {
   public function limit($start, $length) {
     return new LimitIterator($this, $start, $length);
   }
-  
-  public function merge(array $data) {
-    // this will be called when element is being merged against a list of data. 
-  }
-  
+    
   public function __invoke($param) {
     return $this->current()($param);
   }
@@ -313,12 +309,20 @@ try {
     $template->set('content', $request);
   }
 
-  echo $template->render($_CONFIG);
+  $output = $template->render($_CONFIG);
   
 } catch (ParseError $e) {
   echo (new Template('pages/_error.html'))->render(['errors' => Document::errors(), 'message' => $e->getMessage()]);
+  $data = [
+    'errors' => Document::errors(),
+    'message' => $e->getMessage(),
+  ];
+  
+  $output = (new Template('pages/error.html'))->render($data);
 } catch (Exception $e) {
 
-  echo '<pre>'.print_r($e, true).'</pre>';
+  $output = '<pre>'.print_r($e, true).'</pre>';
 
+} finally {
+  echo $output;
 }

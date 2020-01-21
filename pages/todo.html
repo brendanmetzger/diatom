@@ -15,16 +15,38 @@
     </li>
     <li>
       <input type="checkbox"/>
-      <span>Implement custom 'markdown' formatting library</span>
+      <span>Utilize custom <q>markdown</q> formatting library</span>
     </li>
-
+    <li>
+      <input type="checkbox"/>
+      <span>Reorder &lt;meta&gt; and &lt;style&gt; tags to &lt;head&gt; of page</span>
+    </li>
+    <li>
+      <input type="checkbox"/>
+      <span>consider <code>__invoke</code> magic method on <code>Document</code> class to access <code>documentElement</code> and return first argument</span>
+      <pre>
+        // example case: 
+        <code>$an_element->ownerDocument->documentElement->appendChild(new Element('p'));</code>
+        // can become
+        <code>$an_element->ownerDocument(new Element('p'));</code>
+      </pre> 
+    </li>
+    <li>
+      <input type="checkbox"/>
+      <span>Consider <a href="#parse-nodes">parsing nodes</a> for markdown syntax</span>
+    </li>
   </ul>
   
   <footer>
+    <h2>Notes and considerations</h2>
     <dl>
       <dt id="async">Regarding the async attribute</dt>
       <dd>The current W3 validation spec does not allow an attribute value on <code>async</code> to validate. So, something like
       <code>&lt;script src="ux/file.js" async="true"&gt;&lt;/script&gt;</code> would automatically be reevaluated to <code>&lt;script src="ux/file.js" async=""/&gt;</code> because it is empty, I think that converting scripts to the lazy loader and getting the relative file path correct automatically would be preferred, ie <code>&lt;script&gt;app.include('../../ux/file.js', false);&lt;/script&gt;</code></dd>
+      <dt>Processing Instructions</dt>
+      <dd>Though this thouroughly breaks application template principles, I'm interested to see if it's possible to evaluate php processing instructions as a proof of concept. This would be done with something like <code>$xpath->evaluate('string(//processing-instruction("php")[1])');</code>. There may be a simple use case for allowing some limited config to partial templates. To be clear, this would not be adding source code, but <em>processing instruction</em> flags and such.</dd>
+      <dt id="parse-nodes">Parsing Nodes for MarkDown</dt>
+      <dd>I think this would be beneficial for cumbersome elements, like <code>&lt;time&gt;</code>, that could benefit from application-wide formatting, ie. <code>+August 5, 2018+</code> could be parsed and output into configurable format. Another use case would be a custom tagging like in sound opinions, where <code>{artist: Warpaint}</code> was used to automatically provide additional functionality.. same principle here, whether it be auto-drawing links or constructing a data-store.</dd>
     </dl>
   </footer>
 </section>

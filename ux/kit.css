@@ -9,6 +9,13 @@
 
 * { box-sizing: border-box }
 
+:target {
+  text-decoration: underline;
+  font-weight:600;
+  border-left: 0.5em solid #333;
+  padding-left: 0.5em;
+}
+
 body, h1,h2,h3,h4,h5, div {margin: 0;}
 section {margin: 10rem 0;}
 
