@@ -3,9 +3,9 @@
 $_CONFIG = [
   'title'  => 'MCA Chicago Web Technology Audit',
   'time' => new DateTime,
-  'topics' => array_map(function($path) {
+  'topics' => array_filter(array_map(function($path) {
     return pathinfo($path);
-   }, glob('pages/*'))
+   }, glob('pages/*')), function($i) {  return ! in_array($i['filename'], ['error', 'index']);} )
 ];
 
 // Routing
@@ -151,9 +151,9 @@ class Document extends DOMDocument {
     return $this->saveXML();
   }  
   
-  public static function errors(): Data {
-    // 7.4 ->map(fn ($e) => (array) $e );
-    return (new Data(libxml_get_errors()))->map(function ($e) { return (array) $e; });
+  public static function errors(): array {
+    // 7.4 array_map(fn ($e) => (array) $e, libxml_get_errors());
+    return array_map(function ($e) { return (array) $e; }, libxml_get_errors());
   }
 }
 
@@ -312,7 +312,6 @@ try {
   $output = $template->render($_CONFIG);
   
 } catch (ParseError $e) {
-  echo (new Template('pages/error.html'))->render(['errors' => Document::errors(), 'message' => $e->getMessage()]);
   $data = [
     'errors' => Document::errors(),
     'message' => $e->getMessage(),
