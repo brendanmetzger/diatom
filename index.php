@@ -312,7 +312,7 @@ try {
   $output = $template->render($_CONFIG);
   
 } catch (ParseError $e) {
-  echo (new Template('pages/_error.html'))->render(['errors' => Document::errors(), 'message' => $e->getMessage()]);
+  echo (new Template('pages/error.html'))->render(['errors' => Document::errors(), 'message' => $e->getMessage()]);
   $data = [
     'errors' => Document::errors(),
     'message' => $e->getMessage(),
