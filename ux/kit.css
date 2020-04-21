@@ -47,3 +47,12 @@ section.columns > h2 {
   padding: 1rem;
   border-bottom: var(--thin-rule);
 }
+header h1 {
+  background-image:url(media/diatomea.jpg);
+  mix-blend-mode:multiply;
+  background-size: auto 100%;
+  padding-left: 1.5em;
+  background-repeat: no-repeat;
+  font-size: 12em;
+  letter-spacing:-0.05em;
+}
