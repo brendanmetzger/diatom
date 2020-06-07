@@ -3,69 +3,9 @@
   <head>
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <link rel="stylesheet" href="ux/kit.css" type="text/css" media="screen" />
-    <title>[$author]</title>
-    <script>
-      // <![CDATA[
-      addEventListener('DOMContentLoaded', (function(s, js, cb, cache) {
-        self.app = {
-          include: (...a) => js.push(['src','async'].reduce((s,v,i) => {s[v]=a[i]; return s}, s.cloneNode())),
-          release: (evt ) => { let f; while (f = cb.shift()) f.call(app, evt) },
-          module : (k   ) => (k in cache) ? cache[k] : app.define.bind(app, k),
-          define : (k, f) => (k in cache) ? cache[k] : cache[k] = f,
-          mobile : (/mobile|iPhone/i).test(navigator.userAgent),
-          remove : (k   ) => delete cache[k],
-          prepare: (f, w) => cb.push(f),
-        };
-        return (evt) => {
-          js.filter(s => !s.async).pop().addEventListener('load', app.release);
-          js.forEach(Node.prototype.appendChild.bind(document.head));
-        };
-      })(document.createElement('script'), [], [], Object.create(null)));
-      
-      document.documentElement.classList.add(['touch','click'][+app.mobile]);
-      
-      app.include('ux/kit.js', false);
-      // ]]>
-    </script>
+    <title>${author}</title>
   </head>
   <body>
-    <!-- replace content -->
-    <main style="background-color:#fafafa;padding: 5%;max-width: 75em;margin:1rem;">
-      <header>
-        <h1>Diatom</h1>
-      </header>
-      <section class="columns">
-        <h2>Philosophy</h2>
-        <p>I was going through old hard drives and organizing past work and I realized my first websites were from over 15 years ago. In the intervening years I had learned backend programming, used all the databases, frameworks, api's and platforms out there. But what struck me, was that anything done between 12 and 3 years ago is essentially non-functional without serious maintenance, and I certainly don't have the energy to install an outdated ruby to run a very outdated rails. But the stuff from 15 years ago is <em>perfectly intact</em> because it was just using html, css, and javascript in an organized file structure. Granted, it took me a lot of keystrokes to get the final output, but at least those keystrokes aren't gone. I spent years and years working on a few projects that I am still very proud of today under the full realization that I will never see or <em>use</em> them ever again, which is a bummer, because some of the interactive programs make the effort of that 15 year old work look like a walk in the park!</p>
-        <p>The ultimate goal is to <strong>build heavier, more interesting, more robust websites,</strong> that can almost function as applications, but are really just similar to the websites of yesteryear. They can be trivial, exploratory, narrative-based, utilize data, and any number of other goals that need not require administrative interfaces.</p>
-        <ul>
-          <li>against my better instincts, make things as simple as possible (avoid custom configs, flexible architecture, fringe use cases)</li>
-          <li>sites created in this platform will be viewable 15 years from now</li>
-          <li>provide methods organizing and creating content for user experience designers</li>
-          <li>there is only one file with a backend language (hence diatom)</li>
-          <li>content is authored by creating and organizing new html files (templates are html)</li>
-          <li>some custom programming and data utilization can be configured in routing callbacks</li>
-          <li>the name, brand, and initial conditions will melt away quickly, leaving an independent and unique creation to live on.</li>
-          <li>respect relative file structure, that is, decrease reliance on absolute paths.</li>
-        </ul>
-      </section>
-      <section>
-        <h2>Use Cases</h2>
-        <p>Almost any site could employ some feature of this framework methodology. At its very lightest, an application can be an easily editable boilerplate producer—incredibly convenient for sites that don't require user-generated content.. The next step up would be a framework that does employ some sort of database, but still has pretty standard layouts and several pages of bolerplate—this framework makes an excellent template preprocessor</p>
-      </section>
-      <section>
-        <h2>Caveats</h2>
-        <p>A pure html site is rather burdensome to create, and probably precludes doing certain things of interest, notably working with data. As such, the templating system is rather strict, and enforces perfection.</p>
-        <ul>
-          <li>PHP at 7.2 or above.</li>
-          <li>Must author strict xHTML (that's XML, essentially)</li>
-          <li>content is assumed to have .html extension if unspecified</li>
-          <li>the assumed layout is derived from index.html</li>
-          <li>html files are stored in a directory called pages</li>
-        </ul>
-        <p>All of the above can, of course, be changed—but you wouldn't change a configuration file, you'd re-author parts of the program.</p>
-      </section>
-      <!-- insert pages/todo.html -->
-    </main>
+    <!-- insert pages/about.html -->
   </body>
 </html>

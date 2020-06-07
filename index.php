@@ -1,33 +1,62 @@
 <?php
 
-require 'diatom.php';
+// Start development server with `php -S 127.0.0.1:pppp index.php`
+
+require_once 'src/diatom.php';
+
+
 
 /*** IMPLEMENTATION *******************************************************************************/
 
 try {
-  define('DOC', ['layout' => 'pages/index.html', 'error' => 'pages/error.html']);
   
-  // TODO, make $store private Data::store('title', 'MCA Chicago Web Technology Audit');
-  Data::$store['title']       = 'Diatom Micro Framework';
-  Data::$store['description'] = 'A tiny templating framewqrk, no dependencies.';
-  Data::$store['time']        = new DateTime;
-  Data::$store['pages']       = Route::gather('pages/*.*', 'chapter');
-  Data::$store['request']     = parse_url($_SERVER['REQUEST_URI']);
+  $request   = new Request($_SERVER, 'index.html');
+  
+  header("Content-Type: {$request->mime}");
+  
+  if (file_exists($request->uri)) {
+    
+    $output = Response::load($request)->body;
+    header('Content-Length: '. strlen($output));
+    
+  } else {
+    
+    // Set Application data
+    $data = [
+      'pages'     => Response::gather(glob('pages/*.*')), 
+      'description' => 'A tiny templating framewqrk, no dependencies.',
+      'timestamp' => new DateTime,
+      'title'     => 'Diatom Micro Framework',
+    ];
+    
+    $response = new Response($request);
+    $output   = Route::compose($response);
 
+    if ($output instanceof Template) {
+      $output = $output->render($response->merge($data));
+    }
+        
+    if ($request->type == 'json'){
+      $output = json_encode(simplexml_import_dom($output));
+    }
+    
+  }
+  
+} catch (Exception | Error $e) {
 
-  $template = Route::delegate('content', new Template(DOC['layout']));
-  $output   = Renderer::organize(Renderer::sectionize($template->render(Data::$store)));
-  
-} catch (Exception $e) {
-  
-  $output = '<h1>'.$e->getMessage().'</h1><pre>'.print_r($e->getTrace(), true).'</pre>';
+  http_response_code($e->getCode() ?: 400);
+
+  $output = Request::GET('error')->render([
+    'wrapper' => 'txmt://open',
+    'message' => $e->getMessage(),
+    'code'    => $e->getCode(),
+    'file'    => $e->getFile(),
+    'line'    => $e->getLine(),
+    'trace'   => array_reverse($e->getTrace()),
+  ]);
   
 } finally {
-  
-  header('Content-Type: application/xhtml+xml; charset=utf-8');
-  echo "<!DOCTYPE html>\n"; // anything but this triggers quirks mode
-  $output->documentElement->setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+
   echo $output;
-  // echo "<!--". memory_get_peak_usage() / 1000 . "Kb memory -->\n";
   
 }
