@@ -1,15 +1,17 @@
 <?php
 
-// Start development server with `php -S 127.0.0.1:pppp index.php`
+// Start development server with `  pppp index.php`
 
 require_once 'src/diatom.php';
 
+if (substr($_SERVER['SERVER_SOFTWARE'],0,3) == 'PHP') {
+  require_once 'src/admin.php';
+}
 
 
 /*** IMPLEMENTATION *******************************************************************************/
 
 try {
-  
   $request   = new Request($_SERVER, 'index.html');
   
   header("Content-Type: {$request->mime}");
@@ -23,10 +25,10 @@ try {
     
     // Set Application data
     $data = [
-      'pages'     => Response::gather(glob('pages/*.*')), 
+      'pages'       => Response::gather(glob('pages/*.*')), 
       'description' => 'A tiny templating framewqrk, no dependencies.',
-      'timestamp' => new DateTime,
-      'title'     => 'Diatom Micro Framework',
+      'timestamp'   => new DateTime,
+      'title'       => 'Diatom Micro Framework',
     ];
     
     $response = new Response($request);

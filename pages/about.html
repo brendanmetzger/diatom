@@ -1,41 +1,67 @@
+<?xml version="1.0"?>
 <main style="background-color:#fafafa;padding: 5%;max-width: 75em;margin:1rem;">
+  <style type="text/css"><![CDATA[
+    section.columns > h2 {
+      margin: 0;
+      padding: 1rem;
+      border-bottom: var(--thin-rule);
+    }
+    header h1 {
+      background-image:url(/ux/media/diatomea.jpg);
+      mix-blend-mode:multiply;
+      background-size: auto 100%;
+      padding-left: 1.25em;
+      background-repeat: no-repeat;
+      font-size: 6em;
+      letter-spacing:-0.05em;
+    }
+  ]]></style>
   <header>
     <h1>Diatom</h1>
     <h4>An homage to websites</h4>
   </header>
   <section class="columns">
     <h2>Philosophy</h2>
-    <p>I was going through old hard drives and organizing past work and I realized my first websites were from over 15 years ago. In the intervening years I had learned backend programming, used all the databases, frameworks, api's and platforms out there. But what struck me, was that anything done between 12 and 3 years ago is essentially non-functional without serious maintenance, and I certainly don't have the energy to install an outdated ruby to run a very outdated rails. But the stuff from 15 years ago is <em>perfectly intact</em> because it was just using html, css, and javascript in an organized file structure. Granted, it took me a lot of keystrokes to get the final output, but at least those keystrokes aren't gone. I spent years and years working on a few projects that I am still very proud of today under the full realization that I will never see or <em>use</em> them ever again, which is a bummer, because some of the interactive programs make the effort of that 15 year old work look like a walk in the park!</p>
-    <p>As an homage to that era, I wanted to create a system that can allow an author to focus on constructing the user experience—html, css, and javascript—in a way that doesn't feel inelegant.</p>
+    <p>I was going through archived work one day and found that anything written between 3 and 12 years ago was non-functional. Oddly, anything older was <em>perfectly intact</em> because it was just directories of html, css, and JavaScript. Granted, it took me a lot of keystrokes to make websites back then, but at least those keystrokes aren't rendered meaningless by outdated and unsupported frameworks, databases, and fads.</p>
+    <p>I spent years and years working on a few projects that I am still very proud of today under the full realization that I will probably never see them again&#x2014;many of which have work and concepts that I would love to revisit, if only for nostalgia.</p>
+    <p>As an homage to that era, I have been developing a system that allows an author to focus on constructing the user experience&#x2014;html, <abbr>css</abbr>, and javascript&#x2014;in a way that doesn't feel inelegant. The power of dynamic, data driven programming, but the templates are the data and the programming, and the language isn't made up, but vanilla markup and other <a href="#fn-paradigms">standard paradigms [1]</a>.</p>
     <p>Stylesheets and JavaScript can be embedded and encoded in numerous ways, extemporaneously or calculated, to match the ebb and flow of developing ideas. Templates themselves can be mixed and match and embedded, so duplication is avoided. Data can be modeled and applied, and controllers can be declared whenever an idea becomes too complicated for the defaults in place.</p>
     <p>The last hurdle for a modern application is editing, and this is where creative breakthroughs occur.</p>
-    <p>The ultimate goal is to <strong>build heavier, more interesting, more robust websites,</strong> that can almost function as applications, but are really just similar to the websites of yesteryear. They can be trivial, exploratory, narrative-based, utilize data, and any number of other goals that need not require administrative interfaces.</p>
+    <p>The ultimate goal is to <strong>build more interesting websites,</strong> that could function as applications, but are developed more like the websites of yesteryear. They can be trivial, exploratory, narrative-based, utilize data, and any number of other goals that need not require administrative interfaces.</p>
     <ul>
-      <li>Configuration is absolutely minimal, and it occurs in obvious places. (ie., how is this template configured? <em>In the template of course!</em>)</li>
-      <li>sites created in this platform can be easily optimized and wholesale cached in a production environment, and cached in a way that the actual site can be reviewed offline (or in 15 years.)</li>
-      <li>provide methods organizing and creating content for user experience designers</li>
-      <li>only one (or two) backend files are necessary to create a basic site.</li>
+      <li>Configuration is absolutely minimal, and it occurs in obvious places. (ie., templates are configured within the template itself)</li>
+      <li>sites created in this platform can be optimized and cached for production environments as an archive.</li>
+      <li>Optimized for ux and interactive content authorship</li>
+      <li>Fairly robust sites can measure less than 1000<abbr>SLOC of php code</abbr></li>
       <li>content is authored by creating and organizing new html files (templates are html)</li>
-      <li>some custom programming and data utilization can be configured in I/O callbacks</li>
-      <li><i>Diatom</i> as a guiding concept melts away as an application develops its own character.</li>
-      <li>respect relative file structure, that is, decrease reliance on absolute paths.</li>
+      <li>custom programming and data processing can be configured in <code>Route</code> callbacks</li>
+      <li><i>Diatom</i> as a guiding concept melts away as an application develops its own character, and can be rewritten and amended without complaint as it is an independent piece of software.</li>
+      <li>No dependencies</li>
     </ul>
   </section>
   <section>
     <h2>Use Cases</h2>
-    <p>Almost any site could employ some feature of this framework methodology. At its very lightest, an application can be an easily editable boilerplate producer—incredibly convenient for sites that don't require user-generated content.. The next step up would be a framework that does employ some sort of database, but still has pretty standard layouts and several pages of bolerplate—this framework makes an excellent template preprocessor</p>
+    <p>Almost any site could employ some feature of this framework methodology. At its very lightest, an application can be an easily editable boilerplate producer&#x2014;incredibly convenient for sites that don't require user-generated content.. The next step up would be a framework that does employ some sort of database, but still has pretty standard layouts and several pages of bolerplate&#x2014;this framework makes an excellent template preprocessor.</p>
+    <p>An API could be facilitated with the routing paradigm, or a receiver of webhooks.</p>
   </section>
   <section>
-    <h2>Caveats</h2>
-    <p>A pure html site is rather burdensome to create, and probably precludes doing certain things of interest, notably working with data. As such, the templating system is rather strict, and enforces perfection.</p>
+    <h2>Guidelines</h2>
+    <p>A pure html site is rather burdensome to manage if you treat html as extraneous slop; this templating system is strict, and doesn't allow all-too-common errors (CDATA mishaps, unencoded entities, unclosed elements, etc.) Rather, a an error will we thrown and offer guidance on where to correct the template. So, the following a the starting point in terms of guidelines.</p>
     <ul>
-      <li>PHP at 7.2 or above.</li>
-      <li>Must author strict xHTML (that's XML, essentially)</li>
-      <li>content is assumed to have .html extension if unspecified</li>
+      <li>PHP at 7.4 or above.</li>
+      <li>Must author valid xHTML (that's XML, close your elements!)</li>
+      <li>content-type is assumed return text/html (.html) if unspecified</li>
       <li>the assumed layout is derived from index.html</li>
       <li>html files are stored in a directory called pages</li>
     </ul>
-    <p>All of the above can, of course, be changed—but you wouldn't change a configuration file, you'd re-author parts of the program.</p>
+    <p>All of the above can, of course, be changed&#x2014;but you wouldn't change a configuration file, you'd re-author parts of the program, because back to the philosophy, is that stuff going to change arbitrarily?</p>
   </section>
   <!-- insert pages/todo.html -->
+  <footer>
+    <dl>
+      <dt id="fn-paradigms">Standard Paradigms</dt>
+      <dd>The most complex parts of a program&#x2014;and I don't think avoiding complexity is particularly realistic goal&#x2014;should take agnostic format.</dd>
+      <dd>Query languages like SQL, Xpath come to mind. Regular expressions are a must.</dd>
+    </dl>
+  </footer>
 </main>

@@ -5,8 +5,6 @@
   color: #333;
 }
 
-
-
 * { box-sizing: border-box }
 
 :target {
@@ -41,18 +39,3 @@ code {
 }
 
 .columns {columns: 20em auto;column-gap: 2rem;column-rule: var(--thin-rule);column-fill:balance-all;}
-
-section.columns > h2 {
-  margin: 0;
-  padding: 1rem;
-  border-bottom: var(--thin-rule);
-}
-header h1 {
-  background-image:url(media/diatomea.jpg);
-  mix-blend-mode:multiply;
-  background-size: auto 100%;
-  padding-left: 1.5em;
-  background-repeat: no-repeat;
-  font-size: 12em;
-  letter-spacing:-0.05em;
-}
