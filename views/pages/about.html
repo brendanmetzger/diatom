@@ -22,9 +22,9 @@
   </header>
   <section class="columns">
     <h2>Philosophy</h2>
-    <p>I was going through archived work one day and found that anything written between 3 and 12 years ago was non-functional. Oddly, anything older was <em>perfectly intact</em> because it was just directories of html, css, and JavaScript. Granted, it took me a lot of keystrokes to make websites back then, but at least those keystrokes aren't rendered meaningless by outdated and unsupported frameworks, databases, and fads.</p>
+    <p>I was going through archived work one day and found that anything written between 3 and 12 years ago was pretty much non-functional. Oddly, anything older was <em>perfectly intact</em> because it was just directories of html, css, and JavaScript. Granted, it took me a lot of keystrokes to make websites back then, but at least those keystrokes aren't rendered meaningless by outdated and unsupported frameworks, databases, and fads.</p>
     <p>I spent years and years working on a few projects that I am still very proud of today under the full realization that I will probably never see them again&#x2014;many of which have work and concepts that I would love to revisit, if only for nostalgia.</p>
-    <p>As an homage to that era, I have been developing a system that allows an author to focus on constructing the user experience&#x2014;html, <abbr>css</abbr>, and javascript&#x2014;in a way that doesn't feel inelegant. The power of dynamic, data driven programming, but the templates are the data and the programming, and the language isn't made up, but vanilla markup and other <a href="#fn-paradigms">standard paradigms [1]</a>.</p>
+    <p>As an homage to that era, I have been developing a system that allows an author to focus on constructing the user experience&#x2014;html, <abbr>css</abbr>, and JavaScript&#x2014;in a way that doesn't feel inelegant. The power of dynamic, data driven programming, but here the templates are the data, written in vanilla markup and the complex programming components adhere to <a href="#fn-paradigms">standard paradigms [1]</a>.</p>
     <p>Stylesheets and JavaScript can be embedded and encoded in numerous ways, extemporaneously or calculated, to match the ebb and flow of developing ideas. Templates themselves can be mixed and match and embedded, so duplication is avoided. Data can be modeled and applied, and controllers can be declared whenever an idea becomes too complicated for the defaults in place.</p>
     <p>The last hurdle for a modern application is editing, and this is where creative breakthroughs occur.</p>
     <p>The ultimate goal is to <strong>build more interesting websites,</strong> that could function as applications, but are developed more like the websites of yesteryear. They can be trivial, exploratory, narrative-based, utilize data, and any number of other goals that need not require administrative interfaces.</p>
@@ -32,7 +32,7 @@
       <li>Configuration is absolutely minimal, and it occurs in obvious places. (ie., templates are configured within the template itself)</li>
       <li>sites created in this platform can be optimized and cached for production environments as an archive.</li>
       <li>Optimized for ux and interactive content authorship</li>
-      <li>Fairly robust sites can measure less than 1000<abbr>SLOC of php code</abbr></li>
+      <li>Fairly robust sites can measure less than 1000 <abbr>SLOC of php code</abbr></li>
       <li>content is authored by creating and organizing new html files (templates are html)</li>
       <li>custom programming and data processing can be configured in <code>Route</code> callbacks</li>
       <li><i>Diatom</i> as a guiding concept melts away as an application develops its own character, and can be rewritten and amended without complaint as it is an independent piece of software.</li>
@@ -47,12 +47,23 @@
   <section>
     <h2>Guidelines</h2>
     <p>A pure html site is rather burdensome to manage if you treat html as extraneous slop; this templating system is strict, and doesn't allow all-too-common errors (CDATA mishaps, unencoded entities, unclosed elements, etc.) Rather, a an error will we thrown and offer guidance on where to correct the template. So, the following a the starting point in terms of guidelines.</p>
+    <h3>Languages</h3>
     <ul>
       <li>PHP at 7.4 or above.</li>
-      <li>Must author valid xHTML (that's XML, close your elements!)</li>
-      <li>content-type is assumed return text/html (.html) if unspecified</li>
+      <li>valid xHTML (that's XML, close your elements!)</li>
+      <li>CSS</li>
+      <li>Javascript</li>
+    </ul>
+    <p>JavaScript can be a mess, and it can be frighteningly complicated; this framework alleviates some of that by allowing you great freedom to just write your javascript wherever you want, and include it as a script with a src, or just plop it right into a template. Don't worry about <code>DOMready</code> or any of that stuff, <a href="#fn-lazyjs">that has been taken care of</a>.</p>
+    <p>CSS, similar to javascript, can be linked and <a href="#fn-lazycss">included in any template</a></p>
+    <h3>Directory Layout</h3>
+    <ul>
       <li>the assumed layout is derived from index.html</li>
       <li>html files are stored in a directory called pages</li>
+    </ul>
+    <h3>Output Formats</h3>
+    <ul>
+      <li>content-type is assumed return text/html (.html) if unspecified</li>
     </ul>
     <p>All of the above can, of course, be changed&#x2014;but you wouldn't change a configuration file, you'd re-author parts of the program, because back to the philosophy, is that stuff going to change arbitrarily?</p>
   </section>
@@ -62,6 +73,10 @@
       <dt id="fn-paradigms">Standard Paradigms</dt>
       <dd>The most complex parts of a program&#x2014;and I don't think avoiding complexity is particularly realistic goal&#x2014;should take agnostic format.</dd>
       <dd>Query languages like SQL, Xpath come to mind. Regular expressions are a must.</dd>
+      <dt id="fn-lazyjs">Using JavaScript</dt>
+      <dd>JavaScript is parsed before rendering the page, and pagkaged and wrapped in a script that lazy loads it.</dd>
+      <dt id="fn-lazycss">Using Stylesheets</dt>
+      <dd>CSS can be linked or embedded in <code>&lt;style&gt;</code> elements. The template is processed before rendering to organize and move the stylesheet into the head of the document, so if you have a custom style in a lil template, just embed it there instead of mucking up the stylsheet.</dd>
     </dl>
   </footer>
 </main>

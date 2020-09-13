@@ -7,7 +7,7 @@ body.inserting main:focus-within { background-color:yellow }
 *[contenteditable]:focus { outline: none; background-color:#fff; color:#000; box-shadow: 0 0 0 1rem rgba(255,255,255,1);}
 `.trim();
 
-document.querySelector('main').addEventListener('dblclick', function(evt) {
+addEventListener('dblclick', function(evt) {
   
   if (document.body.classList.contains('editing') || ! evt.metaKey) return;
 

@@ -1,55 +1,54 @@
 <?php
 
-// Start development server with `  pppp index.php`
+define('CONFIG', parse_ini_file('../data/config.ini'));
 
-require_once 'src/diatom.php';
-
-if (substr($_SERVER['SERVER_SOFTWARE'],0,3) == 'PHP') {
-  require_once 'src/admin.php';
-}
+require_once '../src/diatom.php';
 
 
 /*** IMPLEMENTATION *******************************************************************************/
 
+
 try {
+  
+  if (CONFIG['dev'] ?? false) include 'edit.php';
+    
+
   $request   = new Request($_SERVER, 'index.html');
   
   header("Content-Type: {$request->mime}");
   
   if (file_exists($request->uri)) {
-    
+    // php dev server handles static files too; prod this can config to cache as this would be done by http server
     $output = Response::load($request)->body;
     header('Content-Length: '. strlen($output));
-    
+
   } else {
-    
+
     // Set Application data
     $data = [
-      'pages'       => Response::gather(glob('pages/*.*')), 
+      'pages'       => Response::pair(glob('pages/*.*')), 
       'description' => 'A tiny templating framewqrk, no dependencies.',
       'timestamp'   => new DateTime,
       'title'       => 'Diatom Micro Framework',
     ];
     
-    $response = new Response($request);
+    $response = new Response($request, $data);    
     $output   = Route::compose($response);
 
     if ($output instanceof Template) {
-      $output = $output->render($response->merge($data));
+      $output = $output->render($response->data);
+      if ($request->type == 'json'){
+        $output = json_encode(simplexml_import_dom($output));
+      }
     }
-        
-    if ($request->type == 'json'){
-      $output = json_encode(simplexml_import_dom($output));
-    }
-    
   }
   
 } catch (Exception | Error $e) {
 
   http_response_code($e->getCode() ?: 400);
-
-  $output = Request::GET('error')->render([
-    'wrapper' => 'txmt://open',
+  
+  $output = Request::open('error', [
+    'wrapper' => CONFIG['dev'] ?? null,
     'message' => $e->getMessage(),
     'code'    => $e->getCode(),
     'file'    => $e->getFile(),
@@ -60,5 +59,5 @@ try {
 } finally {
 
   echo $output;
-  
+
 }
