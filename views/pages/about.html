@@ -22,9 +22,9 @@
   </header>
   <section class="columns">
     <h2>Philosophy</h2>
-    <p>I was going through archived work one day and found that anything written between 3 and 12 years ago was pretty much non-functional. Oddly, anything older was <em>perfectly intact</em> because it was just directories of html, css, and JavaScript. Granted, it took me a lot of keystrokes to make websites back then, but at least those keystrokes aren't rendered meaningless by outdated and unsupported frameworks, databases, and fads.</p>
+    <p>I was going through archived work one day and found that anything written between 3 and 12 years ago was pretty much non-functional. Oddly, anything older was mostly intact directories of html, css, and JavaScript. Granted, it took a lot of keystrokes to make websites back then, but at least those keystrokes aren't rendered meaningless by outdated and unsupported frameworks, databases, and fads.</p>
     <p>I spent years and years working on a few projects that I am still very proud of today under the full realization that I will probably never see them again&#x2014;many of which have work and concepts that I would love to revisit, if only for nostalgia.</p>
-    <p>As an homage to that era, I have been developing a system that allows an author to focus on constructing the user experience&#x2014;html, <abbr>css</abbr>, and JavaScript&#x2014;in a way that doesn't feel inelegant. The power of dynamic, data driven programming, but here the templates are the data, written in vanilla markup and the complex programming components adhere to <a href="#fn-paradigms">standard paradigms [1]</a>.</p>
+    <p>As an homage to that era, I have been developing a system that allows an author to focus on constructing the user experience&#x2014;html, <abbr>css</abbr>, and JavaScript&#x2014;in a way that doesn't feel as inelegant or repetitive as a classic HTML site, but still allows an author to write almost exclusively in those languages (including markdown) if desired. There is still dynamic, data driven programming, but the templates take center stage and complex elements can be handled by adherence to <a href="#fn-paradigms">standard paradigms [1]</a> or easy api integrations.</p>
     <p>Stylesheets and JavaScript can be embedded and encoded in numerous ways, extemporaneously or calculated, to match the ebb and flow of developing ideas. Templates themselves can be mixed and match and embedded, so duplication is avoided. Data can be modeled and applied, and controllers can be declared whenever an idea becomes too complicated for the defaults in place.</p>
     <p>The last hurdle for a modern application is editing, and this is where creative breakthroughs occur.</p>
     <p>The ultimate goal is to <strong>build more interesting websites,</strong> that could function as applications, but are developed more like the websites of yesteryear. They can be trivial, exploratory, narrative-based, utilize data, and any number of other goals that need not require administrative interfaces.</p>
@@ -40,7 +40,13 @@
     </ul>
   </section>
   <section>
-    <h2>Use Cases</h2>
+    <h2>Usage</h2>
+    <h3>Most Basic</h3>
+    <p>Create new html files. Set processing instructions to deal with them. Append JS files wherever you want as script src='file.js', don't worry about lazy loading, domready or anything, it will just work. Same with CSS, just embed a style element or link wherever, and it will find its way to the right spot in the template. This is the coolest part of the intire thing.</p>
+    <h3>Some Programming</h3>
+    <p>In index.php file, set routes to enhance basic templates, receive webhooks, generate custom templates, accept parameters.</p>
+    <h3>Lots more programming</h3>
+    <p>Create models, work with a database, connect to APIs for Oauth, etc.</p>
     <p>Almost any site could employ some feature of this framework methodology. At its very lightest, an application can be an easily editable boilerplate producer&#x2014;incredibly convenient for sites that don't require user-generated content.. The next step up would be a framework that does employ some sort of database, but still has pretty standard layouts and several pages of bolerplate&#x2014;this framework makes an excellent template preprocessor.</p>
     <p>An API could be facilitated with the routing paradigm, or a receiver of webhooks.</p>
   </section>

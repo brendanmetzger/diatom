@@ -5,29 +5,30 @@ if (php_sapi_name() == 'cli') {
   
   if (phpversion() < 7.4) die("PHP 7.4+ required; (`brew install php` should be up-to-date)\n");
   
-  $input  = fopen ('php://stdin', 'r');
-  $prompt = function($message) use ($input){
-    echo $message . ': ';
-    return trim(fgets($input));
-  };
   
-  // permanently specify a port here if desired
-  $port = $argv[1] ?? null ?? intval($prompt("Please Specify a port number"));
-  $host = "127.0.0.1:{$port}";
-  
+  $host = "127.0.0.1:8888";
+  $log  = 'log.txt';
   if ($running = shell_exec(sprintf('ps | grep "[p]hp -S %s"', $host))) {
-    
-    $info   = preg_split('/\s+/', trim($running));
 
-    $message = sprintf("This host is already active \033[1;1;32m(pid %s)\033[0m. Kill process?\n\n[y/n]", $info[0]);
-    
-    if (strtolower($prompt($message)) === 'y')
+    $input = fopen('php://stdin', 'r');
+    $info  = preg_split('/\s+/', trim($running));
+
+    echo sprintf("Server active: \033[1;1;32m[enter]\033[0m to kill (pid %s) \033[1;31m[any key]\033[m to abort\n", $info[0]);
+
+    if (empty(trim(fgets($input)))) {
+      unlink($log);
       shell_exec("kill -2 {$info[0]}");
-    
+      echo "empty logs, server off.\n";
+    }
+      
+
     exit();
-    
-  } else {
-    exec(sprintf('%s -S %s %s > log.txt 2>&1 &', exec('which php'), $host, 'index.php'));
-    exec(sprintf('open -a "Google Chrome" http://%s/', $host));
+
   }
+  
+  echo "Starting localhost server on port 8888 (modify port if necessary and/or delete message)\n";
+  exec(sprintf('%s -S %s %s > %s 2>&1 &', exec('which php'), $host, 'index.php', $log));
+  exec(sprintf('open -a "Google Chrome" http://%s/', $host));
+  echo "run `bin/server` stop this server.\n" ;
+
 }

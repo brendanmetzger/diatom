@@ -2,9 +2,9 @@
 
 Over the last decade I've encountered some principles that work as design guidelines as I develop, so I thought I'd share.
 
-1. Dependencies will eventually break something (avoid them as much as possible)
-2. When controlling flow, try to avoid conditions (try to avoid them generally) in favor of loops and other data-structured implementations and null-coalescing syntax [1]
-3. A well designed application does not need to be heavily configured, rather, just adhere to patterns set forth. Configuration should track arbitrarily named things: ie, if it seems like it would never change for any reason, then it is not a configuration.
+1. Dependencies are the boxed macaroni and cheese of skill and creativity, and easily lead to gastric distress.
+2. When controlling flow, avoid conditions, make a game of avoiding conditions and things always turn out better. (ie, use iterators or data-structures amenable to looping, use null-coalescing syntax  for checking up on things [1]
+3. A well designed application barely needs configuration, just an adherence to patters set forth. Configuration should track arbitrarily named things: ie, if it seems like it would never change for any reason, then it is not a configuration and it should fit into a static parttern—a digression to say this is way I cannot tolerate almost any framework in existence, either for the config it takes to develop in, or the config it takes to deploy somewhere.
 4. The most complex parts of a program—and I don't think avoiding complexity is particularly realistic goal—should be done in an agnostic format, like sql, xpath, or regular expressions. 
 
 [1] examples
