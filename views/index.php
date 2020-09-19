@@ -2,7 +2,7 @@
 
 define('CONFIG', parse_ini_file('../data/config.ini'));
 
-require_once '../src/diatom.php';
+require_once '../src/kernel.php';
 
 
 /*** IMPLEMENTATION *******************************************************************************/

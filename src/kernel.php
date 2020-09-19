@@ -5,18 +5,6 @@ set_include_path(dirname(__FILE__));
 libxml_use_internal_errors(true);
 spl_autoload_register();
 
-/*
-  TODO [ ] Make sure processing instructions become template variables
-       [ ] set Routes as objects instead of storing the value to be called, that can have addn. params like authentication, cacheing, etc
-       [ ] Figure out nested scopes in Template::getSlugs
-       [ ] add a constructor to Element that htmlentities content, maybe parses it too.., or deals
-       [ ] File class should be refactored to save itself. perhaps on __destruct?
-       [ ] have file resolve the path to the app directory if not absolute
-       [ ] when `yield 'keyword'` exists in multiple contexts, becomes unpredictable (ie, in main layout and a template view)
-       [ ] extract cURL (esp Request::make) stuff into it's own class outside of this file, and name generic so it acts as abstraction (like 'HTTP::GET')
-       [ ] Refactor Template parsing as a type of Route/Response mechanism, so embedding routes becomes defacto instead of backup
-       [ ] develop alternative to parsing pages dir on each request.
-*/
 
 ###################################################################################################
 # Route | Provides two useful methods to enable routing methods specified by a user's request
