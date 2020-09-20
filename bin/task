@@ -1,0 +1,45 @@
+#!/usr/bin/php
+<?php
+
+# regardless of where this script is executed, change our working directory to the application root
+chdir(dirname(__FILE__).'/..');
+
+# Require the framework file (this allows the file name to be changed easily, or broken out into separate files
+require 'src/kernel.php';
+
+# Include the configuration file
+define('CONFIG', parse_ini_file('data/config.ini'));
+
+
+
+
+Route::bench(function($input = null) {
+  $time = microtime(true);
+    
+  $parse = new Parser('data/benchmarks/bootstrap.md');
+  
+  echo $parse;
+
+  return (microtime(true) - $time);
+});
+
+## Implementation
+
+try {
+  
+  $command = new Command(array_slice($argv,1));
+  $output  = Route::compose($command);
+  
+} catch (Exception | Error $e) {
+  $output = sprintf("\n\033[0;31m%s\033[0m\n", $e->getMessage());
+  $output .= sprintf("line %s in %s\n", $e->getLine(), $e->getFile());
+  
+} finally {
+
+  echo $output;
+  echo "\n-- Finished {$command->action} -- \n";
+  exit($command->status);
+  
+}
+
+

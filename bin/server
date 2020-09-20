@@ -7,7 +7,7 @@ if (php_sapi_name() == 'cli') {
   
   
   $host = "127.0.0.1:8888";
-  $log  = 'log.txt';
+  $log  = 'app.log';
   if ($running = shell_exec(sprintf('ps | grep "[p]hp -S %s"', $host))) {
 
     $input = fopen('php://stdin', 'r');
@@ -27,7 +27,7 @@ if (php_sapi_name() == 'cli') {
   }
   
   echo "Starting localhost server on port 8888 (modify port if necessary and/or delete message)\n";
-  exec(sprintf('%s -S %s %s > %s 2>&1 &', exec('which php'), $host, 'index.php', $log));
+  exec(sprintf('php -S %s %s > %s 2>&1 &', $host, 'index.php', $log));
   exec(sprintf('open -a "Google Chrome" http://%s/', $host));
   echo "run `bin/server` stop this server.\n" ;
 

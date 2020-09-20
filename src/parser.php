@@ -84,7 +84,7 @@ class Block {
   private static $rgxp;
 
   public function __construct(?Token $token = null) {
-    self::$rgxp ??= sprintf("/\s*(?:%s)/Ai", implode('|', array_map(fn($x) => "($x)", Token::BLOCK['rgxp'])));
+    self::$rgxp ??= sprintf("/^\s*(?:%s)/Ai", implode('|', array_map(fn($x) => "($x)", Token::BLOCK['rgxp'])));
     if ($token) $this->push($token);
   }
   
@@ -162,7 +162,7 @@ class Block {
     if ($token->name == 'pi' && $doc = $context->ownerDocument)
       return $doc->insertBefore(new DOMProcessingInstruction(...explode(' ', $token->value, 2)), $doc->firstChild);
     
-    # TODO check the depth and decide if it's time to move up or down (might be a good fit for diatom Element enhancments)
+    # TODO check the depth and decide if it's time to move up or down (might be a good fit for kernel Element enhancments)
     if ($token->element && $context->nodeName != $token->name)
      $context = $context->appendChild(new DOMElement($token->name));
     
@@ -200,7 +200,7 @@ class Inline {
   public function __construct(DOMElement $node) {
     self::$rgxp ??= [
       'pair' => sprintf('/(%s)((?:(?!\1).)+)\1/u', join('|', array_map(fn($k)=> addcslashes($k, '!..~'), array_keys(Token::INLINE)))),
-      'link' => '/(!?)\[([^\]]+)\]\((\S+)\s*(?:\"(.*)\")?\)/u'
+      'link' => '/(!?)\[([^\[\]]++|(?R))\]\((\S+?)\s*(?:\"(.*)\")?\)/u'
     ];
     
     $this->DOM  = $node->ownerDocument;
@@ -218,7 +218,6 @@ class Inline {
       ...$this->gather(self::$rgxp['pair'], $text, [$this, 'basic']),
       ...$this->gather('/\{([a-z]+)\:(.+?)\}/u', $text, [$this, 'tag'])
     ];
-    
 
     if ($node->nodeName == 'li')
       array_push($matches, ...$this->gather('/^\[([x\s])\](.*)$/u', $text, [$this, 'input']));
@@ -280,7 +279,6 @@ class Inline {
       $node->setAttribute('src', $url[0]);
       $node->setAttribute('alt',  $text[0]);
     } else {
-      
       $node = $this->DOM->createElement('a', htmlspecialchars(trim($text[0]), ENT_XHTML, 'UTF-8', false));
       $node->setAttribute('href', $url[0]);
     }
