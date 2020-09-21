@@ -3,9 +3,7 @@
 class Parser {
 
   public $DOM, $context = null;
-    
-  static private $callbacks = [];
-  
+      
   public function __construct(string $input, string $xml = '<article/>', string $xpath = '/*') {
     $this->DOM     = new Document($xml);
     $this->context = $this->DOM->select($xpath) ?? $this->DOM->documentElement;
@@ -16,7 +14,11 @@ class Parser {
   
   static public function load(File $file) {
     $ext = ['css' => '<style/>', 'js' => '<script/>', 'txt' => '<pre/>'];
-    if (isset($ext[$file->type])) {
+    
+    if ($file->type == 'md') {
+      return Render::DOM(new self($file->body));
+    } 
+    else if (isset($ext[$file->type])) {
       $DOM = new Document($ext[$file->type]);
       $DOM->documentElement->appendChild(new Text($file->body));
       return $DOM;
@@ -39,7 +41,6 @@ class Parser {
   }
     
   public function __toString() {
-    foreach (self::$callbacks as $callback) call_user_func($callback, $this->DOM);
     return $this->DOM->saveXML();
   }
   
@@ -112,7 +113,6 @@ class Block {
     return $this;
   }
   
-  
   public function capture(string $line)
   {
     if (! $token = $this->parse($line))
@@ -163,24 +163,28 @@ class Block {
   
   private function append($context, $token)
   {
-    if ($token->name == 'comment')
-      return $context->appendChild(new DOMComment($token->value));
+    if ($token->name == 'comment') {
+      $context->appendChild(new DOMComment($token->value));
+      return $context;
+    }
 
-    if ($token->name == 'pi' && $doc = $context->ownerDocument)
-      return $doc->insertBefore(new DOMProcessingInstruction(...explode(' ', $token->value, 2)), $doc->firstChild);
+    if ($token->name == 'pi' && $doc = $context->ownerDocument) {
+      $doc->insertBefore(new DOMProcessingInstruction(...explode(' ', $token->value, 2)), $doc->firstChild);
+      return $context;
+    }
+      
     
     # TODO check the depth and decide if it's time to move up or down (might be a good fit for kernel Element enhancments)
-    if ($token->element == 'li' && $context->nodeName != $token->name)
+    if ($token->element && $token->name != 'CDATA' && $context->nodeName != $token->name)
      $context = $context->appendChild(new DOMElement($token->name));
     
     $element = $context->appendChild(new DOMElement($token->element ?? $token->name));
     
-    if ($token->name === 'hr') return $context;
+    if ($token->name === 'hr')
+      return $context;
     
-    if ($token->name === 'CDATA') {
+    if ($token->name === 'CDATA')
       return $element->appendChild(new DOMCdataSection($token->text));
-    }
-      
     
     $element->nodeValue = preg_replace(['/(?<=\s)\'/u', '/(?<=\S)\'/u', '/\s?--\s?/u'], ['‘', '’', '—'], htmlspecialchars($token->value, ENT_XHTML, 'UTF-8', false));
     // Inline::format($element);
@@ -191,12 +195,9 @@ class Block {
 }
 
 /*
-  TODO consider extending DOMText so usage isn't
-  
-  Inline::parse($elem);
-  
-  $parent->appendChild(new Inline($token->value));
-  and can do things like $this->splitText($offset)...
+  TODO consider Inline extends DOMText  
+  ... ie. $parent->appendChild(new Inline($text));
+  and can do things like $this->splitText($offset) within Inline class
 */
 
 # note: (?<=<)(?:https?:\/)?\/(.+?)(?=\/).*(?=>) can find links with the <> encapsulation.
@@ -207,7 +208,8 @@ class Inline {
   
   private $DOM, $node;
   
-  public function __construct(DOMElement $node) {
+  public function __construct(DOMElement $node)
+  {
     self::$rgxp ??= [
       'pair' => sprintf('/(%s)((?:(?!\1).)+)\1/u', join('|', array_map(fn($k)=> addcslashes($k, '!..~'), array_keys(Token::INLINE)))),
       'link' => '/(!?)\[([^\[\]]++|(?R))\]\((\S+?)\s*(?:\"(.*)\")?\)/u'
@@ -217,8 +219,8 @@ class Inline {
     $this->node = $node;
   } 
   
-  public function parse(?DOMElement $node = null) {
-    
+  public function parse(?DOMElement $node = null)
+  {
     $node ??= $this->node;
 
     $text = $node->nodeValue;
@@ -307,5 +309,59 @@ class Inline {
     if ($checked[0] != ' ') $input->setAttribute('checked', 'checked');
     $out = mb_strlen($match[0]);
     return [0, $out, $out, $node];
+  }
+}
+
+  
+class Render
+{
+  private $document, $renders = [];
+  private function __construct(Document $document)
+  {
+    $this->document = $document;
+    if ($pi = $this->document->select("//processing-instruction('render')"))
+      $this->renders = explode(',', trim($pi->data));
+  }
+  
+  static public function DOM(Parser $parser) {
+    $instance = new self($parser->DOM);
+    
+    foreach($instance->renders as $method) {
+      $instance->{$method}();
+    }
+    
+    return $instance->document;
+  }
+  
+  private function sections(?Element $context = null, int $level = 2)
+  {
+    if ($level > 4) return;
+    
+    $flag     = "h{$level}";
+    $context??= $this->document->documentElement;
+    $nodeName = $level > 3 ? 'aside' : 'section';
+    $sections = $this->document->find($flag, $context);
+
+    if ($sections->length > 0) {
+
+      foreach ($sections as $node) {
+
+        $nodeName = strtolower(substr($node->nodeValue, 0, 4)) == 'foot' ? 'footer' : $nodeName;
+        $section  = new Element($nodeName);
+
+        $section->appendChild($node->parentNode->replaceChild($section, $node));
+        $sibling = $section->nextSibling;
+  
+        while($sibling && $sibling->nodeName != $flag && $sibling->nodeName != $nodeName) {
+          $next = $sibling->nextSibling;
+          $section->appendChild($sibling);
+          $sibling = $next;
+        }
+      
+        $this->sections($section, $level+1);
+      }
+    } else {
+      $this->sections($context, $level+1);
+    }
   }
 }

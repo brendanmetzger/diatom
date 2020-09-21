@@ -625,7 +625,8 @@ class Document extends DOMDocument
       $DOM = (substr($file->mime, -2) == 'ml') ? new self($file->body, $opt) : Parser::load($file);
     } catch (ParseError $e) {
       $err = (object)libxml_get_errors()[0];
-      throw new ErrorException($err->message, 500, E_ERROR, realpath($path), $err->line, $e);
+      $hint = substr(file($path)[$err->line-1], max($err->column - 10, 0), 20);
+      throw new ErrorException($err->message . ", around: '{$hint}'", 500, E_ERROR, realpath($path), $err->line, $e);
     }
 
     foreach ($DOM->find("/processing-instruction()") as $pi)

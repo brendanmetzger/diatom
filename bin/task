@@ -13,13 +13,28 @@ define('CONFIG', parse_ini_file('data/config.ini'));
 
 
 
-Route::bench(function($input = null) {
+Route::markdown(function($input = null) {
   $time  = microtime(true);  
-  $parse = new Parser('data/benchmarks/bootstrap.md');
+  $parse = new Parser('views/pages/about.md');
   
   echo $parse;
 
   return round((microtime(true) - $time) * 1000) . "ms";
+});
+
+
+Route::bench(function() {
+  $files = glob('views/pages/*.*');
+  $time = microtime(true);
+  Response::pair($files);
+  
+  echo round((microtime(true) - $time) * 1000) . "ms for compile\n";
+  
+  $time = microtime(true);
+  echo md5(join('', array_map(fn($file) => filemtime($file), $files))) . "\n\n";
+    // compute signatures
+  echo round((microtime(true) - $time) * 1000) . "ms for hash\n";
+  return "\n done\n";
 });
 
 ## Implementation

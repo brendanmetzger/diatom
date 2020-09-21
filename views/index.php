@@ -47,9 +47,9 @@ try {
 } catch (Exception | Error $e) {
 
   http_response_code($e->getCode() ?: 400);
-  
+  // $toarr = (array)$e;
   $output = Request::open('error', [
-    'wrapper' => CONFIG['dev'] ?? null,
+    'wrapper' => CONFIG['DEV'] ?? null,
     'message' => $e->getMessage(),
     'code'    => $e->getCode(),
     'file'    => $e->getFile(),

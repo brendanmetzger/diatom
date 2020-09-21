@@ -3,6 +3,10 @@
   --thin-rule: 1px solid rgba(0,0,0,0.1);
   font-family: 'Baskerville';
   color: #333;
+  column-gap: 2rem;
+  column-rule: var(--thin-rule);
+  column-fill:balance-all;
+  --columns: 20em auto;
 }
 
 * { box-sizing: border-box }
@@ -15,7 +19,8 @@
 }
 
 body, h1,h2,h3,h4,h5, div {margin: 0;}
-section {margin: 10rem 0;}
+
+section {margin: 5rem 0;}
 
 
 body {
@@ -38,4 +43,3 @@ code {
   padding:0;
 }
 
-.columns {columns: 20em auto;column-gap: 2rem;column-rule: var(--thin-rule);column-fill:balance-all;}
