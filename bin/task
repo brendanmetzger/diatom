@@ -14,13 +14,12 @@ define('CONFIG', parse_ini_file('data/config.ini'));
 
 
 Route::bench(function($input = null) {
-  $time = microtime(true);
-    
+  $time  = microtime(true);  
   $parse = new Parser('data/benchmarks/bootstrap.md');
   
   echo $parse;
 
-  return (microtime(true) - $time);
+  return round((microtime(true) - $time) * 1000) . "ms";
 });
 
 ## Implementation

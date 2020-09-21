@@ -51,8 +51,8 @@ class Parser {
 class Token {
   
   const BLOCK = [
-    'name' => [ 'ol'    , 'ul' ,  'h%d'  ,  'pre' , 'blockquote',  'hr'  ,'comment', 'pi', 'p' ],
-    'rgxp' => ['\d+\. ?', '- ' ,'#{1,6}' , '`{3}' ,   '> ?'     , '-{3,}',  '\/\/' , '\?', '\S'],
+    'name' => [ 'ol'    , 'ul' ,  'h%d' ,'CDATA', 'blockquote',  'hr'  ,'comment', 'pi', 'p' ],
+    'rgxp' => ['\d+\. ?', '- ' ,'#{1,6}','`{3}' ,   '> ?'     , '-{3,}',  '\/\/' , '\?', '\S'],
   ];
   
   const INLINE = [
@@ -72,8 +72,11 @@ class Token {
   function __construct($data) {
     foreach ($data as $prop => $value) $this->{$prop} = $value;
     $this->value =  trim(substr($this->text, $this->name == 'p' ? 0 : $this->trim * $this->depth));
-    if ($this->context = in_array($this->name, ['pre','ol','ul','blockquote'])) {
-     $this->element = ['pre' => 'code', 'blockquote' => 'p'][$this->name] ?? 'li'; 
+    if ($this->context = in_array($this->name, ['CDATA','ol','ul','blockquote'])) {
+      if ($this->name == 'CDATA')
+        $this->element = trim(substr($this->text, 3)) ?: 'pre';
+      else 
+        $this->element = $this->name == 'blockquote' ? 'p' : 'li';
     }
   }
 }
@@ -123,15 +126,19 @@ class Block {
   
   public function evaluate(Token $token)
   {
-    if ($this->trap || $token->name === 'pre') {
-
-      if ($this->trap === false && $this->trap = $token->flag)
-        return $this;
+    
+    if ($this->trap || $token->name === 'CDATA') {
+      if ($this->trap === false && $this->trap = $token->flag) {
+        $token->text = "\n";
+        return $this->push($token);
+      }
+        
 
       elseif ($this->trap == trim($token->text))
         return new self;
 
-      $token->name = 'pre';
+      $token->name = 'CDATA';
+
       return $this->push($token);
     }
     
@@ -163,18 +170,21 @@ class Block {
       return $doc->insertBefore(new DOMProcessingInstruction(...explode(' ', $token->value, 2)), $doc->firstChild);
     
     # TODO check the depth and decide if it's time to move up or down (might be a good fit for kernel Element enhancments)
-    if ($token->element && $context->nodeName != $token->name)
+    if ($token->element == 'li' && $context->nodeName != $token->name)
      $context = $context->appendChild(new DOMElement($token->name));
     
     $element = $context->appendChild(new DOMElement($token->element ?? $token->name));
     
     if ($token->name === 'hr') return $context;
     
-    if ($token->name === 'pre')
+    if ($token->name === 'CDATA') {
       return $element->appendChild(new DOMCdataSection($token->text));
+    }
+      
     
     $element->nodeValue = preg_replace(['/(?<=\s)\'/u', '/(?<=\S)\'/u', '/\s?--\s?/u'], ['‘', '’', '—'], htmlspecialchars($token->value, ENT_XHTML, 'UTF-8', false));
-    Inline::format($element);
+    // Inline::format($element);
+    (new Inline($element))->parse();
 
     return $context;
   }
@@ -225,10 +235,9 @@ class Inline {
     usort($matches, fn($A, $B)=> $B[2] <=> $A[2]);
 
     foreach ($matches as $i => [$in, $out, $end, $elem]) {
-      // skip nested.. parsed separately
+      // skip nested.. parsed recursively
       if ($i > 0 && $in > $matches[$i-1][0]) {
         $matches[$i] = $matches[$i-1];
-
         continue;
       }
 
