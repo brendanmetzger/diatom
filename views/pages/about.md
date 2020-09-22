@@ -14,6 +14,7 @@ article {
 article > section:first-of-type {
   columns: var(--columns);
 }
+
 section:first-of-type > h2 {
   margin: 0;
   padding: 1rem;
@@ -34,6 +35,18 @@ h1 {
 
 # Diatom
 #### An homage to websites
+
+```
+
+example
+
+   formatted
+   
+   weirdly
+   
+   > this is that
+   
+```
 
 
 ## Philosophy
@@ -65,6 +78,8 @@ The ultimate goal is to **build more interesting websites,** that could function
 ### Most Basic
 
 Create new html files. Set processing instructions to deal with them. Append JS files wherever you want as script src='file.js', don't worry about lazy loading, domready or anything, it will just work. Same with CSS, just embed a style element or link wherever, and it will find its way to the right spot in the template. This is the coolest part of the intire thing.
+
+
 ### Some Programming
 
 In index.php file, set routes to enhance basic templates, receive webhooks, generate custom templates, accept parameters.
@@ -104,12 +119,14 @@ All of the above can, of course, be changed--but you wouldn't change a configura
 
 
 
+## Milestone Goals
 
 
 
-// insert pages/todo.html
+// insert pages/todo.md //ul
 
 ``` script
+
 document.querySelector('article > section:first-of-type').addEventListener('click', evt => {
   alert('you clicked the first section!');
 });

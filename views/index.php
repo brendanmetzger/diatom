@@ -31,6 +31,7 @@ try {
       'description' => 'A tiny templating framewqrk, no dependencies.',
       'timestamp'   => new DateTime,
       'title'       => 'Diatom Micro Framework',
+      'test'        => [['key' => 'A'], ['key' => 'B']],
     ];
     
     $response = new Response($request, $data);    

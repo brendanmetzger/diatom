@@ -654,7 +654,7 @@ Document::on('close', function (Document $DOM) {
   foreach ($DOM->find('//style') as $node) {
     $text  = $node->replaceChild(new Text("\n    /**/\n    "), $node->firstChild)->nodeValue;
     $cb    = fn($matches) => join('', array_map('trim', explode("\n", $matches[0])));
-    $cdata = sprintf("*/\n    %s\n    /*", preg_replace_callback('(\{[^{]+\})', $cb, preg_replace('/\n\s*\n/', "\n", trim($text))));
+    $cdata = sprintf("*/\n    %s\n    /*", preg_replace_callback('/(\{[^{]+\})/', $cb, preg_replace('/\n\s*\n/', "\n    ", trim($text))));
     $node->insertBefore($DOM->createCDATASection($cdata), $node->firstChild->splitText(7));
   }
   

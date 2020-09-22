@@ -17,7 +17,9 @@ Route::markdown(function($input = null) {
   $time  = microtime(true);  
   $parse = new Parser('views/pages/about.md');
   
-  echo $parse;
+  // print_r(explode("\n", File::load('views/pages/about.md')->body));
+  
+  // echo Render::DOM($parse);
 
   return round((microtime(true) - $time) * 1000) . "ms";
 });

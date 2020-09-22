@@ -8,16 +8,16 @@ class Parser {
     $this->DOM     = new Document($xml);
     $this->context = $this->DOM->select($xpath) ?? $this->DOM->documentElement;
     $path  = substr($input, -3) == '.md' && strpos($input, "\n") === false;
-    $input = $path ? new SplFileObject($input) : explode("\n", $input);
+    $input = $path ? new SplFileObject($input) : array_map(fn($line) => $line . "\n", explode("\n", $input));
     foreach ($this->scan($input) as $block) $block->process($this->context);
   }
   
   static public function load(File $file) {
     $ext = ['css' => '<style/>', 'js' => '<script/>', 'txt' => '<pre/>'];
     
-    if ($file->type == 'md') {
-      return Render::DOM(new self($file->body));
-    } 
+    if ($file->type == 'md')
+      return Render::DOM(new self($file->uri));
+    
     else if (isset($ext[$file->type])) {
       $DOM = new Document($ext[$file->type]);
       $DOM->documentElement->appendChild(new Text($file->body));
@@ -115,8 +115,11 @@ class Block {
   
   public function capture(string $line)
   {
-    if (! $token = $this->parse($line))
+    if (! $token = $this->parse($line)) {
+      if ($this->trap) $this->push(new Token(['text' => $line]));
       return $this;
+    }
+      
     
     if ($token->context || $this->trap)
       return $this->evaluate($token);
@@ -153,7 +156,7 @@ class Block {
   {
     foreach($this->token as $token) {
       
-      if ($context instanceof DOMCharacterData) {
+      if ($context instanceof DOMText) {
         $context->appendData($token->text);
         continue;
       }
@@ -184,7 +187,7 @@ class Block {
       return $context;
     
     if ($token->name === 'CDATA')
-      return $element->appendChild(new DOMCdataSection($token->text));
+      return $element->appendChild(new DOMText($token->text));
     
     $element->nodeValue = preg_replace(['/(?<=\s)\'/u', '/(?<=\S)\'/u', '/\s?--\s?/u'], ['‘', '’', '—'], htmlspecialchars($token->value, ENT_XHTML, 'UTF-8', false));
     // Inline::format($element);
