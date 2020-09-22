@@ -1,7 +1,7 @@
 /* Variables */
 :root {
   --thin-rule: 1px solid rgba(0,0,0,0.1);
-  font-family: 'Baskerville';
+  font-family: dapifer, Baskerville,  Didot, 'Times New Roman';;
   color: #333;
   column-gap: 2rem;
   column-rule: var(--thin-rule);

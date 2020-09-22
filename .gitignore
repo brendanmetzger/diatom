@@ -6,3 +6,6 @@
 ehthumbs.db
 Thumbs.db
 *.log
+
+data/benchmarks
+data/cache

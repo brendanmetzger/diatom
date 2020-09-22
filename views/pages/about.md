@@ -1,5 +1,7 @@
+?title Philosophy, Usage, Etc.
 ?publish 1
 ?render sections
+?author Brendan Metzger
 
 
 ``` style
@@ -15,6 +17,11 @@ article > section:first-of-type {
   columns: var(--columns);
 }
 
+article > section:first-of-type p:first-of-type {
+  font-size: 162.5%;
+  line-height: 1;
+}
+
 section:first-of-type > h2 {
   margin: 0;
   padding: 1rem;
@@ -24,11 +31,22 @@ section:first-of-type > h2 {
 h1 {
   background-image:url(/ux/media/diatomea.jpg);
   mix-blend-mode:multiply;
+  font-family: dapifer-stencil, sans-serif;
+  font-weight: 900;
+  font-style: normal;
   background-size: auto 100%;
-  padding-left: 1.25em;
+  padding-left: 1.5em;
   background-repeat: no-repeat;
   font-size: 6em;
-  letter-spacing:-0.05em;
+  color: #444;
+}
+#usage {
+  overflow: auto;
+}
+#usage > section {
+  padding: 1rem;
+  width: 33.3%;
+  float: left;
 }
 
 ```
@@ -51,9 +69,10 @@ example
 
 ## Philosophy
 
-I was going through archived work one day and found that anything written between 3 and 12 years ago was pretty much non-functional. Oddly, anything older was mostly intact directories of html, css, and JavaScript. Granted, it took a lot of keystrokes to make websites back then, but at least those keystrokes aren't rendered meaningless by outdated and unsupported frameworks, databases, and fads.
 
-I spent years and years working on a few projects that I am still very proud of today under the full realization that I will probably never see them again--many of which have work and concepts that I would love to revisit, if only for nostalgia.
+An era of frameworks began--at least for me--in the late aughts, which means that 90% of my work between now is tucked away in a repository and probably never to be resurrected.
+
+Prior to that era, I have quite a bit of work that still holds up (at least technically), as it is just vanilla HTML/CSS. Something that I remember back then was how shitty browsers were, how hard it was to write JavaScript and CSS, how hard front-end debugging was. An now its sooooo much easier, yet, we have require.js and react, and I don't think I'm a luddite, but I don't quite get it.
 
 As an homage to that era, I have been developing a system that allows an author to focus on constructing the user experience--html, ^^Cascading StyleSheets^^, and JavaScript--in a way that doesn't feel as inelegant or repetitive as a classic HTML site, but still allows an author to write almost exclusively in those languages (including markdown) if desired. There is still dynamic, data driven programming, but the templates take center stage and complex elements can be handled by adherence to [standard paradigms](#fn-paradigms) or easy api integrations.
 

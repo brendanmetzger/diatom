@@ -259,7 +259,7 @@ class Response extends File implements Router
   
   public function yield($key, $template)
   {
-    if (! $this->layout && $this->body) $this->layout = new Template($this->body);
+    if (! $this->layout && $this->body) $this->layout = new Template(Document::open($this->body));
     $this->layout->set($key, $template);
   }
   
@@ -286,24 +286,25 @@ class Response extends File implements Router
   public function delegate($config) {
     if ($this->request->basic) {
       if ($config && ! ($config instanceof DOMNode)) return $config;
-      return new Template(($config instanceof DOMNode ? $config : $this->view), $this->layout);
+      return new Template(($config instanceof DOMNode ? $config : Document::open($this->view)), $this->layout);
     } else if ($this->body != $config)
       $this->yield(Template::YIELD, $config);
     else
-      $this->layout = new Template($config);
+      $this->layout = new Template(Document::open($config));
     
     return $this->layout;
   }
   
   static public function PAIR(array $files, $error = 'pages/error.html')
   {
+    $stash = sys_get_temp_dir() . '/' . md5(join(array_map('filemtime', $files)));
     $queue = new SplPriorityQueue;
     self::$pages['error'] = Document::open($error);
 
     foreach(Data::apply($files, 'Document::open') as $DOM) {
       $info  = $DOM->info;
       $info['route'] ??= $info['path']['filename'];
-      self::$pages[$info['route']] = $DOM;
+      self::$pages[$info['route']] = $info['src'];
       
       if (isset($info['publish']))
         $queue->insert($info, -$info['publish']);

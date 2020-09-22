@@ -26,8 +26,10 @@ try {
   } else {
 
     // Set Application data
+    $pages = Response::pair(glob('pages/*.*'));
+    
     $data = [
-      'pages'       => Response::pair(glob('pages/*.*')), 
+      'pages'       => $pages, 
       'description' => 'A tiny templating framewqrk, no dependencies.',
       'timestamp'   => new DateTime,
       'title'       => 'Diatom Micro Framework',

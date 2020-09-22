@@ -26,14 +26,14 @@ Route::markdown(function($input = null) {
 
 
 Route::bench(function() {
-  $files = glob('views/pages/*.*');
+  $files = glob('data/benchmarks/html/*.*');
   $time = microtime(true);
-  Response::pair($files);
+  // Response::pair($files);
   
-  echo round((microtime(true) - $time) * 1000) . "ms for compile\n";
+  // echo round((microtime(true) - $time) * 1000) . "ms for compile\n";
   
   $time = microtime(true);
-  echo md5(join('', array_map(fn($file) => filemtime($file), $files))) . "\n\n";
+  $id =  md5(join(array_map('filemtime', $files)));
     // compute signatures
   echo round((microtime(true) - $time) * 1000) . "ms for hash\n";
   return "\n done\n";
