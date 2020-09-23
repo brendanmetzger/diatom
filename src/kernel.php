@@ -50,7 +50,6 @@ class Route
       array_walk($queue, fn($info) => self::endpoint($info['route'], $info['src']));
       
     } else {
-      echo "DRAWING CACHE";
       foreach(Data::apply($files, 'Document::open') as $idx => $DOM) {
         $queue[$idx] = $DOM->info;
         $queue[$idx]['route'] ??= $queue[$idx]['path']['filename'];

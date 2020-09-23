@@ -9,8 +9,8 @@ class Bench {
   
   public $counter = 1;
   
-  private $mark   = [],
-          $splits = [];
+  private $mark  = [],
+          $split = [];
   
   static public $log = [];
   
@@ -20,8 +20,8 @@ class Bench {
   }
   
   public function split($key, $split = false) {
-    $this->mark[$key] = microtime(true);
-    if ($split) $this->split[$key] = $this->mark[$key] - $this->mark[$split];
+    $this->mark[$key] = hrtime(true);
+    if ($split) $this->split[$key] = ($this->mark[$key] - $this->mark[$split]) / 1e+6;
     return $split ? $this->split[$key] : $this->mark[$key];
   }
   

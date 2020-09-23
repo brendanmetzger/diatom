@@ -11,7 +11,6 @@ require_once '../src/kernel.php';
 
 try {
   if (CONFIG['dev'] ?? false) include 'edit.php';
-    
 
   $request   = new Request($_SERVER, 'index.html');
   
