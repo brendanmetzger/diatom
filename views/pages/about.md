@@ -56,43 +56,63 @@ h1 {
 
 ```
 
-example
+An homage
 
-   formatted
+   to
    
-   weirdly
+      > websites
    
-   > this is that
+   & craft.
    
 ```
+
+## Overview
+
+An era of frameworks began--at least for me--in the late aughts, which means that 90% of my work between then and now is tucked away in a repository and probably never to be resurrected.
+
+Prior to that era, I have quite a bit of work that still holds up (at least technically), as it is just vanilla HTML/CSS. Something that I remember back then was how shitty browsers were, how hard it was to write JavaScript and CSS, how hard front-end debugging was. An now its sooooo much easier, yet, we have require.js and react, and I don't think I'm a luddite, but I don't quite get it. The amount of configuration to run these things is a nightmare--perhaps it's a matter of perspective but I think it is uninteresting. I'd rather get lost in studying the actual engine of a rare Italian automobile than understand and study the assembly line at Ford.
+
+As an homage to that era, I have been developing a system that allows an author to focus on constructing the user experience--html, ^^Cascading Style Sheets^^, and JavaScript--in a way that doesn't feel as inelegant or repetitive as a classic HTML site, but still allows an author to write almost exclusively in those languages (including markdown) if desired. There is still dynamic, data driven programming, but the templates take center stage and complex elements can be handled with classic data models, controllers, or api integrations when necessary.
+
+Stylesheets and JavaScript can be embedded and encoded in numerous ways, extemporaneously or calculated, to match the ebb and flow of developing ideas. Templates themselves can be mixed and match and embedded, so duplication is avoided. Data can be modeled and applied, and controllers can be declared whenever an idea becomes too complicated for the defaults in place.
+
 
 
 ## Philosophy
 
 
-An era of frameworks began--at least for me--in the late aughts, which means that 90% of my work between now is tucked away in a repository and probably never to be resurrected.
-
-Prior to that era, I have quite a bit of work that still holds up (at least technically), as it is just vanilla HTML/CSS. Something that I remember back then was how shitty browsers were, how hard it was to write JavaScript and CSS, how hard front-end debugging was. An now its sooooo much easier, yet, we have require.js and react, and I don't think I'm a luddite, but I don't quite get it.
-
-As an homage to that era, I have been developing a system that allows an author to focus on constructing the user experience--html, ^^Cascading StyleSheets^^, and JavaScript--in a way that doesn't feel as inelegant or repetitive as a classic HTML site, but still allows an author to write almost exclusively in those languages (including markdown) if desired. There is still dynamic, data driven programming, but the templates take center stage and complex elements can be handled by adherence to [standard paradigms](#fn-paradigms) or easy api integrations.
-
-Stylesheets and JavaScript can be embedded and encoded in numerous ways, extemporaneously or calculated, to match the ebb and flow of developing ideas. Templates themselves can be mixed and match and embedded, so duplication is avoided. Data can be modeled and applied, and controllers can be declared whenever an idea becomes too complicated for the defaults in place.
-
-The last hurdle for a modern application is editing, and this is where creative breakthroughs occur.
-
 The ultimate goal is to **build more interesting websites,** that could function as applications, but are developed more like the websites of yesteryear. They can be trivial, exploratory, narrative-based, utilize data, and any number of other goals that need not require administrative interfaces.
      
-- Configuration is absolutely minimal, and it occurs in obvious places. (ie., templates are configured within the template itself)
-- sites created in this platform can be optimized and cached for production environments as an archive.
+- Configuration is absolutely minimal, and it occurs in obvious places, notably in a valid HTML template file (ie., if something is affecting the template, it should be configured in the template and avoid context switching)
+- sites created in this platform need not be optimized or cached, but can be scripted easily into a static archive (the fastest thing conceivably possible).
 - Optimized for ux and interactive content authorship
-- Fairly robust sites can measure less than 1000 ^^Source Lines Of Code^^ (of php that is)
-- content is authored by creating and organizing new html files (templates are html)
+- Fairly robust sites operate in less than 1000 ^^Source Lines Of Code^^ (of php that is)
 - custom programming and data processing can be configured in `Route` callbacks
 - *Diatom* as a guiding concept melts away as an application develops its own character, and can be rewritten and amended without complaint as it is an independent piece of software.
 - No dependencies
 
 
-## Usage
+> Over the last decade I've encountered some principles that work as design guidelines as I develop, so I thought I'd share.
+
+1. Dependencies are the boxed macaroni and cheese of skill and creativity, and easily lead to gastric distress.
+2. When controlling flow, avoid conditions, make a game of avoiding conditions and things always turn out better. (ie, use iterators or data-structures amenable to looping, use null-coalescing syntax  for checking up on things [1]
+3. A well designed application barely needs configuration, just an adherence to patters set forth. Configuration should track arbitrarily named things: ie, if it seems like it would never change for any reason, then it is not a configuration and it should fit into a static parttern—a digression to say this is way I cannot tolerate almost any framework in existence, either for the config it takes to develop in, or the config it takes to deploy somewhere.
+4. The most complex parts of a program—and I don't think avoiding complexity is particularly realistic goal—should be done in an agnostic format, like sql, xpath, or regular expressions. 
+
+
+
+## Templating
+
+Content is authored by creating and organizing new html files--regular HTML files. One of the more thorough features is the nature of templating, because the analogy holds for simple cases: you want a new page on the site, you create a new page in the appropriate directory. 
+
+### Validity guaranteed and atomic
+
+Templates refuse to allow a mistake when it comes to format--whether its redeclaring an attribute, undeclared entities, or forgetting to close an element. While this seems draconian, when your templates are valid, they are now data, and you can query them, reorganize them, and do all sorts of marvelous things.
+
+In addition, the way routes are parsed, if there is an error in any page the application will throw a fatal error; mistakes in rarely seen pages of minutia are not going to remain unnoticed. What this ultimately affords is confidence, as we are all biased to address things noticeable, which is why front-end development seems to take 500% longer than back-end development. When you make front-end development the crux of back-end development, one can change the dynamic of how to balance attention to details.
+
+## Authoring
+
 
 ### Most Basic
 
@@ -101,7 +121,12 @@ Create new html files. Set processing instructions to deal with them. Append JS 
 
 ### Some Programming
 
-In index.php file, set routes to enhance basic templates, receive webhooks, generate custom templates, accept parameters.
+Routing is done with callbacks. In `index.php` file, set routes to enhance basic templates, receive webhooks, generate custom templates, accept parameters.For more complicated methods, a controller can be specified as a callback. Some guidance on when/how to use controllers:
+
+- A good design technique to employ; methods in a controller should be prepared share a base template (forms, listings, cards) and customize that as necessary.
+- The anonymous class should inherit from the abstract `controller` class somewhere in the foodchain
+
+
 
 ### Lots more programming
 
@@ -121,9 +146,9 @@ A pure html site is rather burdensome to manage if you treat html as extraneous 
 - CSS
 - Javascript
 
-JavaScript can be a mess, and it can be frighteningly complicated; this framework alleviates some of that by allowing you great freedom to just write your javascript wherever you want, and include it as a script with a src, or just plop it right into a template. Don't worry about `DOMready` or any of that stuff, [that has been taken care of](#fn-lazyjs)
+JavaScript can be a mess, and it can be frighteningly complicated; this framework alleviates some of that by allowing you great freedom to just write your javascript wherever you want, and include it as a script with a src, or just plop it right into a template. Don't worry about `DOMready` or any of that stuff, just write principled javascript at the point of interest and it should work out alright.
 
-CSS, similar to javascript, can be linked and [included in any template](#fn-lazycss)
+CSS, similar to javascript, can be written in a `<style>` element directly in any page or a stylesheet added with `<link/>`. 
 
 ### Directory Layout
 

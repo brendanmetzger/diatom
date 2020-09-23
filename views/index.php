@@ -28,7 +28,7 @@ try {
     
     $data = [
       'pages'       => $pages, 
-      'description' => 'A tiny templating framewqrk, no dependencies.',
+      'description' => 'A modeled templating framework, no dependencies.',
       'timestamp'   => new DateTime,
       'title'       => 'Diatom Micro Framework',
       'test'        => [['key' => 'A'], ['key' => 'B']],
