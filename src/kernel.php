@@ -309,7 +309,6 @@ class Template
     if ($input instanceof Element) {
       $this->DOM = new Document($input->export());
       $this->DOM->info = $input->ownerDocument->info ?? null;
-      foreach (Document::$callbacks['open'] as $render) call_user_func($render, $this->DOM);
     } else {
       $this->DOM = $input;
     }
@@ -441,8 +440,7 @@ class Document extends DOMDocument
   public  $info  = [];
   private $xpath = null,
           $props = [ 'preserveWhiteSpace' => false, 'formatOutput' => true, 'encoding' => 'UTF-8'];
-          
-  static public $callbacks = ['open' => [], 'close' => []];
+
   static private $cache = [];
   public function  __construct(string $xml, array $props = [])
   {
@@ -478,15 +476,10 @@ class Document extends DOMDocument
     
   public function __toString()
   {
-    foreach (self::$callbacks['close'] as $render) call_user_func($render, $this);
     $prefix = $this->documentElement->nodeName == 'html' ? "<!DOCTYPE html>\n" : '';
     return $prefix . $this->saveXML($this->documentElement);
   }
-  
-  static public function on(string $type, callable $callback) {
-    self::$callbacks[$type][] = $callback;
-  }
-  
+    
   // accepts string|File
   static public function open($path, $opt = [])
   {
@@ -514,13 +507,10 @@ class Document extends DOMDocument
     $DOM->info['path']    = $file->info;
     $DOM->info['title'] ??= $DOM->info['path']['filename'];
 
-    foreach (self::$callbacks['open'] as $render) call_user_func($render, $DOM);
-
     return self::$cache[$key] = $DOM;
   }
   
 }
-
 
 
 ###################################################################################################
