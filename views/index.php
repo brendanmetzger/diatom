@@ -10,7 +10,6 @@ require_once '../src/kernel.php';
 
 
 try {
-  
   if (CONFIG['dev'] ?? false) include 'edit.php';
     
 
@@ -26,7 +25,7 @@ try {
   } else {
 
     // Set Application data
-    $pages = Response::pair(glob('pages/*.*'));
+    $pages = Route::gather(glob('pages/*.*'));
     
     $data = [
       'pages'       => $pages, 
@@ -63,5 +62,6 @@ try {
 } finally {
 
   echo $output;
+  
 
 }

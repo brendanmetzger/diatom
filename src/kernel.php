@@ -13,7 +13,7 @@ spl_autoload_register();
 
 class Route
 {
-  static private $actions = [];
+  static private $actions = [], $paths = [];
   
   // private function __construct(callable $action, $view = null) {
   //   # code...
@@ -31,6 +31,35 @@ class Route
   static public function __callStatic($action, $arguments) {
     if (is_callable($arguments[0]))
       self::$actions[$action] = $arguments[0];
+  }
+  
+  static public function endpoint($key, ?string $value = null)
+  {
+    if ($value)
+      return self::$paths[$key] = $value;
+    
+    return ($path = self::$paths[$key] ?? false) ? Document::open($path) : null;
+  }
+  
+  static public function gather(array $files)
+  {
+    $stash = sys_get_temp_dir() . '/' . md5(join(array_map('filemtime', $files)));
+    
+    if (file_exists($stash)) {
+      $queue = json_decode(file_get_contents($stash), true);
+      array_walk($queue, fn($info) => self::endpoint($info['route'], $info['src']));
+      
+    } else {
+      echo "DRAWING CACHE";
+      foreach(Data::apply($files, 'Document::open') as $idx => $DOM) {
+        $queue[$idx] = $DOM->info;
+        $queue[$idx]['route'] ??= $queue[$idx]['path']['filename'];
+        self::endpoint($queue[$idx]['route'], $queue[$idx]['src']);
+        usort($queue, fn($A, $B) => ($A['publish'] ?? 0) <=> ($B['publish'] ?? 0));
+        file_put_contents($stash, json_encode($queue));
+      }
+    }
+    return array_filter($queue, fn($info) => $info['publish'] ?? false);
   }
 }
 
@@ -243,23 +272,21 @@ class Response extends File implements Router
   use Registry;
   public $action, $params, $request, $headers = [], $layout = null, $view;
   
-  static private $pages = [];
-
   public function __construct(Request $request, array $data = [])
   {
     parent::__construct($request->uri);
     $this->merge($data);
     $this->request = $request;
-    $this->body    = self::$pages[$request->default] ?? null;
+    $this->body    = Route::endpoint($request->default);
     $this->params  = explode('/', $request->route);
     $this->action  = strtolower(array_shift($this->params));
-    $this->view    = self::$pages[$request->route] ?? self::$pages[$this->action] ?? null;
+    $this->view    = Route::endpoint($request->route) ?? Route::endpoint($this->action);
     $this->id      = md5(implode('', $request->headers));
   }
   
   public function yield($key, $template)
   {
-    if (! $this->layout && $this->body) $this->layout = new Template(Document::open($this->body));
+    if (! $this->layout && $this->body) $this->layout = new Template($this->body);
     $this->layout->set($key, $template);
   }
   
@@ -286,31 +313,13 @@ class Response extends File implements Router
   public function delegate($config) {
     if ($this->request->basic) {
       if ($config && ! ($config instanceof DOMNode)) return $config;
-      return new Template(($config instanceof DOMNode ? $config : Document::open($this->view)), $this->layout);
+      return new Template(($config instanceof DOMNode ? $config : $this->view), $this->layout);
     } else if ($this->body != $config)
       $this->yield(Template::YIELD, $config);
     else
-      $this->layout = new Template(Document::open($config));
+      $this->layout = new Template($config);
     
     return $this->layout;
-  }
-  
-  static public function PAIR(array $files, $error = 'pages/error.html')
-  {
-    $stash = sys_get_temp_dir() . '/' . md5(join(array_map('filemtime', $files)));
-    $queue = new SplPriorityQueue;
-    self::$pages['error'] = Document::open($error);
-
-    foreach(Data::apply($files, 'Document::open') as $DOM) {
-      $info  = $DOM->info;
-      $info['route'] ??= $info['path']['filename'];
-      self::$pages[$info['route']] = $info['src'];
-      
-      if (isset($info['publish']))
-        $queue->insert($info, -$info['publish']);
-    }
-
-    return iterator_to_array($queue);
   }
 }
 
