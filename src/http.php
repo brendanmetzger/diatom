@@ -1,13 +1,24 @@
 <?php
 
 class HTTP {
-  function __construct() {
-    echo "loaded ok";
+  const UA = 'Diatom Request';
+  
+  static public function GET($url, array $headers = [], ?callable $callback = null): Response {
+    return self::make('GET', $url, null, $headers, $callback);
+  }
+  
+  static public function POST($url, array $data, array $headers = [], ?callable $callback = null): Response {
+    $headers['content-type'] ??= 'multipart/form-data';
+    return self::make('POST', $url, $data, $headers, $callback);
+  }
+  
+  static public function PATCH($url, array $data, array $headers = []): Response {
+    return self::make('PATCH', $url, $data, $headers, null);
   }
   
   static private function make(string $method, string $url, ?array $data, array $headers, ?callable $callback)
   {
-    $response = new Response(new self(array_merge($headers, [
+    $response = new Response(new Request(array_merge($headers, [
       'REQUEST_URI'    => $url,
       'REQUEST_METHOD' => $method,
       'CONTENT_TYPE'   => $headers['content-type'] ?? null,
@@ -55,6 +66,4 @@ class HTTP {
     
     return $response;
   }
-  
 }
-?>

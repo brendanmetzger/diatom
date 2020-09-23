@@ -7,16 +7,15 @@ class Render
   {
     $this->document = $document;
     if ($pi = $this->document->select("//processing-instruction('render')"))
-      $this->renders = explode(',', trim($pi->data));
+      $this->renders = preg_split('/,\s+/', trim($pi->data));
   }
   
-  static public function DOM(Parser $parser) {
-    $instance = new self($parser->DOM);
+  static public function DOM($object) {
+    $instance = new self($object instanceof Parser ? $object->DOM : $object);
     
-    foreach($instance->renders as $method) {
-      $instance->{$method}();
-    }
-    
+    foreach($instance->renders as $callback)
+      call_user_func_array([$instance, strtok($callback, ':')], array_filter(explode('|', strtok($callback))));
+
     return $instance->document;
   }
   
@@ -54,32 +53,32 @@ class Render
   }
   
   private function behavior() {
-    foreach ($DOM->find('//style') as $node) {
+    foreach ($this->document->find('//style') as $node) {
       $text  = $node->replaceChild(new Text("\n    /**/\n    "), $node->firstChild)->nodeValue;
       $cb    = fn($matches) => join('', array_map('trim', explode("\n", $matches[0])));
       $cdata = sprintf("*/\n    %s\n    /*", preg_replace_callback('/(\{[^{]+\})/', $cb, preg_replace('/\n\s*\n/', "\n    ", trim($text))));
-      $node->insertBefore($DOM->createCDATASection($cdata), $node->firstChild->splitText(7));
+      $node->insertBefore($this->document->createCDATASection($cdata), $node->firstChild->splitText(7));
     }
   
     // Lazy load all scripts + enforce embed after DOMready 
-    foreach ($DOM->find('//script') as $node) {
+    foreach ($this->document->find('//script') as $node) {
       $data = $node->getAttribute('src') ?: sprintf("data:application/javascript;base64,%s", base64_encode($node->nodeValue));
       $node("KIT.script('{$data}')")->removeAttribute('src');
     }
   
     // find squashed siblings from markdown (preserveWhitespace )
-    foreach ($DOM->find('(//p|//li)/*[preceding-sibling::*]/following-sibling::*') as $node) {
+    foreach ($this->document->find('(//p|//li)/*[preceding-sibling::*]/following-sibling::*') as $node) {
       $node->parentNode->insertBefore(new Text(' '), $node);
     }
   }
   
   private function canonical() {
     // move things that should be in the <head> and specify autolad.js
-    if ($head = $DOM->select('/html/head')) {
+    if ($head = $this->document->select('/html/head')) {
       $path = sprintf("data:application/javascript;base64,%s", base64_encode(File::load('ux/js/autoload.js')));
       $head->appendChild(new Element('script'))('')->setAttribute('src', $path);
-      $DOM->documentElement->setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-      foreach ($DOM->find('.//style|.//meta|.//link', $head->nextSibling) as $node) $head->appendChild($node);
+      $this->document->documentElement->setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+      foreach ($this->document->find('.//style|.//meta|.//link', $head->nextSibling) as $node) $head->appendChild($node);
     } 
   }
 }

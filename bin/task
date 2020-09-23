@@ -25,6 +25,7 @@ Route::markdown(function($input = null) {
 });
 
 
+
 Route::bench(function() {
   $files = glob('data/benchmarks/html/*.*');
   $time = microtime(true);

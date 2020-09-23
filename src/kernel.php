@@ -33,12 +33,8 @@ class Route
       self::$actions[$action] = $arguments[0];
   }
   
-  static public function endpoint($key, ?string $value = null)
-  {
-    if ($value)
-      return self::$paths[$key] = $value;
-    
-    return ($path = self::$paths[$key] ?? false) ? Document::open($path) : null;
+  static public function endpoint($key){
+    return ($path = self::$paths[$key] ?? false) ? Document::open($path['src']) : null;
   }
   
   static public function gather(array $files)
@@ -46,19 +42,16 @@ class Route
     $stash = sys_get_temp_dir() . '/' . md5(join(array_map('filemtime', $files)));
     
     if (file_exists($stash)) {
-      $queue = json_decode(file_get_contents($stash), true);
-      array_walk($queue, fn($info) => self::endpoint($info['route'], $info['src']));
-      
+      self::$paths += json_decode(file_get_contents($stash), true);
     } else {
-      foreach(Data::apply($files, 'Document::open') as $idx => $DOM) {
-        $queue[$idx] = $DOM->info;
-        $queue[$idx]['route'] ??= $queue[$idx]['path']['filename'];
-        self::endpoint($queue[$idx]['route'], $queue[$idx]['src']);
-        usort($queue, fn($A, $B) => ($A['publish'] ?? 0) <=> ($B['publish'] ?? 0));
-        file_put_contents($stash, json_encode($queue));
+      foreach(Data::apply($files, 'Document::open') as $DOM) {
+        $route = $DOM->info['route'] ??= $DOM->info['path']['filename'];
+        self::$paths[$route] = $DOM->info;
       }
+      uasort(self::$paths, fn($A, $B) => ($A['publish'] ?? 0) <=> ($B['publish'] ?? 0));
+      file_put_contents($stash, json_encode(self::$paths));
     }
-    return array_filter($queue, fn($info) => $info['publish'] ?? false);
+    return array_filter(self::$paths, fn($info) => $info['publish'] ?? false);
   }
 }
 
@@ -127,7 +120,7 @@ class File
   }
   
   public function save(bool $overwrite = false) {
-    if (! $overwrite && file_exists($this->uri))
+    if (! $overwrite && is_file($this->uri))
       throw new Error("File cannot be written", 1);
     return file_put_contents($this->uri, $this->body, LOCK_EX);
   }
@@ -148,9 +141,8 @@ class File
 
 class Request
 {
-  const UA = 'Diatom Request';
-  
   public $uri, $method, $data = '', $basic = false, $headers = [];
+  
   
   public function __construct(array $headers, $default = 'index.html')
   {
@@ -161,7 +153,7 @@ class Request
     $this->headers = $headers;
     
     [$basename, $extension] = explode('.', $default);
-    preg_match('/\/?(.*?)(?:\.([a-z][a-z0-9]{1,4}))?$/m', $this->uri, $match);
+    preg_match('/\/?(.*?)(?:\.([a-z][a-z0-9]{1,4}))?$/i', $this->uri, $match);
     
     $this->route = ($match[1] ?? $basename)  ?: $basename;  // the match may or may not
     $this->type  = ($match[2] ?? $extension) ?: $extension; // have a key w/ a falsy value
@@ -172,14 +164,15 @@ class Request
     // 'Basic' requests do not need a layout
     $this->basic = $this->mime != 'text/html' || ($headers['HTTP_YIELD'] ?? false);  
     
-    if (in_array($this->method, ['POST','PUT']) && ($headers['CONTENT_LENGTH'] ?? 0) > 0) {
-      // can be _POST or stdin... consider  
+    // can be _POST or stdin... consider  
+    if (in_array($this->method, ['POST','PUT']) && ($headers['CONTENT_LENGTH'] ?? 0) > 0)
       $this->data = file_get_contents('php://input');
-    }
+
   }
     
-  static public function open($uri, array $data = [], array $headers = []): Document {
-    $response = new Response(new self(array_merge($headers,[
+  static public function GET($uri, array $data = [], array $headers = []): Document
+  {
+    $response = new Response(new Request(array_merge($headers,[
       'REQUEST_URI'    => $uri,
       'REQUEST_METHOD' => 'GET',
       'CONTENT_TYPE'   => $headers['content-type'] ?? null,
@@ -187,70 +180,6 @@ class Request
     ])));
 
     return Route::compose($response)->render($response->merge($data));
-  }
-  
-  static private function make(string $method, string $url, ?array $data, array $headers, ?callable $callback)
-  {
-    $response = new Response(new self(array_merge($headers, [
-      'REQUEST_URI'    => $url,
-      'REQUEST_METHOD' => $method,
-      'CONTENT_TYPE'   => $headers['content-type'] ?? null,
-    ])));
-    
-    curl_setopt_array($ch = curl_init(), [
-      CURLOPT_CUSTOMREQUEST    => $method,
-      CURLOPT_USERAGENT        => self::UA,
-      CURLOPT_URL              => $url,
-      CURLOPT_HEADER           => false,
-      CURLOPT_HEADERFUNCTION   => [$response, 'header'],
-      CURLOPT_RETURNTRANSFER   => true,
-    ]);
-    
-    if ($method != 'GET') {
-      if ($headers['content-type'] == 'application/json')
-        $data = json_encode($data);
-      
-      if (! empty($data))
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
-    }
-    
-    foreach ($headers as $key => &$header) {
-      $name = mb_convert_case(strtolower(str_replace('_', '-', $key)), MB_CASE_TITLE, "UTF-8");
-      $header =  "{$name}: {$header}";
-    }
-    
-    if (! empty($headers))
-      curl_setopt($ch, CURLOPT_HTTPHEADER, array_values($headers));
-    
-    if ($callback) {
-      curl_setopt($ch, CURLOPT_NOPROGRESS, false);
-      curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, $callback);
-    }
-    
-    $response->body = curl_exec($ch);
-    
-    curl_close($ch);
-    
-    $type = explode(';', $response->headers['content-type'] ??= 'text/plain')[0];
-    if (strpos($type, 'application/json') !== false)
-      $response->merge(json_decode($response->body, true));
-    else if (substr($type, -2) == 'ml')
-      $response->data = Document::open($response);
-    
-    return $response;
-  }
-  
-  static public function GET($url, array $headers = [], ?callable $callback = null): Response {
-    return self::make('GET', $url, null, $headers, $callback);
-  }
-  
-  static public function POST($url, array $data, array $headers = [], ?callable $callback = null): Response {
-    $headers['content-type'] ??= 'multipart/form-data';
-    return self::make('POST', $url, $data, $headers, $callback);
-  }
-  
-  static public function PATCH($url, array $data, array $headers = []): Response {
-    return self::make('PATCH', $url, $data, $headers, null);
   }
   
   public function __toString() {
@@ -322,64 +251,6 @@ class Response extends File implements Router
   }
 }
 
-###################################################################################################
-# Command | this is the non-http version of the router interface as a means to direct CLI scripts
-# that can interact with same components of the application, including running the applications
-# own Request/Response calls to gather data (if specified properly).
-
-class Command implements Router
-{
-  use Registry;
-  public $script, $params, $action, $status = 0, $input;
-    
-  static public function __callStatic($key, $args) {
-    return Route::compose(new self([$key, ...$args]));
-  }
-  
-  public function __construct(array $params = [])
-  {
-    $this->params = $params;
-    $this->action = array_shift($this->params) ?: 'help';
-    $this->input  = fopen ('php://stdin', 'r');
-  }
-  
-  public function prompt($message)
-  {
-    echo $message . ": ";
-    return trim(fgets($this->input));
-  }
-  
-  public function __invoke(array $routes): Controller {
-    return new Class($routes) extends Controller {
-      public function __construct($routes) {
-        $this->routes = $routes;
-      }
-      
-      public function index() {
-        return "Run 'bin/task help *name*' to see signatures\nCommands: \n" 
-               . print_r(array_keys($this->routes), true);
-      }
-      
-      public function __call($name, $args) {
-        $object = $this->routes[$name];
-        if ($object instanceof Controller) {
-          $in = new ReflectionObject($object);
-          $object = [];
-          foreach ($in->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
-            if($method->getDeclaringClass()->name == $in->name && $method->name[0] != '_') {
-              $object[$method->name] = array_map(fn($param) => (string)$param, $method->getParameters());
-            }
-          }
-        }
-        return print_r($object, true);
-      }
-    };
-  }
-  
-  public function delegate($config) {
-    return $config;
-  }
-}
 
 ###########################################################################################################
 # Controller | Usually extended, but can be instantiatied @see Router. Follows the common practice of
@@ -456,7 +327,7 @@ class Template
   {
     foreach ($this->getStubs('insert') as [$cmd, $path, $xpath, $context]) {
       
-      $DOM = file_exists($path) ? Document::open($path) : Request::open($path, $data);
+      $DOM = is_file($path) ? Document::open($path) : Request::GET($path, $data);
       $ref = $context->parentNode;
       foreach ($DOM->find($xpath) as $node) {
         if (!$node instanceof Text) $node = (new self($node))->render($data, false)->documentElement;
@@ -556,8 +427,6 @@ class Template
     }
     return $this->slugs;
   }
-    
-  
 }
 
 ###################################################################################################
@@ -652,40 +521,6 @@ class Document extends DOMDocument
   
 }
 
-###################################################################################################
-# Document Renderer Callback
-# This is actually a configuration, but it is so important I wanted to keep it in the framework—
-# I can't imagine building a website and not implementing this feature. It packages css and js
-# to be DOM copacetic as well as mitigating the domready dance that can be cumbersome to manage
-
-Document::on('close', function (Document $DOM) {
-  // Find style tags, make sure they are CDATA; the esoteric stuff is just (arbitrary) formatting
-  foreach ($DOM->find('//style') as $node) {
-    $text  = $node->replaceChild(new Text("\n    /**/\n    "), $node->firstChild)->nodeValue;
-    $cb    = fn($matches) => join('', array_map('trim', explode("\n", $matches[0])));
-    $cdata = sprintf("*/\n    %s\n    /*", preg_replace_callback('/(\{[^{]+\})/', $cb, preg_replace('/\n\s*\n/', "\n    ", trim($text))));
-    $node->insertBefore($DOM->createCDATASection($cdata), $node->firstChild->splitText(7));
-  }
-  
-  // Lazy load all scripts + enforce embed after DOMready 
-  foreach ($DOM->find('//script') as $node) {
-    $data = $node->getAttribute('src') ?: sprintf("data:application/javascript;base64,%s", base64_encode($node->nodeValue));
-    $node("KIT.script('{$data}')")->removeAttribute('src');
-  }
-  
-  // move things that should be in the <head> and specify autolad.js
-  if ($head = $DOM->select('/html/head')) {
-    $path = sprintf("data:application/javascript;base64,%s", base64_encode(File::load('ux/js/autoload.js')));
-    $head->appendChild(new Element('script'))('')->setAttribute('src', $path);
-    $DOM->documentElement->setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-    foreach ($DOM->find('.//style|.//meta|.//link', $head->nextSibling) as $node) $head->appendChild($node);
-  }
-  
-  // find squashed siblings from markdown (preserveWhitespace )
-  foreach ($DOM->find('(//p|//li)/*[preceding-sibling::*]/following-sibling::*') as $node) {
-    $node->parentNode->insertBefore(new Text(' '), $node);
-  }
-});
 
 
 ###################################################################################################

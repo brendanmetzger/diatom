@@ -79,7 +79,7 @@ class AWS {
     ];
     
     $headers['Authorization'] = $this->authorize($endpoint, $headers, $body);
-    return Request::POST($endpoint, $job, $headers);
+    return HTTP::POST($endpoint, $job, $headers);
   }
   
   
@@ -94,7 +94,7 @@ class AWS {
 
     if ($file->size > $rules[0][2]) throw new Exception("File too large to upload as configured");
 
-    return Request::POST($endpoint, $this->policy($file, $rules), [], $callback);
+    return HTTP::POST($endpoint, $this->policy($file, $rules), [], $callback);
   }
   
   public function xhr($key, $bucket)
