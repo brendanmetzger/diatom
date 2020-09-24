@@ -5,6 +5,7 @@ define('CONFIG', parse_ini_file('../data/config.ini'));
 require_once '../src/kernel.php';
 
 
+/*** ROUTING **************************************************************************************/
 
 /*** IMPLEMENTATION *******************************************************************************/
 
@@ -16,8 +17,8 @@ try {
   
   header("Content-Type: {$request->mime}");
   
-  if (file_exists($request->uri)) {
-    // php dev server handles static files too; prod this can config to cache as this would be done by http server
+  if (is_file($request->uri)) {
+    // php dev server handles static files too; prod could use this for cache
     $output = Response::load($request)->body;
     header('Content-Length: '. strlen($output));
 
@@ -38,10 +39,11 @@ try {
     $output   = Route::compose($response);
 
     if ($output instanceof Template) {
+      
       $output = Render::DOM($output->render($response->data));
-      if ($request->type == 'json'){
+      
+      if ($request->type == 'json')
         $output = json_encode(simplexml_import_dom($output));
-      }
     }
   }
   
@@ -61,7 +63,7 @@ try {
 } finally {
 
   echo $output;
-  echo "<!--".memory_get_peak_usage()."-->";
+  echo "<!--".(memory_get_peak_usage()/1000)."kb-->";
   
 
 }

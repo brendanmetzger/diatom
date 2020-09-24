@@ -6,13 +6,13 @@ libxml_use_internal_errors(true);
 spl_autoload_register();
 
 
-###################################################################################################
-# Route | Provides two useful methods to enable routing methods specified by a user's request
-## 1. set up routse with `Route::{name}(callback|callable)`
-## 2. compose a router, `Route::compose(new Response|new Command)`
+/*
+ * Route | Provides to enable default and callback routing
+ *
+ */
 
-class Route
-{
+class Route {
+  
   static private $actions = [], $paths = [];
   
   // private function __construct(callable $action, $view = null) {

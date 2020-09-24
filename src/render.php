@@ -26,7 +26,7 @@ class Render
     $flag     = "h{$level}";
     $context??= $this->document->documentElement;
     $nodeName = $level > 3 ? 'aside' : 'section';
-    $sections = $this->document->find($flag, $context);
+    $sections = $this->document->find('.//'.$flag, $context);
 
     if ($sections->length > 0) {
 
@@ -55,7 +55,7 @@ class Render
   private function behavior() {
     foreach ($this->document->find('//style') as $node) {
       $text  = $node->replaceChild(new Text("\n    /**/\n    "), $node->firstChild)->nodeValue;
-      $cb    = fn($matches) => join('', array_map('trim', explode("\n", $matches[0])));
+      $cb    = fn($matches) => join(array_map('trim', explode("\n", $matches[0])));
       $cdata = sprintf("*/\n    %s\n    /*", preg_replace_callback('/(\{[^{]+\})/', $cb, preg_replace('/\n\s*\n/', "\n    ", trim($text))));
       $node->insertBefore($this->document->createCDATASection($cdata), $node->firstChild->splitText(7));
     }
