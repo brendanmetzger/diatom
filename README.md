@@ -47,7 +47,7 @@ main {max-width: 100ch;}
 
 body {
   padding: 10rem;
-  background-color: #f8f8f8;
+  background-color: #EEE;
   font-family: 'IBM Plex Mono', monospace;
 }
 
@@ -56,8 +56,14 @@ h1 {font-size: 400%;}
 section {
   margin: 2rem -2rem;
   padding: 2rem;
-  background-color: #fff;
+  background-color: #FAFAFA;
 }
+
+code {
+  background-color: #fff;
+  color: rgb(255 0 128);
+}
+
 
 ```
 

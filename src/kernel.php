@@ -6,10 +6,10 @@ libxml_use_internal_errors(true);
 spl_autoload_register();
 
 
-/*
+/**
  * Route | Provides to enable default and callback routing
  *
- */
+**/
 
 class Route {
   
@@ -55,12 +55,12 @@ class Route {
   }
 }
 
-###########################################################################################################
-# File | Construct an object that represents an object that can, conceiveably, be saved somewhere
-## Use this class if you want to open/read/create/save a file somewhere
-## Use this class if you want to look up a mimetype
-## This class is often Type inforced by other classes ie., funcion someMethod(File $arg) {...}
-## Load up a file with the static File::load and you will have access to a body property
+
+/**
+ * File | Construct an object that represents something that can be openclose
+ * shows up alot i other classes ie., funcion someMethod(File $arg) {...}
+ *
+**/
 
 class File
 {
@@ -134,10 +134,11 @@ class File
   }
 }
 
-###################################################################################################
-# Request | This is used to configure an variable request (like a web server) via the constructor
-## use static  /GET methods to request and execute preconfigured routes
 
+/**
+ * Request | This is used to configure an variable request (like a web server) via the constructor
+ *
+**/ 
 
 class Request
 {
@@ -194,6 +195,10 @@ interface Router
   public function delegate($config);
 }
 
+
+/**
+ * Response | finds correct template object, renders it, tracks headers...
+**/
 
 class Response extends File implements Router
 {
@@ -252,10 +257,10 @@ class Response extends File implements Router
 }
 
 
-###########################################################################################################
-# Controller | Usually extended, but can be instantiatied @see Router. Follows the common practice of
-# many frameworks where the method name is the second parameter in a url. Controllers are applied
-# using the Route::name(callable) convention (also specifiels __invoke to return default controller)
+/**
+ * Controller | Usually extended, but can be instantiatied @see Router. Follows the common practice of
+ * 
+**/
 
 abstract class Controller
 {
@@ -293,10 +298,12 @@ abstract class Controller
   }
 }
 
-###########################################################################################################
-# Template | rarely need to interact with this directly, it is mainly responsible for allowing
-# DOM objects to be parsed in rendered against user-supplied data. All configuration for this
-# happens in templates themselves, save for the `render` method, which is how data is applied
+
+/**
+ * Template | rarely need to interact with this directly, it is responsible for plopping
+ *          | data variables into the appropriate Document objects
+ *
+**/
 
 class Template
 {
@@ -428,12 +435,12 @@ class Template
   }
 }
 
-###################################################################################################
-# Document | This loads and creates documents that can be searched and modified. Extends the 
-# language-supplied DOMDocument object to subclass some of the nodes for convienient interactions.
-## While the document object model can be wordy, it is powerful, and it is literally the same api
-## in any language that provides an interface (namely JavaScript). This class is used exclusively
-## and often to interact with data, templates... basically doing anything with markup involved.
+
+/**
+ * Document | Loads and creates documents that can be searched and modified.
+ *          | Extends the language-supplied DOMDocument and several subclasses
+ *
+**/
 
 class Document extends DOMDocument
 {
@@ -511,10 +518,6 @@ class Document extends DOMDocument
   }
   
 }
-
-
-###################################################################################################
-# DOMtype extensions
 
 
 class Element extends DOMElement implements ArrayAccess {
@@ -605,8 +608,10 @@ trait invocable
   }
 }
 
-###################################################################################################
-# Registry
+/**
+ * Data stuff
+ *
+**/
 
 trait Registry {
   public $data = [];
@@ -620,9 +625,6 @@ trait Registry {
     return $this->data = array_merge($this->data, $data);
   }
 }
-
-###################################################################################################
-# Data
 
 class Data extends ArrayIterator
 {
@@ -694,9 +696,11 @@ class Data extends ArrayIterator
   }
 }
 
-###################################################################################################
-# Model | a wrapper for any DOM element that turns it into a model-able resource
-# 
+/**
+ * Model | a wrapper for any DOM element that turns it into a model-able resource
+ *
+**/
+
 abstract class Model implements ArrayAccess {
   protected $context;
 
@@ -734,8 +738,10 @@ abstract class Model implements ArrayAccess {
   }
 }
 
-###################################################################################################
-# Redirect | simply throw this with a url and the app will catch it and exit nicely
+/**
+ * Redirect | simply throw this with a url and the app will catch it and exit nicely
+ *
+**/
 
 class Redirect extends Controller {
   // 301 permanent, 302, temporary, 303 after put/post

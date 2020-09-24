@@ -1,23 +1,13 @@
-/* Variables */
 :root {
   color: #333;
 }
 
-* { box-sizing: border-box }
-
 :target {
   text-decoration: underline;
   font-weight:600;
-  border-left: 0.5em solid #333;
-  padding-left: 0.5em;
 }
+
+* { box-sizing: border-box }
+
 
 body, h1,h2,h3,h4,h5, div {margin: 0;}
-
-code {
-  border-radius: 0.25em;
-  padding: 0.25em;
-  background-color: rgba(0,0,0,0.05);
-  color: rgba(255,0,128,1);
-}
-
