@@ -1,4 +1,4 @@
-<?php
+<?php namespace util;
 ###################################################################################################
 # Bench 
 ## Used to send progress messages in CLI, use `split` to mark a time findable by key, and if two

@@ -1,5 +1,6 @@
 # Diatom
 
+
 *This template framework is a quick starting point. The `src/kernal.php` file aims to be everything necessary to begin making a website. There are additional classes to ensure that most goals can be met when it comes to authoring a content-based site.*
 
 

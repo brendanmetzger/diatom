@@ -7,8 +7,10 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <link rel="stylesheet" href="/ux/css/kit.css" type="text/css" media="screen" />
     <title>${title}</title>
+    <meta name="description" content="${about}" />
   </head>
   <body>
+    
     <nav>
       <!-- iterate pages -->
       <a href="/${route}">${title}</a>
@@ -17,6 +19,7 @@
       <!-- yield -->
       <!-- insert ../README.md-->
     </main>
+    <h5>©BAM, <time>${date.m/d/y}</time></h5>
     <script src="/ux/js/kit.js"></script>
   </body>
 </html>

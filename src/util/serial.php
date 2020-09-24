@@ -1,4 +1,4 @@
-<?php
+<?php namespace util;
 /**
  * Serialize ints to alpha and vice versa
  * Rationale: xml ids cannot start with numbers, but there are 500+ valid characters; makes for

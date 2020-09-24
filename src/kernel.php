@@ -444,49 +444,7 @@ class Template
 
 class Document extends DOMDocument
 {
-  public  $info  = [];
-  private $xpath = null,
-          $props = [ 'preserveWhiteSpace' => false, 'formatOutput' => true, 'encoding' => 'UTF-8'];
-
   static private $cache = [];
-  public function  __construct(string $xml, array $props = [])
-  {
-    parent::__construct('1.0', 'UTF-8');
-
-    foreach (( $props + $this->props ) as $p => $value) $this->{$p} = $value;
-    foreach (['Element','Text','Attr'] as       $c    ) $this->registerNodeClass("DOM{$c}", $c);
-    
-    if (! $this->loadXML($xml, LIBXML_COMPACT)) throw new ParseError('DOM Parse Error');
-    
-    $this->xpath = new DOMXpath($this);
-  }
-  
-  public function save($path) {
-    return file_put_contents($path, $this->saveXML(), LOCK_EX);
-  }
-  
-  public function find($exp, ?DOMNode $context = null): DOMNodelist
-  {
-    if (! $result = $this->xpath->query($exp, $context))
-      throw new Exception("Malformed predicate: {$exp}", 500);
-    
-    return $result;
-  }
-    
-  public function select($exp, ?DOMNode $context = null) {
-    return $this->find($exp, $context)[0] ?? null; 
-  }
-  
-  public function evaluate(string $exp, ?DOMNode $context = null) {
-    return $this->xpath->evaluate("string({$exp})", $context);
-  }
-    
-  public function __toString()
-  {
-    $prefix = $this->documentElement->nodeName == 'html' ? "<!DOCTYPE html>\n" : '';
-    return $prefix . $this->saveXML($this->documentElement);
-  }
-    
   // accepts string|File
   static public function open($path, $opt = [])
   {
@@ -504,7 +462,7 @@ class Document extends DOMDocument
     } catch (ParseError $e) {
       $err = (object)libxml_get_errors()[0];
       $hint = substr(file($path)[$err->line-1], max($err->column - 10, 0), 20);
-      throw new ErrorException($err->message . ", around: '{$hint}'", 500, E_ERROR, realpath($path), $err->line, $e);
+      throw new ErrorException($err->message . " in {$path}, around: '{$hint}'", 500, E_ERROR, realpath($path), $err->line, $e);
     }
 
     foreach ($DOM->find("/processing-instruction()") as $pi)
@@ -517,6 +475,50 @@ class Document extends DOMDocument
     return self::$cache[$key] = $DOM;
   }
   
+  
+  public  $info  = [];
+  private $xpath = null,
+          $props = [ 'preserveWhiteSpace' => false, 'formatOutput' => true, 'encoding' => 'UTF-8'];
+  
+  
+  public function  __construct(string $xml, array $props = [])
+  {
+    parent::__construct('1.0', 'UTF-8');
+
+    foreach (( $props + $this->props ) as $p => $value) $this->{$p} = $value;
+    foreach (['Element','Text','Attr'] as       $c    ) $this->registerNodeClass("DOM{$c}", $c);
+    
+    if (! $this->loadXML($xml, LIBXML_COMPACT)) throw new ParseError('DOM Parse Error');
+    
+    $this->xpath = new DOMXpath($this);
+  }
+  
+  public function __toString() {
+    $prefix = $this->documentElement->nodeName == 'html' ? "<!DOCTYPE html>\n" : '';
+    return $prefix . $this->saveXML($this->documentElement);
+  }
+  
+  
+  
+  public function find($exp, ?DOMNode $context = null): DOMNodelist
+  {
+    if (! $result = $this->xpath->query($exp, $context))
+      throw new Exception("Malformed predicate: {$exp}", 500);
+    
+    return $result;
+  }
+    
+  public function select($exp, ?DOMNode $context = null) {
+    return $this->find($exp, $context)[0] ?? null; 
+  }
+  
+  public function evaluate(string $exp, ?DOMNode $context = null) {
+    return $this->xpath->evaluate("string({$exp})", $context);
+  }
+  
+  public function save($path) {
+    return file_put_contents($path, $this->saveXML(), LOCK_EX);
+  }
 }
 
 

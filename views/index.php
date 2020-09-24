@@ -35,11 +35,10 @@ try {
 
     // Set Application data
     $data = [
-      'pages'       => Route::gather(glob('pages/*.*')), 
-      'description' => 'A modeled templating framework, no dependencies.',
-      'timestamp'   => new DateTime,
-      'title'       => 'Diatom Micro Framework',
-      'test'        => [['key' => 'A'], ['key' => 'B']],
+      'pages' => Route::gather(glob('pages/*.*')), 
+      'about' => 'A modeled templating framework, no dependencies.',
+      'date'  => fn ($format, $time = 'now') => date($format, strtotime($time)),
+      'title' => 'Diatom Micro Framework',
     ];
     
     $response = new Response($request, $data);    

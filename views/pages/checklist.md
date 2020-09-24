@@ -6,9 +6,10 @@
 
 ## Startup Tasks
 
-- [ ] run `bin/server` to start a localhost environment. Edit that file to specify the port directly
-- [ ] edit `views/pages/index.php` to make changes (this readme is edited by default)
-- [ ] create a new page in pages, add processing instructions to make it visible.
+- [ ] specify a new port in `bin/server` if necessary
+- [ ] run `bin/server` to start a localhost, opens site in chrome by default
+- [ ] edit `views/pages/index.php` to make changes (this readme is imported by default)
+- [ ] create a new page in pages, add processing instructions to make it visible in the nav
 
 
 ## Explore Tasks

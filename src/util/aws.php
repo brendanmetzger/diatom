@@ -1,4 +1,4 @@
-<?php
+<?php namespace util;
 
 
 class AWS {
@@ -83,7 +83,7 @@ class AWS {
   }
   
   
-  public function upload(File $file, string $bucket, ?callable $callback = null, $mb = 150)
+  public function upload(\File $file, string $bucket, ?callable $callback = null, $mb = 150)
   {  
     $endpoint = "https://{$bucket}.s3.amazonaws.com/";
     
@@ -92,9 +92,9 @@ class AWS {
       ['bucket' => $bucket]
     ];
 
-    if ($file->size > $rules[0][2]) throw new Exception("File too large to upload as configured");
+    if ($file->size > $rules[0][2]) throw new \Exception("File too large to upload as configured");
 
-    return HTTP::POST($endpoint, $this->policy($file, $rules), [], $callback);
+    return \HTTP::POST($endpoint, $this->policy($file, $rules), [], $callback);
   }
   
   public function xhr($key, $bucket)
@@ -105,11 +105,11 @@ class AWS {
     ];
     return json_encode([
       'action' => "https://{$bucket}.s3.amazonaws.com/",
-      'input' => $this->policy(new File($key), $rules),
+      'input' => $this->policy(new \File($key), $rules),
     ]);
   }
   
-  private function policy(File $file, array $rules, array $meta = []): array
+  private function policy(\File $file, array $rules, array $meta = []): array
   {
     # Remap meta keys to prefix with x-amz-meta- (these are optional)
     $meta = array_combine(array_map(fn($key) => "x-amz-meta-{$key}", array_keys($meta)), $meta);
@@ -137,8 +137,6 @@ class AWS {
     if (! empty($file->body)) {
       $fields['file'] = $file->body;
     }
-    
-    
     return $fields;
   }
 }
