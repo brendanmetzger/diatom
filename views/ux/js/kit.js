@@ -1,3 +1,4 @@
+const ext    = (m => document.createElement('canvas').toDataURL(m).indexOf(`data:${m}`) == 0)('image/webp') ? 'webp' : 'jpg';
 
 // the % mod operator does not comput negative numbers correctly; use int.mod(int) if this matters
 Number.prototype.mod = function (n) {
@@ -5,7 +6,7 @@ Number.prototype.mod = function (n) {
 };
 
 // given n, returns [rows,cols] (approx) so aspect is filled with n SQUARE items
-var balance = function (n, aspect) {
+const balance = function (n, aspect) {
  var max = Math.sqrt(n) * Math.sqrt(aspect);
  return [max, n / max].map(Math.round);
 };
@@ -28,17 +29,16 @@ Object.defineProperty(Event.prototype, 'theta', {
   }
 });
 
-// To address an issue in the modulus operator that doesn't deal with negative numbers as expected
-// Number.prototype.mod = n => ((this % n) + n) % n;
 
-var getOffset = (function(touchscreen) {
+
+const getOffset = (function(touchscreen) {
   return touchscreen ?
   rect => [(this.touches[0].clientX - rect.left), (this.touches[0].clientY - rect.top)]
   : () => [(this.offsetX || this.layerX), (this.offsetY || this.layerY)];
 })(KIT.mobile);
 
 
-var SVG = function (width, height, context) {
+const SVG = function (width, height, context) {
   this.NS = Object.freeze({
     svg:   'http://www.w3.org/2000/svg',
     xlink: 'http://www.w3.org/1999/xlink'
@@ -71,39 +71,69 @@ Object.assign(SVG.prototype, {
     this.point.y = evt.clientY;
     return this.point.matrixTransform(this.root.getScreenCTM().inverse());
     
-  },
-  b64url: function (styles) {
-    var clone = this.root.cloneNode(true);
-    this.createElement('style', null, clone).textContent = styles;
-    return `url(data:image/svg+xml;base64,${btoa(clone.outerHTML)})`;
   }
 });
 
-var Request = function (callbacks, timeout = 5000) {
-  this.xhr = new XMLHttpRequest();
-  this.xhr.overrideMimeType('text/xml');
-  this.xhr.timeout = timeout;
-  for (let action in callbacks) {
-    this.xhr.addEventListener(action, callbacks[action].bind(this), false);
+class Request {
+  constructor(callbacks, timeout = 5000) {
+    this.xhr = new XMLHttpRequest();
+    this.xhr.timeout = timeout;
+    this.xhr.overrideMimeType('text/xml');
+    for (let action in callbacks) {
+      this.xhr.addEventListener(action, callbacks[action].bind(this), false);
+    }
+    this.xhr.addEventListener('progress', evt => {
+      console.log(evt.loaded);
+      if (evt.lengthComputable) {
+        let complete = (evt.loaded / evt.total) * 100;
+        console.log(evt, `${complete}% complete`);
+        // this.style.backgroundImage = `conic-gradient(white 0% ${complete}%, yellow ${complete}% 100%)`;
+      }
+    });
+    return this;
   }
-  return this;
-};
-
-Request.prototype = {
-  get: function (url) {
-    this.make('GET', url);
-  },
-  put: function (url, data) {
-    this.make('PUT', url, data);
-  },
-  make: function (type, url, data = null) {
-    this.url = url;
-    this.xhr.open(type, url);
-    this.xhr.setRequestHeader('yield', 'xhr');
-    this.xhr.send(data);
+  
+  static GET (url, headers = {}) {
+    return Request.make('GET', url, null, headers);
   }
-};
-
+  
+  static PUT (url, data, headers = {}) {
+    // headers["Content-Type"] = "application/x-www-form-urlencoded"
+    return Request.make('PUT', url, data, headers);
+  }
+  
+  static POST (url, data, headers = {}) {
+    return Request.make('POST', url, data, headers);
+  }
+  
+  static make (type, url, data, headers) {
+    url = new URL(url, location.origin);
+    headers.yield = 'XHR';
+    
+    return new Promise((resolve, reject) => {
+      let dot = url.pathname.lastIndexOf('.');
+      let ext = dot > 0 ? url.pathname.slice(dot+1) : 'json';
+      let instance = new Request({
+        load: evt => {
+          if (evt.target.status >= 400) reject.call(evt, evt.target);
+          else resolve.call(evt, evt.target.response, evt);
+        },
+        error: reject
+      });
+      
+      
+      
+      instance.xhr.responseType = ({webp:'blob',jpg:'blob',png:'blob',md:'text',txt:'text',json:'json'})[ext] || 'document';
+      
+      
+      instance.xhr.open(type, url.href);
+      for(let key in headers) instance.xhr.setRequestHeader(key, headers[key]);
+      instance.xhr.send(data);
+            
+    });
+    
+  }
+}
 
 // for quick lookups of searchable string (see soundex on wikipedia...)
 Object.defineProperty(String.prototype, 'soundex', {
@@ -115,3 +145,5 @@ Object.defineProperty(String.prototype, 'soundex', {
     return id + (a.map(letter => c.findIndex(g => g.includes(letter))).join('').replace(re, '') + '000').slice(0,3);
   }
 });
+
+

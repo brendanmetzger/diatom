@@ -1,6 +1,7 @@
 # Diatom
 
-This template framework is a quick starting point. The `src/kernal.php` file aims to be everything necessary to begin making a website. There are additional classes to ensure that most goals can be met when it comes to authoring a content-based site.
+*This template framework is a quick starting point. The `src/kernal.php` file aims to be everything necessary to begin making a website. There are additional classes to ensure that most goals can be met when it comes to authoring a content-based site.*
+
 
 ## Requirements
 
@@ -37,6 +38,7 @@ If you need to add authorship capabilities for others without access, there are 
 
 ``` style
 
+
 /* The custom markdown parser will look for a flag after the code fence embed style/script,
    depending on the flag. This will be unseen in the Diatom framework markdown, but visible
    in traditional markdown. Delete this after you get a gist (if you like) */
@@ -53,15 +55,20 @@ body {
 
 h1 {font-size: 400%;}
 
+section[id$=tasks] ul {margin: 1rem; padding: 0; list-style-type: none}
+
 section {
   margin: 2rem -2rem;
   padding: 2rem;
   background-color: #FAFAFA;
 }
 
+a,code {color: rgb(255 0 128);}
+
 code {
   background-color: #fff;
-  color: rgb(255 0 128);
+  box-shadow: 0 0 0 0.5em #fff;
+  font-style: normal;
 }
 
 

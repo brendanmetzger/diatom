@@ -34,10 +34,8 @@ try {
   } else {
 
     // Set Application data
-    $pages = Route::gather(glob('pages/*.*'));
-    
     $data = [
-      'pages'       => $pages, 
+      'pages'       => Route::gather(glob('pages/*.*')), 
       'description' => 'A modeled templating framework, no dependencies.',
       'timestamp'   => new DateTime,
       'title'       => 'Diatom Micro Framework',

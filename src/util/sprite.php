@@ -1,4 +1,4 @@
-<?php namespace media;
+<?php namespace util;
 
 
 class Sprite extends \File
