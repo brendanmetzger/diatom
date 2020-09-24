@@ -8,7 +8,7 @@ if (php_sapi_name() == 'cli') {
   
   $host = "127.0.0.1:8888";
   $log  = 'app.log';
-  if ($running = shell_exec(sprintf('ps | grep "[p]hp -S %s"', $host))) {
+  if ($running = shell_exec(sprintf('ps -x | grep "[p]hp -S %s"', $host))) {
 
     $input = fopen('php://stdin', 'r');
     $info  = preg_split('/\s+/', trim($running));

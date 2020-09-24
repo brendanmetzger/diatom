@@ -14,12 +14,10 @@ require 'src/kernel.php';
 
 
 Route::markdown(function($input = null) {
-  $time  = microtime(true);  
-  $parse = new Parser('README.md');
+  chdir('views');
+  $template = new Template(Document::open('pages/index.html'));
   
-  // echo Render::DOM($parse);
-
-  return round((microtime(true) - $time) * 1000) . "ms";
+  return Render::DOM($template->render());
 });
 
 

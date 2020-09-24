@@ -18,7 +18,7 @@ class Command implements Router
   {
     $this->params = $params;
     $this->action = array_shift($this->params) ?: 'help';
-    $this->input  = fopen ('php://stdin', 'r');
+    $this->input  = STDIN;
   }
   
   public function prompt($message)
@@ -26,7 +26,7 @@ class Command implements Router
     echo $message . ": ";
     return trim(fgets($this->input));
   }
-  
+    
   public function __invoke(array $routes): Controller {
     return new Class($routes) extends Controller {
       public function __construct($routes) {
