@@ -190,7 +190,6 @@ class Block {
       return $element->appendChild(new DOMText($token->text));
     
     $element->nodeValue = preg_replace(['/(?<=\s)\'/u', '/(?<=\S)\'/u', '/\s?--\s?/u'], ['‘', '’', '—'], htmlspecialchars($token->value, ENT_XHTML, 'UTF-8', false));
-    // Inline::format($element);
     (new Inline($element))->parse();
 
     return $context;

@@ -1,17 +1,26 @@
 <?php
 
-define('CONFIG', parse_ini_file('../data/config.ini'));
+define('CONF', parse_ini_file('../data/config.ini'));
 
 require_once '../src/kernel.php';
 
 
 /*** ROUTING **************************************************************************************/
 
+// visit http://localhost:8888/example to see this play out
+Route::example(function(int $padding = 2) {
+  $this->message = "hello world";
+  $this->padding = $padding;
+  // note, this string is not interpolated, those are variables rendered into the template
+  return new Document('<h1 style="padding: ${padding}em;">${message}</h1>');
+
+});
+
 /*** IMPLEMENTATION *******************************************************************************/
 
 
 try {
-  if (CONFIG['dev'] ?? false) include 'edit.php';
+  if (CONF['dev'] ?? false) include 'edit.php';
   
   $request   = new Request($_SERVER, 'index.html');
   
@@ -52,7 +61,7 @@ try {
   http_response_code($e->getCode() ?: 400);
   // $toarr = (array)$e;
   $output = Request::GET('error', [
-    'wrapper' => CONFIG['DEV'] ?? null,
+    'wrapper' => CONF['DEV'] ?? null,
     'message' => $e->getMessage(),
     'code'    => $e->getCode(),
     'file'    => $e->getFile(),
@@ -63,7 +72,6 @@ try {
 } finally {
 
   echo $output;
-  echo "<!--".(memory_get_peak_usage()/1000)."kb-->";
   
 
 }

@@ -1,23 +1,21 @@
 #!/usr/bin/php
 <?php
 
-# regardless of where this script is executed, change our working directory to the application root
 chdir(dirname(__FILE__).'/..');
 
-# Require the framework file (this allows the file name to be changed easily, or broken out into separate files
+define('CONF', parse_ini_file('data/config.ini'));
+
 require 'src/kernel.php';
 
-# Include the configuration file
-define('CONFIG', parse_ini_file('data/config.ini'));
 
+
+/*** ROUTING **************************************************************************************/
 
 
 
 Route::markdown(function($input = null) {
   $time  = microtime(true);  
-  $parse = new Parser('views/pages/about.md');
-  
-  // print_r(explode("\n", File::load('views/pages/about.md')->body));
+  $parse = new Parser('README.md');
   
   // echo Render::DOM($parse);
 
@@ -26,21 +24,9 @@ Route::markdown(function($input = null) {
 
 
 
-Route::bench(function() {
-  $files = glob('data/benchmarks/html/*.*');
-  $time = microtime(true);
-  // Response::pair($files);
-  
-  // echo round((microtime(true) - $time) * 1000) . "ms for compile\n";
-  
-  $time = microtime(true);
-  $id =  md5(join(array_map('filemtime', $files)));
-    // compute signatures
-  echo round((microtime(true) - $time) * 1000) . "ms for hash\n";
-  return "\n done\n";
-});
+/*** IMPLEMENTATION *******************************************************************************/
 
-## Implementation
+
 
 try {
   
@@ -48,13 +34,14 @@ try {
   $output  = Route::compose($command);
   
 } catch (Exception | Error $e) {
-  $output = sprintf("\n\033[0;31m%s\033[0m\n", $e->getMessage());
+  
+  $output  = sprintf("\n\033[0;31m%s\033[0m\n", $e->getMessage());
   $output .= sprintf("line %s in %s\n", $e->getLine(), $e->getFile());
   
 } finally {
 
   echo $output;
-  echo "\n-- Finished {$command->action} -- \n";
+  echo "\n- Finished {$command->action} -\n";
   exit($command->status);
   
 }

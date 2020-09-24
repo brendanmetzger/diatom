@@ -1,6 +1,6 @@
 # Diatom
 
-This template framework is a quick starting point. The `kernal.php` file aims to be everything necessary to begin making a website. There are additional classes to ensure that most goals can be met when it comes to authoring a content-based site.
+This template framework is a quick starting point. The `src/kernal.php` file aims to be everything necessary to begin making a website. There are additional classes to ensure that most goals can be met when it comes to authoring a content-based site.
 
 ## Requirements
 
@@ -13,7 +13,7 @@ This template framework is a quick starting point. The `kernal.php` file aims to
 
 ### Simple
 
-If a website is, say, 10 pages of basic content, you are basically done, just hone your homepage in `pages/index.html`, add a `yield` spot for swapping in new pages, such as `pages/about.html`. Proceed to make the pages, and remember that you don't need to add all the boilerplate, because that will exist in `pages/index.html`
+If a website is, say, 10 pages of basic content, you are basically done, just hone your homepage in `pages/index.html`, add a ` yield` spot for swapping in new pages, such as `views/vpages/about.html`. Proceed to make the pages, and remember that you don't need to add all the boilerplate, because that will exist in `views/pages/index.html`
 
 #### Things you can do out of the box
 - use template variables
@@ -27,6 +27,11 @@ If you need to add authorship capabilities for others without access, there are 
 
 ## Templating
 
+### Variables
+
+- use `${key}` to embed a variable
+
+
 ### Embedding stylesheets and links
 
 
@@ -36,9 +41,14 @@ If you need to add authorship capabilities for others without access, there are 
    depending on the flag. This will be unseen in the Diatom framework markdown, but visible
    in traditional markdown. Delete this after you get a gist (if you like) */
 
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,700;1,400&display=swap');
+
+main {max-width: 100ch;}
+
 body {
   padding: 10rem;
   background-color: #f8f8f8;
+  font-family: 'IBM Plex Mono', monospace;
 }
 
 h1 {font-size: 400%;}

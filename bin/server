@@ -20,13 +20,13 @@ if (php_sapi_name() == 'cli') {
       shell_exec("kill -2 {$info[0]}");
       echo "empty logs, server off.\n";
     }
-      
 
     exit();
 
   }
   
   echo "Starting localhost server on port 8888 (modify port if necessary and/or delete message)\n";
+  touch('pages/index.html');
   exec(sprintf('php -S %s %s > %s 2>&1 &', $host, 'index.php', $log));
   exec(sprintf('open -a "Google Chrome" http://%s/', $host));
   echo "run `bin/server` stop this server.\n" ;
