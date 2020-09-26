@@ -26,7 +26,18 @@ class Parser {
     throw new Error("{$file->type} Not Supported", 500);
   }
   
-
+  static public function convert(Document $DOM) {
+    $instance = new Plain($DOM);
+    
+    $instance->convertParagraphs();
+    $instance->convertList();
+    $instance->convertHeadings();
+    $instance->convertCDATA();
+    
+    return (string) $instance;
+  }
+  
+  
   private function scan($iterator)
   {
     $block = new Block;
@@ -312,5 +323,92 @@ class Inline {
     if ($checked[0] != ' ') $input->setAttribute('checked', 'checked');
     $out = mb_strlen($match[0]);
     return [0, $out, $out, $node];
+  }
+}
+
+class Plain {
+  
+  /*
+    TODO convert blockquotes, convert any element containing text into p
+  */
+  private $document;
+  
+  public function __construct(Document $DOM) {
+    $this->document = $DOM;
+    $this->basic = array_flip(Token::INLINE);
+    $this->query = join('|', array_map(fn($key) => "./{$key}", array_keys($this->basic)));
+  }
+  
+  public function __toString() {
+    if ($head = $this->document->select('head')) $head->remove();
+    return str_replace(['‘', '’', '—'], ["'", "'", '--'], trim(html_entity_decode(strip_tags($this->document))));
+  }
+  
+  public function convertParagraphs() {
+    foreach ($this->document->find('//p') as $node)
+      $node->parentNode->replaceChild(new Text("\n".$this->convertInline($node)."\n"), $node);
+  }
+  
+  public function convertList()
+  {
+    // find all li: look at parent node for format, count parent ul|ol nodes for depth
+    foreach ($this->document->find("//li") as $node) {
+      $type = $node->parentNode->nodeName;
+      if ($type == 'ol') {
+        $prefix = preg_replace('/.*\[(\d+)\]$/', '\1', preg_replace('/li$/', 'li[1]', $node->getNodePath())) . '. ';
+      } else {
+        $prefix = '- ';
+      }
+      $indent = ($node->find('./ancestor::ul')->length - 1) * 2;
+      
+      $node->parentNode->insertBefore(new Text("\n{$prefix}" . $this->convertInline($node)), $node(''));
+    }
+  }
+  
+  public function convertHeadings()
+  {
+    foreach ($this->document->find("//*[substring-after(name(), 'h') > 0]") as $node) {
+      $node->parentNode->replaceChild(new Text("\n\n".str_repeat('#', substr($node->nodeName, 1)) . ' ' . $this->convertInline($node) . "\n"), $node);
+    }
+  }
+  
+  public function convertLinks($context)
+  {
+    foreach ($context->find('./a') as $node) {
+      $title = $node->hasAttribute('title') ? ' "'.$node->gasAttribute('title').'"' : '';
+      $context->replaceChild(new Text('['.$this->convertInline($node).']('.$node->getAttribute('href').$title.')'), $node);
+    }
+  }
+  
+  public function convertBasic($context)
+  {
+    foreach ($context->find($this->query) as $node) {
+      $flag = $this->basic[$node->nodeName];
+      $context->replaceChild(new Text($flag . $this->convertInline($node) . $flag), $node);
+    }
+  }
+  
+  public function convertInline(Element $node):string
+  {
+    $this->convertBasic($node);
+    $this->convertLinks($node);
+    // $this->convertTags
+    // $this->convertInputs
+    return trim($node->nodeValue);
+  }
+  
+  public function convertCDATA()
+  {
+    foreach ($this->document->find('//pre|//style|//script') as $node) {
+      $flag = $node->nodeName == 'pre' ? '' : $node->nodeName;
+      $node->parentNode->replaceChild(new Text("\n``` {$flag}$node->nodeValue```\n"), $node);
+    }
+    
+    foreach ($this->document->find('/processing-instruction()|//comment()') as $node) {
+      if ($node->nodeName == '#comment')
+        $node->parentNode->replaceChild(new Text("// {$node->data}\n"), $node);
+      else
+        $this->document->documentElement->insertBefore(new Text("?{$node->target} {$node->data}\n"), $this->document->documentElement->firstChild);
+    }
   }
 }

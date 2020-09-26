@@ -9,7 +9,7 @@ require 'src/kernel.php';
 
 
 
-/*** ROUTING **************************************************************************************/
+/*** ROUTING ******************************************************************/
 
 
 
@@ -21,8 +21,40 @@ Route::markdown(function($input = null) {
 });
 
 
+Route::test(function() {
+  // echo "A B C D E F";
+  exec('stty -icanon');
+  // stream_set_blocking($this->input, 0);
+  while (1) {
+    $key = ord(fgetc($this->input));
+    echo $key;
+    // if (27 === $key) {
+    //   fgetc($this->input);
+    //   $key = ord(fgetc($this->input));
+    // }
+    
+    
+    
+    echo $key . "\n";
+  }
+  
+  // for ($i=0; $i < 10; $i++) {
+  //   sleep(1);
+  //   echo "\e[1D";
+  // }
+  // $this->prompt("where is cursor\e[s\e[2DFF\e[u");
+});
 
-/*** IMPLEMENTATION *******************************************************************************/
+
+Route::plain(function() {
+
+  echo Parser::convert(Document::open('views/pages/index.html'));
+
+});
+
+
+
+/*** IMPLEMENTATION **********************************************************/
 
 
 

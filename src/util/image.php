@@ -17,17 +17,22 @@ class Image {
     return new self(\File::load($path));
   }
   
-  public function scale(int $dimension, int $quality = 80)
+  public function scale(int $dimension)
   {
-    $scaled   = imagescale($this->resource, ($dimension * $this->aspect));
-    ob_start();
-    imagejpeg($scaled, null, $quality);
-    return ob_get_clean();
+    $this->resource = imagescale($this->resource, ($dimension * $this->aspect));
+    return $this;
   }
   
-  public function save(string $type = null)
+  public function export(string $path, int $quality = 80)
   {
-    # code...
+    $info = pathinfo($path);
+    $this->file->uri = $path;
+    $processor = str_replace('/', '', \File::MIME[$info['extension']]);
+
+    ob_start();
+    call_user_func($processor, $this->resource, null, 80);
+    $this->file->body = ob_get_clean();
+    return $this->file;
   }
   
   public function __destruct() {

@@ -1,9 +1,10 @@
 <?php
 
-###################################################################################################
-# Command | this is the non-http version of the router interface as a means to direct CLI scripts
-# that can interact with same components of the application, including running the applications
-# own Request/Response calls to gather data (if specified properly).
+/**
+ * Command | this is the non-http version of the router interface.
+ * can interact with same components of the application, including running the
+ * applications own Request/Response calls to gather data (if specified properly).
+ */
 
 class Command implements Router
 {

@@ -58,7 +58,7 @@ try {
   http_response_code($e->getCode() ?: 400);
   // $toarr = (array)$e;
   $output = Request::GET('error', [
-    'wrapper' => CONF['DEV'] ?? null,
+    'wrapper' => CONF['DEV'] ?? null,    
     'message' => $e->getMessage(),
     'code'    => $e->getCode(),
     'file'    => $e->getFile(),

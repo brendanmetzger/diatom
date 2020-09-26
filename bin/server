@@ -8,20 +8,23 @@ if (php_sapi_name() == 'cli') {
   
   $host = "127.0.0.1:8888";
   $log  = 'app.log';
+
   if ($running = shell_exec(sprintf('ps -x | grep "[p]hp -S %s"', $host))) {
 
     $input = fopen('php://stdin', 'r');
     $info  = preg_split('/\s+/', trim($running));
-
+    
+    exec('stty cbreak -echo');
     echo sprintf("Server active: \033[1;1;32m[enter]\033[0m to kill (pid %s) \033[1;31m[any key]\033[m to abort\n", $info[0]);
 
-    if (empty(trim(fgets($input)))) {
+    if (ord(fgetc($input)) == 10) {
       unlink($log);
       shell_exec("kill -2 {$info[0]}");
-      echo "empty logs, server off.\n";
+      echo "cleared logs, server off.\n";
     }
-
-    exit();
+    
+    exec('stty sane');
+    exit(0);
 
   }
   
