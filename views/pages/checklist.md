@@ -4,8 +4,6 @@
 
 # Quickstart
 
-![baseball](https://upload.wikimedia.org/wikipedia/en/1/1e/Baseball_%28crop%29.jpg)
-
 ## Startup Tasks
 
 - [ ] specify a new port in [`bin/server`](${wrapper}?url=file:///bin/server) if necessary

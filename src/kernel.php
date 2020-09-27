@@ -587,7 +587,12 @@ class Element extends DOMElement implements ArrayAccess {
   }
 }
 
-class Text extends DOMText { use invocable; }
+class Text extends DOMText {
+  use invocable; 
+  public function __construct(string $input, ...$args) {
+    parent::__construct($args ? vsprintf($input, $args) : $input);
+  }
+}
 class Attr extends DOMAttr {
   use invocable;
   public function remove() {

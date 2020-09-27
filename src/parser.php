@@ -26,15 +26,10 @@ class Parser {
     throw new Error("{$file->type} Not Supported", 500);
   }
   
-  static public function convert(Document $DOM) {
-    $instance = new Plain($DOM);
-    
-    $instance->convertParagraphs();
-    $instance->convertList();
-    $instance->convertHeadings();
-    $instance->convertCDATA();
-    
-    return (string) $instance;
+  static public function convert(Document $DOM)
+  {
+    $md = new Plain($DOM);
+    return (string) $md->paragraphs()->rules()->list()->headings()->CDATA();
   }
   
   
@@ -55,9 +50,6 @@ class Parser {
     return $this->DOM->saveXML();
   }
   
-  static public function addCallback(callable $callback) {
-    self::$callbacks[] = $callback;
-  }
 }
 
 class Token {
@@ -344,75 +336,87 @@ class Plain {
     return str_replace(['‘', '’', '—'], ["'", "'", '--'], trim(html_entity_decode(strip_tags($this->document))));
   }
   
-  public function convertParagraphs() {
+  public function paragraphs():self {
     foreach ($this->document->find('//p') as $node)
-      $node->parentNode->replaceChild(new Text("\n".$this->convertInline($node)."\n"), $node);
+      $node->parentNode->replaceChild(new Text("\n".$this->inline($node)."\n"), $node);
+    return $this;
   }
   
-  public function convertList()
+  public function list():self
   {
-    // find all li: look at parent node for format, count parent ul|ol nodes for depth
     foreach ($this->document->find("//li") as $node) {
-      $type = $node->parentNode->nodeName;
-      $prefix = ($type == 'ol')
-        ? preg_replace('/.*\[(\d+)\]$/', '\1', preg_replace('/li$/', 'li[1]', $node->getNodePath())) . '.'
+      $indent = str_repeat(' ', ($node->find('ancestor::ul|ancestor::ol')->length - 1) * 2);
+      $prefix = ($node->parentNode->nodeName == 'ol')
+        ? preg_replace('/.*li(\[(\d+)\])(?1)?$/', '\2', $node->getNodePath().'[1]') . '.'
         : '-';
-      
-      $indent = str_repeat(' ', ($node->find('ancestor::ul')->length - 1) * 2);
-      
-      $node->parentNode->insertBefore(new Text("\n{$indent}{$prefix} " . $this->convertInline($node)), $node(''));
+
+      $node->parentNode->insertBefore(new Text("\n{$indent}{$prefix} " . $this->inline($node)), $node(''));
     }
+    
     foreach($this->document->find('//ul|//ol') as $node)
       $node->appendChild(new Text("\n"));
+    
+    return $this;
   }
   
-  public function convertHeadings()
+  public function headings():self
   {
-    foreach ($this->document->find("//*[substring-after(name(), 'h') > 0]") as $node) {
-      $node->parentNode->replaceChild(new Text("\n".str_repeat('#', substr($node->nodeName, 1)) . ' ' . $this->convertInline($node) . "\n"), $node);
-    }
+    // heading => #;
+    foreach ($this->document->find("//*[substring-after(name(), 'h') > 0]") as $node)
+      $node->parentNode->replaceChild(new Text("\n".str_repeat('#', substr($node->nodeName, 1)) . ' ' . $this->inline($node) . "\n"), $node);
+    return $this;
   }
   
-  public function convertRefs($context, $name, $attr, $flag)
+  public function references($context, $name, $attr, $flag)
   {
     foreach ($context->find($name) as $node) {
-      $text = $name == 'a' ? $this->convertInline($node) : $node->getAttribute('alt');
+      $text  = $name == 'a' ? $this->inline($node) : $node->getAttribute('alt');
       $title = $node->hasAttribute('title') ? ' "'.$node->gasAttribute('title').'"' : '';
-      $context->replaceChild(new Text($flag.'['.$text.']('.$node->getAttribute($attr).$title.')'), $node);
+      $context->replaceChild(new Text('%s[%s](%s%s)', $flag, $text, $node[$attr], $title), $node);
     }
   }
   
-  public function convertInputs($context)
+  public function input($context)
   {
     foreach($context->find('label/input[@type="checkbox"]') as $node) {
       $flag = $node->hasAttribute('checked') ? 'x' : ' ';
-      $context->replaceChild(new Text("[{$flag}] " . $this->convertInline($node->parentNode)), $node->parentNode);
+      $context->replaceChild(new Text('[%s] %s', $flag, $this->inline($node->parentNode)), $node->parentNode);
     }
   }
   
-  public function convertBasic($context)
-  {
+  public function rules():self {
+    foreach ($this->document->find('//hr') as $node)
+      $node->parentNode->replaceChild(new Text("\n\n----\n\n"), $node);
+    return $this;
+  }
+  
+  public function basic($context) {
     foreach ($context->find($this->query) as $node) {
       $flag = $this->basic[$node->nodeName];
-      $context->replaceChild(new Text($flag . $this->convertInline($node) . $flag), $node);
+      $context->replaceChild(new Text('%s%s%1$s', $flag, $this->inline($node)), $node);
     }
   }
   
-  public function convertInline(Element $node):string
+  public function tags($context) {
+    foreach ($context->find('span[@class]') as $node)
+      $context->replaceChild(new Text('{%s: %s}', $node['@class'], $node['@title']), $node);
+  }
+  
+  public function inline(Element $node):string
   {
-    $this->convertBasic($node);
-    $this->convertRefs($node, 'a', 'href', '');
-    $this->convertRefs($node, 'img', 'src', '!');
-    // $this->convertTags
-    $this->convertInputs($node);
+    $this->basic($node);
+    $this->references($node, 'a', '@href', '');
+    $this->references($node, 'img', '@src', '!');
+    $this->tags($node);
+    $this->input($node);
     return trim($node->nodeValue);
   }
   
-  public function convertCDATA()
+  public function CDATA():self
   {
     foreach ($this->document->find('//pre|//style|//script') as $node) {
       $flag = $node->nodeName == 'pre' ? '' : $node->nodeName;
-      $node->parentNode->replaceChild(new Text("\n``` {$flag}$node->nodeValue```\n"), $node);
+      $node->parentNode->replaceChild(new Text("\n```{$flag}$node->nodeValue```\n"), $node);
     }
     
     foreach ($this->document->find('/processing-instruction()|//comment()') as $node) {
@@ -421,5 +425,6 @@ class Plain {
       else
         $this->document->documentElement->insertBefore(new Text("?{$node->target} {$node->data}\n"), $this->document->documentElement->firstChild);
     }
+    return $this;
   }
 }

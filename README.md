@@ -1,16 +1,14 @@
-?publish 1
 # Diatom
 
 
 *This template framework is a quick starting point. The `src/kernal.php` file aims to be everything necessary to begin making a website. There are additional classes to ensure that most goals can be met when it comes to authoring a content-based site.*
 
-// blorf
 
 ## Guidelines
 
-A pure html site is rather burdensome to manage if you treat html as extraneous slop; this templating system is strict, and doesn't allow all-too-common errors (CDATA mishaps, unencoded entities, unclosed elements, etc.) Rather, a an error is thrown and offer guidance on where to correct the file conveniently and immediately.
+A pure html site is rather {custom:   burdensome} to manage if you treat html as extraneous slop; this templating system is strict, and doesn't allow all-too-common errors (CDATA mishaps, unencoded entities, unclosed elements, etc.) Rather, a an error is thrown and offer guidance on where to correct the file conveniently and immediately.
 
-
+----
 
 - Linux or Mac OS (and a package installer  only if needed)
 - php 7.4+ (soon php 8)
