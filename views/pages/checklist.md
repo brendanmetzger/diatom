@@ -4,6 +4,8 @@
 
 # Quickstart
 
+![baseball](https://upload.wikimedia.org/wikipedia/en/1/1e/Baseball_%28crop%29.jpg)
+
 ## Startup Tasks
 
 - [ ] specify a new port in [`bin/server`](${wrapper}?url=file:///bin/server) if necessary
@@ -18,6 +20,7 @@
 - [ ] Create a new file in `view/pages/`
 - [ ] make a syntax error in an ^^html^^ document
 - [ ] Checkout out `index.php`, note example route and play around
+
 
 ## Development Tasks
 

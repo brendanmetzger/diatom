@@ -48,7 +48,7 @@ Route::test(function() {
 
 Route::plain(function() {
 
-  echo Parser::convert(Document::open('views/pages/index.html'));
+  echo Parser::convert(Document::open('views/pages/checklist.md'));
 
 });
 
