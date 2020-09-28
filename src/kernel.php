@@ -709,6 +709,11 @@ class Data extends ArrayIterator
 
 abstract class Model implements ArrayAccess {
   protected $context;
+  
+  static public function FACTORY(...$args)
+  {
+    return print_r($args);
+  }
 
   public function __construct(Element $context) { 
     $this->context = $context;

@@ -41,6 +41,7 @@ try {
       'date'  => fn ($format, $time = 'now') => date($format, strtotime($time)),
       'title' => 'Diatom Micro Framework',
       'wrapper' =>  CONF['DEV'] ?? null,
+      'model'   => 'model::FACTORY',
     ];
     
     $response = new Response($request, $data);    

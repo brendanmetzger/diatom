@@ -4,7 +4,7 @@
 
 # Quickstart
 
-Open [this document](${wrapper}?url=${info.path.url}&line=9) to amend and edit project tasks
+Open [this document](${wrapper}?url=${info.path.url}) to amend and edit project tasks
 
 ## Startup Tasks
 

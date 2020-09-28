@@ -21,11 +21,6 @@ Route::markdown(function($input = null) {
 });
 
 
-Route::sprinter(function(...$args) {
-  echo vsprintf('hello', $args);
-});
-
-
 Route::test(function() {
   // echo "A B C D E F";
   exec('stty -icanon');
