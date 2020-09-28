@@ -321,7 +321,7 @@ class Inline {
 class Plain {
   
   /*
-    TODO convert blockquotes, convert any element containing text into p
+    TODO still need to convert blockquotes, convert any element containing text into p
   */
   private $document;
   
@@ -350,7 +350,7 @@ class Plain {
         ? preg_replace('/.*li(\[(\d+)\])(?1)?$/', '\2', $node->getNodePath().'[1]') . '.'
         : '-';
 
-      $node->parentNode->insertBefore(new Text("\n{$indent}{$prefix} " . $this->inline($node)), $node(''));
+      $node("\n{$indent}{$prefix} " . $this->inline($node));
     }
     
     foreach($this->document->find('//ul|//ol') as $node)
@@ -361,13 +361,19 @@ class Plain {
   
   public function headings():self
   {
-    // heading => #;
     foreach ($this->document->find("//*[substring-after(name(), 'h') > 0]") as $node)
-      $node->parentNode->replaceChild(new Text("\n".str_repeat('#', substr($node->nodeName, 1)) . ' ' . $this->inline($node) . "\n"), $node);
+      $node("\n".str_repeat('#', substr($node->nodeName, 1)) . ' ' . $this->inline($node) . "\n");
     return $this;
   }
   
-  public function references($context, $name, $attr, $flag)
+  public function rules():self {
+    foreach ($this->document->find('//hr') as $node)
+      $node("\n\n----\n\n");
+    return $this;
+  }
+  
+  
+  public function references($context, $name, $attr, $flag):void
   {
     foreach ($context->find($name) as $node) {
       $text  = $name == 'a' ? $this->inline($node) : $node->getAttribute('alt');
@@ -376,7 +382,7 @@ class Plain {
     }
   }
   
-  public function input($context)
+  public function input($context):void
   {
     foreach($context->find('label/input[@type="checkbox"]') as $node) {
       $flag = $node->hasAttribute('checked') ? 'x' : ' ';
@@ -384,20 +390,14 @@ class Plain {
     }
   }
   
-  public function rules():self {
-    foreach ($this->document->find('//hr') as $node)
-      $node->parentNode->replaceChild(new Text("\n\n----\n\n"), $node);
-    return $this;
-  }
-  
-  public function basic($context) {
+  public function basic($context):void {
     foreach ($context->find($this->query) as $node) {
       $flag = $this->basic[$node->nodeName];
       $context->replaceChild(new Text('%s%s%1$s', $flag, $this->inline($node)), $node);
     }
   }
   
-  public function tags($context) {
+  public function tags($context):void {
     foreach ($context->find('span[@class]') as $node)
       $context->replaceChild(new Text('{%s: %s}', $node['@class'], $node['@title']), $node);
   }
@@ -416,7 +416,7 @@ class Plain {
   {
     foreach ($this->document->find('//pre|//style|//script') as $node) {
       $flag = $node->nodeName == 'pre' ? '' : $node->nodeName;
-      $node->parentNode->replaceChild(new Text("\n```{$flag}$node->nodeValue```\n"), $node);
+      $node("\n```{$flag}$node->nodeValue```\n");
     }
     
     foreach ($this->document->find('/processing-instruction()|//comment()') as $node) {

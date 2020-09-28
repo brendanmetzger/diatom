@@ -22,7 +22,7 @@ Route::example(function(int $padding = 2) {
 try {
   if (CONF['dev'] ?? false) include 'edit.php';
   
-  $request   = new Request($_SERVER, 'index.html');
+  $request   = new Request($_SERVER);
   
   header("Content-Type: {$request->mime}");
   
@@ -32,20 +32,21 @@ try {
     header('Content-Length: '. strlen($output));
 
   } else {
-
+    
+    
     // Set Application data
     $data = [
       'pages' => Route::gather(glob('pages/*.*')), 
       'about' => 'A modeled templating framework, no dependencies.',
       'date'  => fn ($format, $time = 'now') => date($format, strtotime($time)),
       'title' => 'Diatom Micro Framework',
+      'wrapper' =>  CONF['DEV'] ?? null,
     ];
     
     $response = new Response($request, $data);    
     $output   = Route::compose($response);
 
     if ($output instanceof Template) {
-      
       $output = Render::DOM($output->render($response->data));
       
       if ($request->type == 'json')

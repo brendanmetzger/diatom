@@ -98,7 +98,7 @@ class File
     $this->type  = strtolower($this->info['extension'] ?? 'html');
     $this->info['scheme'] ??= ($this->type == 'gz' ? 'compress.zlib' : 'file');
     $this->local = substr($this->info['scheme'], 0, 4) != 'http';
-    $this->url   = $this->local ? $this->info['scheme'].'://' . realpath($this->uri) : $this->uri;
+    $this->url = $this->info['url'] = $this->local ? $this->info['scheme'].'://' . realpath($this->uri) : $this->uri;
     $this->mime  = self::MIME[$this->type];
     $this->id    = md5($this->url);
     if ($content) $this->setBody($content);
@@ -142,33 +142,30 @@ class File
 
 class Request
 {
-  public $uri, $method, $data = '', $basic = false, $headers = [];
+  const REGEX = '/^([\w\/-]*+)(?:\.(\w{1,4}))?$/i';
   
+  public $uri, $method, $data = '', $basic = false, $index = 'index', $headers = [];
   
-  public function __construct(array $headers, $default = 'index.html')
+  public function __construct(array $headers, $type = 'html')
   {
     $uri = parse_url(urldecode($headers['REQUEST_URI']));
-    $this->uri    = trim($uri['path'], '/');
-    $this->method = $headers['REQUEST_METHOD'] ?? 'GET';
 
+    $this->method  = $headers['REQUEST_METHOD'] ?? 'GET';
     $this->headers = $headers;
+
+    preg_match(self::REGEX, trim($uri['path'], '/ .'), $match, PREG_UNMATCHED_AS_NULL);
     
-    [$basename, $extension] = explode('.', $default);
-    preg_match('/\/?(.*?)(?:\.([a-z][a-z0-9]{1,4}))?$/i', $this->uri, $match);
-    
-    $this->route = ($match[1] ?? $basename)  ?: $basename;  // the match may or may not
-    $this->type  = ($match[2] ?? $extension) ?: $extension; // have a key w/ a falsy value
-    
-    $this->mime    = $headers['CONTENT_TYPE']  ?? File::MIME[$this->type] ?? File::MIME['html'];
-    $this->default = isset($headers['partial']) ? $this->route : $basename;
+    $this->uri   = $match[0] ?: '/';
+    $this->route = $match[1] ?: $this->index; 
+    $this->type  = $match[2] ?: $type;
+    $this->mime  = $headers['CONTENT_TYPE'] ?? File::MIME[$this->type] ?? File::MIME[$type];
     
     // 'Basic' requests do not need a layout
     $this->basic = $this->mime != 'text/html' || ($headers['HTTP_YIELD'] ?? false);  
     
-    // can be _POST or stdin... consider  
-    if (in_array($this->method, ['POST','PUT']) && ($headers['CONTENT_LENGTH'] ?? 0) > 0)
+    // can be POST, PUT or PATCH, which all contain a body
+    if ($this->method[0] === 'P' && ($headers['CONTENT_LENGTH'] ?? 0) > 0)
       $this->data = file_get_contents('php://input');
-
   }
     
   static public function GET($uri, array $data = [], array $headers = []): Document
@@ -210,7 +207,7 @@ class Response extends File implements Router
     parent::__construct($request->uri);
     $this->merge($data);
     $this->request = $request;
-    $this->body    = Route::endpoint($request->default);
+    $this->body    = Route::endpoint($request->index);
     $this->params  = explode('/', $request->route);
     $this->action  = strtolower(array_shift($this->params));
     $this->view    = Route::endpoint($request->route) ?? Route::endpoint($this->action);
@@ -246,11 +243,13 @@ class Response extends File implements Router
   public function delegate($config) {
     if ($this->request->basic) {
       if ($config && ! ($config instanceof DOMNode)) return $config;
-      return new Template(($config instanceof DOMNode ? $config : $this->view), $this->layout);
+      $this->layout = new Template(($config instanceof DOMNode ? $config : $this->view), $this->layout);
     } else if ($this->body != $config)
       $this->yield(Template::YIELD, $config);
     else
       $this->layout = new Template($config);
+    
+    $this->data['info'] = $this->view->info;
     
     return $this->layout;
   }
@@ -626,7 +625,7 @@ trait Registry {
     $this->data[$key] = $value;
   }
   public function __get($key) {
-    return $this->data[$key];
+    return $this->data[$key] ?? null;
   }
   public function merge(array $data) {
     return $this->data = array_merge($this->data, $data);

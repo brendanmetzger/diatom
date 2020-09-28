@@ -4,9 +4,11 @@
 
 # Quickstart
 
+Open [this document](${wrapper}?url=${info.path.url}&line=9) to amend and edit project tasks
+
 ## Startup Tasks
 
-- [ ] specify a new port in [`bin/server`](${wrapper}?url=file:///bin/server) if necessary
+- [ ] specify a new port in `bin/server` if necessary
 - [ ] run `bin/server` to start a localhost, opens site in chrome by default
 - [ ] edit `views/pages/index.php` to make changes (this readme is imported by default)
 - [ ] create a new page in pages, add processing instructions to make it visible in the nav
