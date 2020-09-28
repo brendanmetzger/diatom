@@ -157,17 +157,19 @@ class Block {
   
   public function process(DOMElement $context): void
   {
-    foreach($this->token as $token) {
+    foreach($this->token as $idx => $token) {
       
       if ($context instanceof DOMText) {
         $context->appendData($token->text);
         continue;
       }
-      $context = $this->append($context, $token);
+      
+      $delta   = $token->depth - ($this->token[$idx-1] ?? (object)['depth' => 1])->depth;
+      $context = $this->append($context, $token, $delta);
     }
   }
   
-  private function append($context, $token)
+  private function append(DOMNode $context, Token $token, int $delta)
   {
     if ($token->name == 'comment') {
       $context->appendChild(new DOMComment($token->value));
@@ -178,13 +180,21 @@ class Block {
       $doc->insertBefore(new DOMProcessingInstruction(...explode(' ', $token->value, 2)), $doc->firstChild);
       return $context;
     }
-      
     
-    # TODO check the depth and decide if it's time to move up or down (might be a good fit for kernel Element enhancments)
-    if ($token->element && $token->name != 'CDATA' && $context->nodeName != $token->name)
-     $context = $context->appendChild(new DOMElement($token->name));
+    if ($token->element && $token->name != 'CDATA' && ($context->nodeName != $token->name || $delta != 0)) {
+      if ($delta < 0)
+        $context = $context->select('../..');
+      else {
+        if ($delta > 0) {
+         $context = $context->appendChild(new Element($token->element));
+         $context->setAttribute('data-depth', $delta);
+        }
+        $context = $context->appendChild(new Element($token->name));
+      }
+    }
+     
     
-    $element = $context->appendChild(new DOMElement($token->element ?? $token->name));
+    $element = $context->appendChild(new Element($token->element ?? $token->name));
     
     if ($token->name === 'hr')
       return $context;
@@ -199,14 +209,6 @@ class Block {
   }
 }
 
-/*
-  TODO consider Inline extends DOMText  
-  ... ie. $parent->appendChild(new Inline($text));
-  and can do things like $this->splitText($offset) within Inline class
-*/
-
-# note: (?<=<)(?:https?:\/)?\/(.+?)(?=\/).*(?=>) can find links with the <> encapsulation.
-#       I do not use in my projects and encurage the more the explicit format.
 
 class Inline {
   private static $rgxp = null;
@@ -233,7 +235,8 @@ class Inline {
     $matches = [
       ...$this->gather(self::$rgxp['link'], $text, [$this, 'link']),
       ...$this->gather(self::$rgxp['pair'], $text, [$this, 'basic']),
-      ...$this->gather('/\{([a-z]+)\:(.+?)\}/u', $text, [$this, 'tag'])
+      ...$this->gather('/\{([a-z]+)\:(.+?)\}/u', $text, [$this, 'tag']),
+      ...$this->gather('/<((?:https?:\/)?\/(.*))>/', $text, [$this, 'autolink'])
     ];
     
     if ($node->nodeName == 'li')
@@ -287,6 +290,11 @@ class Inline {
     $node->setAttribute('title', str_replace(['‘', '’', '—'], ["'", "'", '--'], $title));
     $node->setAttribute('class', $tag[0]);
     return [...$this->offsets($line, $match), $node];
+  }
+  
+  public function autolink($line, $match, $pathordomain, $url)
+  {
+    return $this->link($line, $match, [false], $url, $pathordomain);
   }
   
   private function link($line, $match, $flag, $text, $url, $caption = null)
@@ -344,17 +352,16 @@ class Plain {
   
   public function list():self
   {
-    foreach ($this->document->find("//li") as $node) {
+    foreach ($this->document->find("//li[not(@data-depth)]") as $node) {
       $indent = str_repeat(' ', ($node->find('ancestor::ul|ancestor::ol')->length - 1) * 2);
       $prefix = ($node->parentNode->nodeName == 'ol')
         ? preg_replace('/.*li(\[(\d+)\])(?1)?$/', '\2', $node->getNodePath().'[1]') . '.'
         : '-';
-
       $node("\n{$indent}{$prefix} " . $this->inline($node));
     }
     
     foreach($this->document->find('//ul|//ol') as $node)
-      $node->appendChild(new Text("\n"));
+      $node->parentNode->replaceChild(new Text($node->nodeValue. "\n"), $node);
     
     return $this;
   }

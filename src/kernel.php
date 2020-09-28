@@ -703,7 +703,7 @@ class Data extends ArrayIterator
 }
 
 /**
- * Model | a wrapper for any DOM element that turns it into a model-able resource
+ * Model | typ. used to model DOM accessable data with CRUD-able interfaces
  *
 **/
 

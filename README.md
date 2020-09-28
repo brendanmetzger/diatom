@@ -1,7 +1,7 @@
 # Diatom
 
 
-*This template framework is a quick starting point. The `src/kernal.php` file aims to be everything necessary to begin making a website. There are additional classes to ensure that most goals can be met when it comes to authoring a content-based site.*
+*This template framework is a quick starting point. The `src/kernel.php` file aims to be everything necessary to begin making a website. There are additional classes to ensure that most goals can be met when it comes to authoring a content-based site.*
 
 
 ## Guidelines
@@ -112,7 +112,7 @@ body {
 
 h1 {font-size: 400%;}
 
-section[id$=tasks] ul {margin: 1rem; padding: 0; list-style-type: none}
+section ul {margin: 1rem; padding: 0; list-style-type: none}
 
 section {
   margin: 2rem -2rem;

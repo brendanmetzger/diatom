@@ -14,10 +14,7 @@ require 'src/kernel.php';
 
 
 Route::markdown(function($input = null) {
-  chdir('views');
-  $template = new Template(Document::open('pages/index.html'));
-  
-  return Render::DOM($template->render());
+  echo Document::open('data/benchmarks/bootstrap.md');
 });
 
 
@@ -48,7 +45,7 @@ Route::test(function() {
 
 Route::plain(function() {
 
-  echo Parser::convert(Document::open('README.md'));
+  echo Parser::convert(Document::open('views/pages/checklist.md'));
 
 });
 
