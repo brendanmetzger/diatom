@@ -4,39 +4,34 @@
 *This template framework is a quick starting point. The `src/kernel.php` file aims to be everything necessary to begin making a website. There are additional classes to ensure that most goals can be met when it comes to authoring a content-based site.*
 
 
-## Guidelines
+## Overview
 
-A pure html site is rather {custom:   burdensome} to manage if you treat html as extraneous slop; this templating system is strict, and doesn't allow all-too-common errors (CDATA mishaps, unencoded entities, unclosed elements, etc.) Rather, a an error is thrown and offer guidance on where to correct the file conveniently and immediately.
+This framework is primarly focused around creating reusable templates (HTML) and allowing them to be programmed elegantly by  avoiding parse errors (CDATA mishaps, unencoded entities, unclosed elements, etc.) that occur with non-validatable templates or markdown libraries.
 
-----
+Guidance is offered when mistakes occur, ensuring that all output is entirely valid, queryable, and can undergo mutations, etc.
 
-- Linux or Mac OS (and a package installer  only if needed)
-- php 7.4+ (soon php 8)
-- valid xHTML (that's XML, close your elements!)
-- CSS
-- Javascript
+### Some Principles
 
-
-### Languages
-
-JavaScript can be a mess, and it can be frighteningly complicated; this framework alleviates some of that by allowing you great freedom to just write your javascript wherever you want, and include it as a script with a src, or just plop it right into a template. Don't worry about `DOMready` or any of that stuff, just write principled javascript at the point of interest and it should work out alright.
+1. Do not over-configure
+2. write code yourself when possible (and throughly read source when not)
+3. Use agnostic tools to do anything complicated; Regular Expressions, Xpath/DOM, SQL
+4. Honor thy Markup
 
 
-## Use cases
+### Requirements
 
-1. One
-2. Two
-3. Three
-4. Four
+The bulk of authorship is __unadulterated__ xHTML, CSS, JavaScript. Then to program things, PHP. There are no dependencies. 
+
+- Linux or Mac OS)
+- php 7.4+ - `[brew](https://brew.sh/) install php`  to get that if needed
+
+
+## Use Cases
+
 
 ### Simple
 
 If a website is, say, 10 pages of basic content, you are basically done, just hone your homepage in `pages/index.html`, add a ` yield` spot for swapping in new pages, such as `views/vpages/about.html`. Proceed to make the pages, and remember that you don't need to add all the boilerplate, because that will exist in `views/pages/index.html`
-
-#### Things you can do out of the box
-- use template variables
-- embed partial templates
-- insert custom javascript and css wherever you want
 
 
 ### More Involved
@@ -45,7 +40,10 @@ If you need to add authorship capabilities for others without access, there are 
 
 ## Templating
 
-- use `${key}` to embed a variable
+Templating is a powerful feature, and it stems from a premise that all content authored is a [Document](https://en.wikipedia.org/wiki/Document_Object_Model), and thus, can be sliced apart an queried. Any template can insert other documents, or parts of other documents as desired. Any markdown document is automatically parsed into a valid Document, and thus, adheres to the same principles.
+
+- author in markdown (slightly modified) or strict xHTML
+- use [template literals](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals) to embed a variables (`${${expression}}`)
 - embed scripts directly into the template; to lazy load, add `<?render behavior?>` to your document
 - CSS, similar to javascript, can be written in a `<style>` element directly in any page or a stylesheet added with `<link/>`. 
 
@@ -112,7 +110,7 @@ body {
 
 h1 {font-size: 400%;}
 
-section ul {margin: 1rem; padding: 0; list-style-type: none}
+section[id$=tasks] ul {list-style:none;}
 
 section {
   margin: 2rem -2rem;
@@ -124,8 +122,9 @@ a,code {color: rgb(255 0 128);}
 
 code {
   background-color: #fff;
-  box-shadow: 0 0 0 0.5em #fff;
+  box-shadow: 0 0 0 0.25em rgb(255 255 255 / 0.75);
   font-style: normal;
+  padding: 0 0.25em;
 }
 
 

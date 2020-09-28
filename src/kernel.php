@@ -355,6 +355,7 @@ class Template
       $context  = $slug = $ref->nextSibling;
       $template = new self($context, null, true);
       $invert  = $exp !== '/';
+      
       foreach (Data::fetch($key, $data) ?? [] as $datum) {
         $node = $this->DOM->importNode($template->render($datum, true)->documentElement, true);
         $slug = $context->parentNode->insertBefore($node, $invert ? $slug : $context);
@@ -405,24 +406,26 @@ class Template
     });
   }
 
-  protected function getSlugs($cache = false): iterable
+  protected function getSlugs(): iterable
   {
     if (empty($this->slugs)) {
       $xp = "contains(.,'\${') and not(*)";
       foreach ( $this->DOM->find("//*[{$xp} and not(self::script)]|//*/@*[{$xp}]") as $var ) {
         $path  = $var->getNodePath();
         $this->slugs[$path] ??= [];
-
-        preg_match_all('/\$\{.+?\}/i', $var(htmlentities($var)), $match, PREG_OFFSET_CAPTURE);
-
+        preg_match_all('/\$\{[^}]+\}+/i', $var, $match, PREG_OFFSET_CAPTURE);
         foreach (array_reverse($match[0]) as [$k, $i]) {
-          
+
           $split = [mb_strlen(substr($var, 0, $i)), mb_strlen($k)];
           $node  = $var->firstChild->splitText($split[0])->splitText($split[1])->previousSibling;
           $key   = substr($node->nodeValue, 2, -1);
-
+          
           if ($key[0] == '$') {
-            // $node($key);
+            foreach($this->slugs[$path] as &$item) $item[1][0] -= 3;
+            if ($this->cache instanceof Element)
+              $this->cache->nodeValue = str_replace($key, substr($key, 2, -1), $this->cache);
+            
+            $node($key);
             continue;
           }
           

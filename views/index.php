@@ -42,6 +42,7 @@ try {
       'title' => 'Diatom Micro Framework',
       'wrapper' =>  CONF['DEV'] ?? null,
       'model'   => 'model::FACTORY',
+      'list' => [['name' => "A", 'other' => 'goo'], ['name' => 'B', 'other' => 'yep'], ['name' => 'D', 'other' => 'tope tope']],
     ];
     
     $response = new Response($request, $data);    
