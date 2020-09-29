@@ -1,4 +1,5 @@
 :root {
+  --pink: color: rgb(255 0 128);
   color: #333;
 }
 
@@ -12,5 +13,4 @@
 
 body, h1,h2,h3,h4,h5, div {margin: 0; padding: 0; line-height:1.625;}
 
-li[data-depth] ul,
-li[data-depth] ol { margin: 0.25rem 1rem;}
+li[data-nested] {list-style: none;}

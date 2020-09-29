@@ -1,6 +1,5 @@
-?title Checklist
+?title Getting Started
 ?publish 2
-
 
 # Quickstart
 
@@ -13,7 +12,6 @@ Open [this document](${wrapper}?url=${info.path.url}) to amend and edit project 
 - [ ] edit `views/pages/index.php` to make changes (this readme is imported by default)
 - [ ] create a new page in pages, add processing instructions to make it visible in the nav
 
-
 ## Explore Tasks
 
 - [ ] Change port in `bin/php`
@@ -21,22 +19,21 @@ Open [this document](${wrapper}?url=${info.path.url}) to amend and edit project 
 - [ ] make a syntax error in an ^^html^^ document
 - [ ] Checkout out `index.php`, note example route and play around
 
-
 ## Development Tasks
 
 This application is often used on the ^^AWS^^ Platform, particularly *lightsail* for the server host, and *S3* for object storage.
 
 - [ ] Set up `data/config.ini` file with keys
 - [ ] Configure ligtsail server (this is a large task)
-  - [ ] install php, with xml, curl, mbstring
-  - [ ] install apache
-  - [ ] add group for web
+    - [ ] install php, with xml, curl, mbstring
+    - [ ] install apache
+    - [ ] add group for web
 - [ ] init a git repo and set up remote
 - [ ] review deployment strategy
 
 // insert ../README.md //style
 
-``` script
+```script
 
 document.querySelector('article').addEventListener('click', evt => {
   if (evt.target.nodeName == 'INPUT')

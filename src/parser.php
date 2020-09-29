@@ -29,7 +29,7 @@ class Parser {
   static public function convert(Document $DOM)
   {
     $md = new Plain($DOM);
-    return (string) $md->paragraphs()->rules()->list()->headings()->CDATA();
+    return (string) $md->blocks()->rules()->list()->headings()->CDATA();
   }
   
   
@@ -75,7 +75,7 @@ class Token {
   
   function __construct($data) {
     foreach ($data as $prop => $value) $this->{$prop} = $value;
-    $this->value =  trim(substr($this->text, $this->name == 'p' ? 0 : $this->trim * $this->depth));
+    $this->value =  trim(substr($this->text, $this->name == 'p' ? 0 : $this->trim));
     if ($this->context = in_array($this->name, ['CDATA','ol','ul','blockquote'])) {
       if ($this->name == 'CDATA')
         $this->element = trim(substr($this->text, 3)) ?: 'pre';
@@ -87,6 +87,7 @@ class Token {
 
 
 class Block {
+  const INDENT = 4;
   private $token = [], $trap = false, $cursor = null;
   private static $rgxp;
 
@@ -101,12 +102,11 @@ class Block {
 
     [$symbol, $offset] = array_pop($list); // last match contains match & offset: [string $symbol, int offset]
     $trim = strlen($symbol);
-
     return new Token ([
       'name'  => sprintf(Token::BLOCK['name'][count($list) - 1], $trim),
       'flag'  => $symbol,
-      'trim'  => $trim,
-      'depth' => floor($offset / 2) + 1,
+      'trim'  => $offset + $trim,
+      'depth' => floor($offset / self::INDENT) + 1,
       'text'  => $text,
     ]);
   }
@@ -158,13 +158,12 @@ class Block {
   public function process(DOMElement $context): void
   {
     foreach($this->token as $idx => $token) {
-      
       if ($context instanceof DOMText) {
         $context->appendData($token->text);
         continue;
       }
       
-      $delta   = $token->depth - ($this->token[$idx-1] ?? (object)['depth' => 1])->depth;
+      $delta   =  ($this->token[$idx-1] ?? (object)['depth' => 1])->depth - $token->depth;
       $context = $this->append($context, $token, $delta);
     }
   }
@@ -182,12 +181,12 @@ class Block {
     }
     
     if ($token->element && $token->name != 'CDATA' && ($context->nodeName != $token->name || $delta != 0)) {
-      if ($delta < 0)
-        $context = $context->select('../..');
+      if ($delta > 0)
+        $context = $context->select(join('/', array_fill(0, $delta, '../..')));
       else {
-        if ($delta > 0) {
+        if ($delta < 0) {
          $context = $context->appendChild(new Element($token->element));
-         $context->setAttribute('data-depth', $delta);
+         $context->setAttribute('data-nested', $token->depth - 1);
         }
         $context = $context->appendChild(new Element($token->name));
       }
@@ -202,7 +201,8 @@ class Block {
     if ($token->name === 'CDATA')
       return $element->appendChild(new DOMText($token->text));
     
-    $element->nodeValue = preg_replace(['/(?<=\s)\'/u', '/(?<=\S)\'/u', '/\s?--\s?/u'], ['‘', '’', '—'], htmlspecialchars($token->value, ENT_XHTML, 'UTF-8', false));
+    $element(preg_replace(['/(?<=\s)\'/u', '/(?<=\S)\'/u', '/\s?--\s?/u'], ['‘', '’', '—'], $token->value));
+    
     (new Inline($element))->parse();
 
     return $context;
@@ -236,7 +236,7 @@ class Inline {
       ...$this->gather(self::$rgxp['link'], $text, [$this, 'link']),
       ...$this->gather(self::$rgxp['pair'], $text, [$this, 'basic']),
       ...$this->gather('/\{([a-z]+)\:(.+?)\}/u', $text, [$this, 'tag']),
-      ...$this->gather('/<((?:https?:\/)?\/(.*))>/', $text, [$this, 'autolink'])
+      ...$this->gather('/<((?:https?:\/)?\/([<>]*))>/', $text, [$this, 'autolink'])
     ];
     
     if ($node->nodeName == 'li')
@@ -344,16 +344,16 @@ class Plain {
     return str_replace(['‘', '’', '—'], ["'", "'", '--'], trim(html_entity_decode(strip_tags($this->document))));
   }
   
-  public function paragraphs():self {
-    foreach ($this->document->find('//p') as $node)
+  public function blocks():self {
+    foreach ($this->document->find('//p|//figure') as $node)
       $node->parentNode->replaceChild(new Text("\n".$this->inline($node)."\n"), $node);
     return $this;
   }
   
   public function list():self
   {
-    foreach ($this->document->find("//li[not(@data-depth)]") as $node) {
-      $indent = str_repeat(' ', ($node->find('ancestor::ul|ancestor::ol')->length - 1) * 2);
+    foreach ($this->document->find("//li[not(ul) and not(ol)]") as $node) {
+      $indent = str_repeat(' ', ($node->find('ancestor::ul|ancestor::ol')->length - 1) * Block::INDENT);
       $prefix = ($node->parentNode->nodeName == 'ol')
         ? preg_replace('/.*li(\[(\d+)\])(?1)?$/', '\2', $node->getNodePath().'[1]') . '.'
         : '-';
@@ -384,7 +384,7 @@ class Plain {
   {
     foreach ($context->find($name) as $node) {
       $text  = $name == 'a' ? $this->inline($node) : $node->getAttribute('alt');
-      $title = $node->hasAttribute('title') ? ' "'.$node->gasAttribute('title').'"' : '';
+      $title = $node->hasAttribute('title') ? ' "'.$node->getAttribute('title').'"' : '';
       $context->replaceChild(new Text('%s[%s](%s%s)', $flag, $text, $node[$attr], $title), $node);
     }
   }
@@ -406,7 +406,7 @@ class Plain {
   
   public function tags($context):void {
     foreach ($context->find('span[@class]') as $node)
-      $context->replaceChild(new Text('{%s: %s}', $node['@class'], $node['@title']), $node);
+      $context->replaceChild(new Text('{%s: %s}', $node['@class'], $node->getAttribute('title') ?: $this->inline($node)), $node);
   }
   
   public function inline(Element $node):string

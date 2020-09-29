@@ -14,7 +14,7 @@ require 'src/kernel.php';
 
 
 Route::markdown(function($input = null) {
-  echo Document::open('data/benchmarks/bootstrap.md');
+  echo Document::open('data/benchmarks/lists.md');
 });
 
 
@@ -44,8 +44,9 @@ Route::test(function() {
 
 
 Route::plain(function() {
-
-  echo Parser::convert(Document::open('views/pages/checklist.md'));
+  $mca = '/Volumes/work/clients/mcachicago.org/mcachicago-scrape/mcachicago.org/The-Commons-Online.html';
+  $check = 'views/pages/checklist.md';
+   echo Parser::convert(Document::open($check));
 
 });
 

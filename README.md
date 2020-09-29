@@ -6,54 +6,35 @@
 
 ## Overview
 
-This framework is primarly focused around creating reusable templates (HTML) and allowing them to be programmed elegantly by  avoiding parse errors (CDATA mishaps, unencoded entities, unclosed elements, etc.) that occur with non-validatable templates or markdown libraries.
+This framework is primarily focused around creating reusable templates (HTML) and allowing them to be programmed elegantly by  avoiding parse errors (CDATA mishaps, unencoded entities, unclosed elements, etc.) that occur with non-validating templates or markdown libraries.
 
 Guidance is offered when mistakes occur, ensuring that all output is entirely valid, queryable, and can undergo mutations, etc.
 
-### Some Principles
-
-1. Do not over-configure
-2. write code yourself when possible (and throughly read source when not)
-3. Use agnostic tools to do anything complicated; Regular Expressions, Xpath/DOM, SQL
-4. Honor thy Markup
-
-
 ### Requirements
 
-The bulk of authorship is __unadulterated__ xHTML, CSS, JavaScript. Then to program things, PHP. There are no dependencies. 
+The bulk of authorship is __completely standard__ xHTML, CSS, JavaScript. Then to program things, use PHP and reference [php.net](http://php.net) for misc. documentation (there are no dependencies).
 
 - Linux or Mac OS)
 - php 7.4+ - `[brew](https://brew.sh/) install php`  to get that if needed
+- Understanding of HTML and the Document Object Model
+
+### Quickstart
+
+1. [clone repo](https://github.com/brendanmetzger/diatom) (or within github, fork or "use template" )
+2. run `bin/server` from the application root directory
+3. Have at it
+
+
 
 
 ## Use Cases
 
 
-### Simple
-
-If a website is, say, 10 pages of basic content, you are basically done, just hone your homepage in `pages/index.html`, add a ` yield` spot for swapping in new pages, such as `views/vpages/about.html`. Proceed to make the pages, and remember that you don't need to add all the boilerplate, because that will exist in `views/pages/index.html`
-
-
-### More Involved
-
-If you need to add authorship capabilities for others without access, there are facilities for that.
-
-## Templating
-
-Templating is a powerful feature, and it stems from a premise that all content authored is a [Document](https://en.wikipedia.org/wiki/Document_Object_Model), and thus, can be sliced apart an queried. Any template can insert other documents, or parts of other documents as desired. Any markdown document is automatically parsed into a valid Document, and thus, adheres to the same principles.
-
-- author in markdown (slightly modified) or strict xHTML
-- use [template literals](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals) to embed a variables (`${${expression}}`)
-- embed scripts directly into the template; to lazy load, add `<?render behavior?>` to your document
-- CSS, similar to javascript, can be written in a `<style>` element directly in any page or a stylesheet added with `<link/>`. 
-
-## Authoring
-
-
-### Most Basic
+###  Basic
 
 Create new html files. Set processing instructions to deal with them. Append JS files wherever you want as script src='file.js', don't worry about lazy loading, domready or anything, it will just work. Same with CSS, just embed a style element or link wherever, and it will find its way to the right spot in the template. This is the coolest part of the intire thing.
 
+*note* There is a JavaScript autoload framework that provides functionality for loading scripts (see views/js/autoload.js)--but it is specifically designed to never be interacted with, or have to remember any of it's methodology to use--simply write JS, and embed in a `<script>` by reference or embedded directly.
 
 ### Some Programming
 
@@ -73,22 +54,55 @@ Almost any site could employ some feature of this framework methodology. At its 
 An API could be facilitated with the routing paradigm, or a receiver of webhooks.
 
 
+## Templating
+
+Templating is a powerful feature, and it stems from a premise that all content authored is a [Document](https://en.wikipedia.org/wiki/Document_Object_Model), and thus, can be sliced apart an queried. Any template can insert other documents, or parts of other documents as desired. Any markdown document is automatically parsed into a valid Document, and thus, adheres to the same principles.
+
+- author in markdown (slightly modified) or strict xHTML
+- use [template literals](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals) to embed a variables (`${${expression}}`)
+- embed scripts directly into the template; to lazy load, add `<?render behavior?>` to your document (see list below) [autoload-js]
+- CSS, similar to javascript, can be written in a `<style>` element directly in any page or a stylesheet added with `<link/>`. 
+
+
+### Renderers
+
+- **behavior** finds all `<script>` elements and converts/encodes:
+     - `<script src="path"></script>`  to `<script>Kit.script(path);</script>`
+     - `<script>code</script>`  to `<script>Kit.script(data://uri,b64 code);</script>`
+- **canonical** reorders the document to place (and organize) `<style>`, `<link>`, `<meta>`  into the `<head>` of the Document
+- **sections** recursively looks for heading elements and builds sections around them.
+- **editable** marks embedded Documents with their original source, and maps nodepaths fore editable nodes against that nodepath
+
+
+
+## Application
+
+
 
 ### Directory Layout
 
-- the assumed layout is derived from index.html
+- **view/** contains template files, CSS, JavaScript, media--essentially the document root
+  - **pages/** site-wide html 'pages', as well as the assumed layout is derived from the index.html file is stored in this directory by default
 - html files are stored in a directory called pages
 
 ### Output Formats
 
+The response type will honor the extension of the 'file' requested, and default to html if no extension is  provided. The differentitation between dynamic routes and actual file endpoints is invisible. Thus, `random.jpg` could be a file, a template, a route callback, or a controller and the server response would be pretty much the same.
+
 - content-type is assumed return text/html (.html) if unspecified
-
-All of the above can, of course, be changed--but you wouldn't change a configuration file, you'd re-author parts of the program, because back to the philosophy, is that stuff going to change arbitrarily?
-
+- the extension determines the content-type (simply)
 
 
+### Routing
 
-### [|Embedding|](/dumb/example) stylesheets and links
+TODO
+
+### Models
+
+TODO
+
+
+### Embedding stylesheets and links
 
 
 ``` style
@@ -110,20 +124,23 @@ body {
 
 h1 {font-size: 400%;}
 
-section[id$=tasks] ul {list-style:none;}
-
+section[id$=tasks] ul {list-style:none;padding: 0;}
+section[id$=tasks] li[data-nested] ul {border-left: 1px dashed rgb(0 0 0 / 0.25);padding-left: 1rem;margin:0.25rem 0.65rem;}
 section {
   margin: 2rem -2rem;
   padding: 2rem;
   background-color: #FAFAFA;
 }
 
-a,code {color: rgb(255 0 128);}
+
+a { color: #1778E2}
 
 code {
+  color: rgb(255 0 128);
   background-color: #fff;
   box-shadow: 0 0 0 0.25em rgb(255 255 255 / 0.75);
   font-style: normal;
+  font: inherit;
   padding: 0 0.25em;
 }
 

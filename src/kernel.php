@@ -413,7 +413,9 @@ class Template
       foreach ( $this->DOM->find("//*[{$xp} and not(self::script)]|//*/@*[{$xp}]") as $var ) {
         $path  = $var->getNodePath();
         $this->slugs[$path] ??= [];
+        
         preg_match_all('/\$\{[^}]+\}+/i', $var, $match, PREG_OFFSET_CAPTURE);
+        
         foreach (array_reverse($match[0]) as [$k, $i]) {
 
           $split = [mb_strlen(substr($var, 0, $i)), mb_strlen($k)];
@@ -431,6 +433,7 @@ class Template
           
           $this->slugs[$path][] = [$key, $split];
         }
+        
       }
     }
     return $this->slugs;

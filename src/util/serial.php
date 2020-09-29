@@ -40,12 +40,12 @@ class Serial {
   }
   
   // this function turns any string into a predictable, 5 character string, useful for making ID's
-  static public function hash(string $input)
+  static public function hash(string $input, $ignore = '/[. ]/'):string
   {
     static $instance = null;
     
     $instance ??= new self(array_merge(self::CODEX, range(0,9)));
-    $input      = md5(mb_strtolower(preg_replace('/[. ]/', '', $input)));
+    $input      = md5(mb_strtolower(preg_replace($ignore, '', $input)));
     $decimal    = intval(substr($input, 0, 9), 16);
 
     return substr($instance->fromInteger($decimal), 0, 5);
