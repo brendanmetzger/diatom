@@ -1,0 +1,30 @@
+#!/usr/bin/php
+
+<?php chdir(dirname(__FILE__).'/..');
+      define('CONF', parse_ini_file('data/config.ini'));
+      require 'src/kernel.php';
+
+
+      ini_set('assert.exception', 1);
+      ini_set('zend.assertions', 1);
+
+/**** TESTS ******************************************************************/
+
+try {
+
+  assert(phpversion() >= 7.4);
+  
+} catch (AssertionError $e) {
+  
+  echo "There was an assertion error, fix before continuing..\n\n";
+  echo "  " . $e->getMessage() . "\n";
+  echo "  bin/test: line " . $e->getLine() . "\n\n";
+
+  exit(1);
+}
+
+
+
+
+
+

@@ -1,15 +1,12 @@
 #!/usr/bin/php
-<?php
 
-chdir(dirname(__FILE__).'/..');
-
-define('CONF', parse_ini_file('data/config.ini'));
-
-require 'src/kernel.php';
+<?php chdir(dirname(__FILE__).'/..');
+      define('CONF', parse_ini_file('data/config.ini'));
+      require 'src/kernel.php';
 
 
 
-/*** ROUTING ******************************************************************/
+/**** ROUTING ****************************************************************/
 
 
 

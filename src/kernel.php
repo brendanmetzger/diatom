@@ -15,10 +15,26 @@ class Route {
   
   static private $actions = [], $paths = [];
   
-  // private function __construct(callable $action, $view = null) {
-  //   # code...
-  // }
+  /* Constructor WIP
+  private $path, $controller, $action, $templates = [];
+  // from __callStatic or Gather
+  // 8.0 callable|array $
+  private function __construct($path, $callable_or_template) {
+    $this->path = $path;
+    if (is_callable($)) {
+      # code...
+    }
+  }
   
+  public function setController(callable $controller) {
+    $this->controller = $controller;
+  }
+  
+  public function setTemplate(array $info) {
+  
+  }
+  
+  */
   static public function compose(Router $router) {
     return $router->delegate((new self)->configure($router));
   }
@@ -31,6 +47,12 @@ class Route {
   static public function __callStatic($action, $arguments) {
     if (is_callable($arguments[0]))
       self::$actions[$action] = $arguments[0];
+    
+    /* refactor WIP
+    
+    self::$actions[$action] ??= new self(...$arguments)
+    
+    */
   }
   
   static public function endpoint($key){
@@ -143,10 +165,11 @@ class File
 class Request
 {
   const REGEX = '/^([\w\/-]*+)(?:\.(\w{1,4}))?$/i';
+  const TYPE  = 'html';
   
   public $uri, $method, $data = '', $basic = false, $index = 'index', $headers = [];
   
-  public function __construct(array $headers, $type = 'html')
+  public function __construct(array $headers)
   {
     $uri = parse_url(urldecode($headers['REQUEST_URI']));
 
@@ -157,8 +180,8 @@ class Request
     
     $this->uri   = $match[0] ?: '/';
     $this->route = $match[1] ?: $this->index; 
-    $this->type  = $match[2] ?: $type;
-    $this->mime  = $headers['CONTENT_TYPE'] ?? File::MIME[$this->type] ?? File::MIME[$type];
+    $this->type  = $match[2] ?: self::TYPE;
+    $this->mime  = $headers['CONTENT_TYPE'] ?? File::MIME[$this->type] ?? File::MIME[self::TYPE];
     
     // 'Basic' requests do not need a layout
     $this->basic = $this->mime != 'text/html' || ($headers['HTTP_YIELD'] ?? false);  

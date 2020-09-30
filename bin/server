@@ -3,8 +3,10 @@
 
 if (php_sapi_name() == 'cli') {
   
-  if (phpversion() < 7.4) die("PHP 7.4+ required; (`brew install php` should be up-to-date)\n");
-  
+  // run tests before starting
+  system('../bin/test', $status);
+
+  if ($status > 0) exit(1);
   
   $host = "127.0.0.1:8888";
   $log  = 'app.log';

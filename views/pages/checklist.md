@@ -25,7 +25,7 @@ This application is often used on the ^^AWS^^ Platform, particularly *lightsail*
 
 - [ ] Set up `data/config.ini` file with keys
 - [ ] Configure ligtsail server (this is a large task)
-    - [ ] install php, with xml, curl, mbstring
+    - [ ] install php, with xml, curl, mbstring, gd
     - [ ] install apache
     - [ ] add group for web
 - [ ] init a git repo and set up remote
