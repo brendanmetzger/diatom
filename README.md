@@ -32,7 +32,7 @@ The bulk of authorship is __completely standard__ xHTML, CSS, JavaScript. Then t
 
 ###  Basic
 
-Create new html files. Set processing instructions to deal with them. Append JS files wherever you want as script src='file.js', don't worry about lazy loading, domready or anything, it will just work. Same with CSS, just embed a style element or link wherever, and it will find its way to the right spot in the template. This is the coolest part of the intire thing.
+Create new html files. Set processing instructions to deal with them. Append JS files wherever you want as `<script src='file.js'>` ( don't worry about lazy loading, domready or anything, it will just work). Same with CSS, just embed a style element or link wherever, and it will find its way to the right spot in the template. This is the coolest part of the intire thing.
 
 *note* There is a JavaScript autoload framework that provides functionality for loading scripts (see views/js/autoload.js)--but it is specifically designed to never be interacted with, or have to remember any of it's methodology to use--simply write JS, and embed in a `<script>` by reference or embedded directly.
 
