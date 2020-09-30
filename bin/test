@@ -1,18 +1,28 @@
 #!/usr/bin/php
-
-<?php chdir(dirname(__FILE__).'/..');
+<?php 
+      chdir(dirname(__FILE__).'/..');
       define('CONF', parse_ini_file('data/config.ini'));
       require 'src/kernel.php';
 
 
       ini_set('assert.exception', 1);
-      ini_set('zend.assertions', 1);
+      ini_set('zend.assertions',  1);
 
 /**** TESTS ******************************************************************/
 
 try {
-
+  // Running Correct PHP Version
   assert(phpversion() >= 7.4);
+  
+  // Can Create Document
+  $test = new Document('<ok/>');
+  assert("<ok/>" === (string) $test);
+  
+  // Can Render a Template 
+  $test = (new Template(new Document('<ok value="${msg}"/>')))->render(['msg' => 'ok']);
+  assert('<ok value="ok"/>' === (string) $test);
+  
+  // Can Make a Request
   
 } catch (AssertionError $e) {
   

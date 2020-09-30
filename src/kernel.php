@@ -15,26 +15,6 @@ class Route {
   
   static private $actions = [], $paths = [];
   
-  /* Constructor WIP
-  private $path, $controller, $action, $templates = [];
-  // from __callStatic or Gather
-  // 8.0 callable|array $
-  private function __construct($path, $callable_or_template) {
-    $this->path = $path;
-    if (is_callable($)) {
-      # code...
-    }
-  }
-  
-  public function setController(callable $controller) {
-    $this->controller = $controller;
-  }
-  
-  public function setTemplate(array $info) {
-  
-  }
-  
-  */
   static public function compose(Router $router) {
     return $router->delegate((new self)->configure($router));
   }
@@ -47,12 +27,6 @@ class Route {
   static public function __callStatic($action, $arguments) {
     if (is_callable($arguments[0]))
       self::$actions[$action] = $arguments[0];
-    
-    /* refactor WIP
-    
-    self::$actions[$action] ??= new self(...$arguments)
-    
-    */
   }
   
   static public function endpoint($key){

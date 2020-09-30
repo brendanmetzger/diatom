@@ -81,9 +81,16 @@ Templating is a powerful feature, and it stems from a premise that all content a
 
 ### Directory Layout
 
+- **bin/** executable files
+    - **server** starts the server, (runs `bin/test` before hand)
+    - **test** simple `assert` testing
+    - **task** configure routs to be executed on command line--essentiall a front controller
 - **view/** contains template files, CSS, JavaScript, media--essentially the document root
-  - **pages/** site-wide html 'pages', as well as the assumed layout is derived from the index.html file is stored in this directory by default
-- html files are stored in a directory called pages
+    - **pages/** site-wide html 'pages', as well as the assumed layout is derived from the index.html file is stored in this directory by default
+    - **ux** Contains JavaScript, CSS, and Media
+- **src/** the __only__ spot to find php files.
+    - **kernel.php** is the only file required by the framework, and it contains multiple classes. Everything else is autoloaded if necessary.
+
 
 ### Output Formats
 
@@ -136,11 +143,10 @@ section {
 a { color: #1778E2}
 
 code {
+  font-family: 'Courier New';
   color: rgb(255 0 128);
   background-color: #fff;
   box-shadow: 0 0 0 0.25em rgb(255 255 255 / 0.75);
-  font-style: normal;
-  font: inherit;
   padding: 0 0.25em;
 }
 
