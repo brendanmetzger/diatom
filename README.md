@@ -112,37 +112,9 @@ TODO
    depending on the flag. This will be unseen in the Diatom framework markdown, but visible
    in traditional markdown. Delete this after you get a gist (if you like) */
 
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,700;1,400&display=swap');
-
-main {max-width: 100ch;}
-
-body {
-  padding: 10rem;
-  background-color: #EEE;
-  font-family: 'IBM Plex Mono', monospace;
-}
-
-h1 {font-size: 400%;}
 
 section[id$=tasks] ul {list-style:none;padding: 0;}
 section[id$=tasks] li[data-nested] ul {border-left: 1px dashed rgb(0 0 0 / 0.25);padding-left: 1rem;margin:0.25rem 0.65rem;}
-section {
-  margin: 2rem -2rem;
-  padding: 2rem;
-  background-color: #FAFAFA;
-}
-
-
-a { color: #1778E2}
-
-code {
-  color: rgb(255 0 128);
-  background-color: #fff;
-  box-shadow: 0 0 0 0.25em rgb(255 255 255 / 0.75);
-  font-style: normal;
-  font: inherit;
-  padding: 0 0.25em;
-}
 
 
 ```

@@ -14,7 +14,7 @@ Route::example(function(int $padding = 2) {
   // note, this string is not interpolated, those are variables rendered into the template
   return new Document('<h1 style="padding: ${padding}em;">${message}</h1>');
 
-});
+}, ['publish' => 4, 'title' => 'Login']);
 
 /*** IMPLEMENTATION *******************************************************************************/
 

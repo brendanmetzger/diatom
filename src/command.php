@@ -6,6 +6,8 @@
  * applications own Request/Response calls to gather data (if specified properly).
  */
 
+
+
 class Command implements Router
 {
   use Registry;
@@ -27,8 +29,17 @@ class Command implements Router
     echo $message . ": ";
     return trim(fgets($this->input));
   }
+  
+  
+  public function error(array $routes): Exception {
+    $routes = join("\n > ", array_keys($routes));
+    return new Exception("hmm, {$this->action}' not a thing..\n\n > {$routes}\n", 404);
+  }
+  
+  
     
-  public function __invoke(array $routes): Controller {
+  public function __invoke(...$params) {
+    
     return new Class($routes) extends Controller {
       public function __construct($routes) {
         $this->routes = $routes;
@@ -55,7 +66,7 @@ class Command implements Router
     };
   }
   
-  public function delegate($config) {
+  public function delegate(Route $route, $config) {
     return $config;
   }
 }
