@@ -13,41 +13,76 @@ spl_autoload_register();
 
 class Route {
   
-  static private $actions = [], $paths = [];
-  
-  static public function compose(Router $router) {
-    return $router->delegate((new self)->configure($router));
+  static private $endpoint = [];
+
+  private $publish = 0, $handle = null, $template = null;
+
+  public $index, $info = [];
+
+  private function __construct($path, $config) {
+    $this->index   = $path;
+    $this->publish = $config['publish'] ?? 0;
+    $this->info    = $config;
   }
   
-  private function configure(Router $route) {
-    $action = self::$actions[$route->action] ?? $route(self::$actions);
-    return call_user_func_array($action->bindTo($route), $route->params);
+  public function setHandle(callable $handle, $config = []) {
+    $this->handle  = $handle;
+    $this->info['route'] = $this->index;
+    $this->info['title'] = $config['title'] ?? $this->index;
   }
   
+  public function setTemplate(array $info) {
+    if (!isset($info['path'])) return;
+    $this->info['type'] = $info['path']['extension'] == 'md' ? 'html' : $info['path']['extension'];
+    
+    $this->template = $info;
+  }
+  
+  static public function compose(Router $res)
+  {
+    if (! $route = self::$endpoint[$res->action] ?? false)
+      throw $res->error(self::$endpoint);
+    
+    $view = $route->handle ? $route->handle->call($res, ...$res->params) : $res($route->template);
+    
+    return $res->delegate($route, $view);
+  }
+    
   static public function __callStatic($action, $arguments) {
-    if (is_callable($arguments[0]))
-      self::$actions[$action] = $arguments[0];
+    self::$endpoint[$action] ??= new self($action, ...array_slice($arguments, 1));
+    return self::$endpoint[$action]->setHandle(...$arguments);
   }
+  
   
   static public function endpoint($key){
-    return ($path = self::$paths[$key] ?? false) ? Document::open($path['src']) : null;
+    $obj = self::$endpoint[$key];
+    return ($obj->info['path'] ?? false) ? Document::open($obj->template['src']) : null;
   }
   
   static public function gather(array $files)
   {
-    $stash = sys_get_temp_dir() . '/' . md5(join(array_map('filemtime', $files)));
+    $dynamic = array_map(fn($obj) => $obj->publish, self::$endpoint);
+    $static  = array_map('filemtime', $files);
     
+    $stash = sys_get_temp_dir() . '/dd' . md5(join($dynamic+$static));
     if (file_exists($stash)) {
-      self::$paths += json_decode(file_get_contents($stash), true);
-    } else {
-      foreach(Data::apply($files, 'Document::open') as $DOM) {
-        $route = $DOM->info['route'] ??= $DOM->info['path']['filename'];
-        self::$paths[$route] = $DOM->info;
+      
+      foreach (json_decode(file_get_contents($stash), true) as $path => $route) {
+        self::$endpoint[$path] ??= new self($path, $route['info']);
+        self::$endpoint[$path]->setTemplate($route['info']);
       }
-      uasort(self::$paths, fn($A, $B) => ($A['publish'] ?? 0) <=> ($B['publish'] ?? 0));
-      file_put_contents($stash, json_encode(self::$paths));
+    } else {
+      
+      foreach(Data::apply($files, 'Document::open') as $DOM) {
+        $path = $DOM->info['route'] ??= $DOM->info['path']['filename'];
+        self::$endpoint[$path] ??= new self($path, $DOM->info);
+        self::$endpoint[$path]->setTemplate($DOM->info);
+      }
+      file_put_contents($stash, json_encode(self::$endpoint));
     }
-    return array_filter(self::$paths, fn($info) => $info['publish'] ?? false);
+    // TODO see if this can be cached, as long as we are caching
+    uasort(self::$endpoint, fn($A, $B) => ($A->publish) <=> ($B->publish));
+    return array_map(fn($obj) => $obj->info, array_filter(self::$endpoint, fn($route) => $route->publish));
   }
 }
 
@@ -185,8 +220,9 @@ class Request
 
 interface Router
 {
-  public function __invoke(array $routes): Controller;
-  public function delegate($config);
+  public function __invoke($template);
+  public function error(array $routes):Exception;
+  public function delegate(Route $route, $config);
 }
 
 
@@ -197,34 +233,34 @@ interface Router
 class Response extends File implements Router
 {
   use Registry;
-  public $action, $params, $request, $headers = [], $layout = null, $view;
+  
+  public $action, $params, $request, $headers = [], $layout = null;
+  
+  private $templates = [];
   
   public function __construct(Request $request, array $data = [])
   {
     parent::__construct($request->uri);
     $this->merge($data);
     $this->request = $request;
-    $this->body    = Route::endpoint($request->index);
     $this->params  = explode('/', $request->route);
     $this->action  = strtolower(array_shift($this->params));
-    $this->view    = Route::endpoint($request->route) ?? Route::endpoint($this->action);
     $this->id      = md5(implode('', $request->headers));
   }
   
-  public function yield($key, $template)
-  {
-    if (! $this->layout && $this->body) $this->layout = new Template($this->body);
-    $this->layout->set($key, $template);
+  public function yield($key, $template) {
+    $this->templates[$key] = $template;
   }
   
-  public function __invoke(array $routes): Controller {
-    array_unshift($this->params, 'index');
-    return new Class extends Controller {
-      public function index() {
-        if (! $this->view) throw new Exception("'{$this->router->action}' Not Found", 404);
-        return $this->view;
-      }
-    };
+  public function __invoke($template) {
+    // if we are here, there is no callback specified, so the 'view' should always be a
+    // template file. if there is no view, then there is nohing to do. this will return
+    // eventually to delegate as the $config coption
+    return Document::open($template['src']);
+  }
+  
+  public function error(array $routes): Exception {
+    return new Exception("'{$this->action}' was not found\n", 404);
   }
   
   public function header($resource, $header)
@@ -234,19 +270,33 @@ class Response extends File implements Router
       $key   = $split ? strtolower(substr($header, 0, $split)) : 'status'; 
       $this->headers[$key] = trim($split ? substr($header, $split+1) : $header);
     }
+    // this is required by the cURL callback (see @HTTP class and cURL documentation)
     return strlen($header);
   }
   
-  public function delegate($config) {
-    if ($this->request->basic) {
-      if ($config && ! ($config instanceof DOMNode)) return $config;
-      $this->layout = new Template(($config instanceof DOMNode ? $config : $this->view), $this->layout);
-    } else if ($this->body != $config)
-      $this->yield(Template::YIELD, $config);
-    else
-      $this->layout = new Template($config);
+  public function delegate(Route $route, $payload) {
     
-    $this->data['info'] = $this->view->info;
+    
+    // if payload is not a DOM component, no processing to do
+    if (! $payload instanceof DOMNode) return $payload;
+    
+    // basic requests need no view, just return payload
+    if ($this->request->basic) {
+
+      $this->layout = new Template($payload, $this->templates);
+    
+    } else {
+      
+      $this->layout = new Template(Route::endpoint($this->request->index));
+
+      if ($route->index != $this->request->index)
+        $this->layout->set(Template::YIELD, $payload); 
+    }
+    
+    foreach ($this->templates as $key => $template)
+      $this->layout->set($key, $template);
+    
+    $this->data['info'] = $payload->info;
     
     return $this->layout;
   }
@@ -265,11 +315,7 @@ abstract class Controller
   public function __get($key) {
     return $this->router->{$key};
   }
-  
-  protected function init(Router $router) {
-    return true;
-  }
-  
+
   public function yield($key, $value)
   {
     return $this->router->yield($key, $value);
@@ -279,18 +325,12 @@ abstract class Controller
     throw new Exception('Not Implemented', 501);
   }
   
-  public function __invoke($action = 'index', ...$params)
+  public function call(Router $route, $action = 'index', ...$params)
   {
+    $this->router = $route;
     $this->action = strtolower($action);
     if (! is_callable([$this, $this->action])) throw new Exception("'{$action}' not found", 404);
     return  $this->{$this->action}(...$params);
-  }
-  
-  public function bindTo(Router $route): Controller
-  {
-    $this->router = $route;
-    $this->init($route);
-    return $this;
   }
 }
 
@@ -307,7 +347,7 @@ class Template
   
   private $DOM, $templates = [], $slugs = [], $cache;
   
-  public function __construct(DOMnode $input, ?self $parent = null, $cache = false)
+  public function __construct(DOMnode $input, ?array $templates = [], $cache = false)
   {
     if ($input instanceof Element) {
       $this->DOM = new Document($input->export());
@@ -315,7 +355,9 @@ class Template
     } else {
       $this->DOM = $input;
     }
-    if ($parent) $this->templates = $parent->templates;
+    
+    $this->templates += $templates;
+    
     if ($cache) $this->cache = $this->DOM->documentElement->cloneNode(true);
   }
   
@@ -341,7 +383,7 @@ class Template
     foreach ($this->getStubs('yield') as [$cmd, $prop, $exp, $ref]) {
       if ($DOM = $this->templates[$prop ?? Template::YIELD] ?? null) {
         $context = ($exp !== '/') ? $ref : $ref->nextSibling;
-        $node     = (new self($DOM, $this))->render($data, false)->documentElement;
+        $node     = (new self($DOM, $this->templates))->render($data, false)->documentElement;
         $ref->parentNode->replaceChild($this->DOM->importNode($node, true), $context);
 
         if ($ref !== $context) $ref->parentNode->removeChild($ref);
@@ -350,7 +392,7 @@ class Template
 
     foreach ($this->getStubs('iterate') as [$cmd, $key, $exp, $ref]) {
       $context  = $slug = $ref->nextSibling;
-      $template = new self($context, null, true);
+      $template = new self($context, [], true);
       $invert  = $exp !== '/';
       
       foreach (Data::fetch($key, $data) ?? [] as $datum) {

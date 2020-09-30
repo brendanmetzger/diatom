@@ -32,7 +32,7 @@ The bulk of authorship is __completely standard__ xHTML, CSS, JavaScript. Then t
 
 ###  Basic
 
-Create new html files. Set processing instructions to deal with them. Append JS files wherever you want as `<script src='file.js'>` ( don't worry about lazy loading, domready or anything, it will just work). Same with CSS, just embed a style element or link wherever, and it will find its way to the right spot in the template. This is the coolest part of the intire thing.
+Create new html files. Set processing instructions to deal with them. Append JS files wherever you want as script src='file.js', don't worry about lazy loading, domready or anything, it will just work. Same with CSS, just embed a style element or link wherever, and it will find its way to the right spot in the template. This is the coolest part of the intire thing.
 
 *note* There is a JavaScript autoload framework that provides functionality for loading scripts (see views/js/autoload.js)--but it is specifically designed to never be interacted with, or have to remember any of it's methodology to use--simply write JS, and embed in a `<script>` by reference or embedded directly.
 
@@ -81,16 +81,9 @@ Templating is a powerful feature, and it stems from a premise that all content a
 
 ### Directory Layout
 
-- **bin/** executable files
-    - **server** starts the server, (runs `bin/test` before hand)
-    - **test** simple `assert` testing
-    - **task** configure routs to be executed on command line--essentiall a front controller
 - **view/** contains template files, CSS, JavaScript, media--essentially the document root
-    - **pages/** site-wide html 'pages', as well as the assumed layout is derived from the index.html file is stored in this directory by default
-    - **ux** Contains JavaScript, CSS, and Media
-- **src/** the __only__ spot to find php files.
-    - **kernel.php** is the only file required by the framework, and it contains multiple classes. Everything else is autoloaded if necessary.
-
+  - **pages/** site-wide html 'pages', as well as the assumed layout is derived from the index.html file is stored in this directory by default
+- html files are stored in a directory called pages
 
 ### Output Formats
 
@@ -119,36 +112,9 @@ TODO
    depending on the flag. This will be unseen in the Diatom framework markdown, but visible
    in traditional markdown. Delete this after you get a gist (if you like) */
 
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,700;1,400&display=swap');
-
-main {max-width: 100ch;}
-
-body {
-  padding: 10rem;
-  background-color: #EEE;
-  font-family: 'IBM Plex Mono', monospace;
-}
-
-h1 {font-size: 400%;}
 
 section[id$=tasks] ul {list-style:none;padding: 0;}
 section[id$=tasks] li[data-nested] ul {border-left: 1px dashed rgb(0 0 0 / 0.25);padding-left: 1rem;margin:0.25rem 0.65rem;}
-section {
-  margin: 2rem -2rem;
-  padding: 2rem;
-  background-color: #FAFAFA;
-}
-
-
-a { color: #1778E2}
-
-code {
-  font-family: 'Courier New';
-  color: rgb(255 0 128);
-  background-color: #fff;
-  box-shadow: 0 0 0 0.25em rgb(255 255 255 / 0.75);
-  padding: 0 0.25em;
-}
 
 
 ```
