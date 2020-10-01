@@ -4,6 +4,13 @@
 
 /**** ROUTING ****************************************************************/
 
+Route::usher(function($message) {
+  return [new Document('<main><h2>${message}</h2></main>'), strtoupper($message)];
+})->then(function($payload, $message) {
+  $this->message = $message;
+  $payload->documentElement->appendChild(new Element('h1', 'cool?'));
+  return $payload;
+});
 
 Route::example(function($message = 'world') {
   $this->message = "hello {$message}";
@@ -64,5 +71,7 @@ try {
 } finally {
   
   echo $output;
+  
+  echo "\n<!-- " . (memory_get_peak_usage() / 1000) ."kb -->\n";
 
 }

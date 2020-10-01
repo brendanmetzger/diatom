@@ -16,21 +16,46 @@ class Route {
   const INDEX = 'index';
   
   static private $endpoint = [];
+  
+  static public function compose(Router $response)
+  {
+    if (! $route = self::$endpoint[$response->action] ?? false)
+      throw $response->error(self::$endpoint);
+    
+    return $response->delegate($route, $route->fulfill($response));
+  }
+    
+  static public function add($path, array $info = []) {
+    self::$endpoint[$path] ??= new self($path, $info);
+    self::$endpoint[$path]->setTemplate($info);
+  }
 
-  private $publish = 0, $handle = null, $template = null;
+  static public function __callStatic($action, $arguments) {
+    self::$endpoint[$action] ??= new self($action, ...array_slice($arguments, 1));
+    return self::$endpoint[$action]->handle(...$arguments);
+  }
+  
+  /**** Instance Properties and Methods **************************************/
+  
+  private $publish = 0, $handle = null, $template = null, $resolving = true;
 
-  public $index, $info = [];
+  public $path, $info = [];
 
   private function __construct($path, $config = []) {
-    $this->index   = $path;
+    $this->path    = $path;
     $this->publish = $config['publish'] ?? 0;
     $this->info    = $config;
   }
   
-  public function setHandle(callable $handle, $config = []) {
-    $this->handle = $handle;
-    $this->info['route'] = $this->index;
-    $this->info['title'] = $config['title'] ?? $this->index;
+  public function handle(callable $handle, $config = []) {
+    $this->handle = [$handle];
+    $this->info['route'] = $this->path;
+    $this->info['title'] = $config['title'] ?? $this->path;
+    return $this;
+  }
+  
+  public function then(callable $handle) {
+    $this->handle[] = $handle;
   }
   
   public function setTemplate(array $info) {
@@ -40,30 +65,24 @@ class Route {
     $this->template = $info;
   }
   
-  static public function compose(Router $res)
-  {
-    if (! $route = self::$endpoint[$res->action] ?? false)
-      throw $res->error(self::$endpoint);
+  private function fulfill(Router $response, $payload = null) {
     
-    $view = $route->handle ? $route->handle->call($res, ...$res->params) : $res($route->template);
+    if ($this->handle !== null) {
+      $payload = $response->params;
+      do {
+       $payload = array_shift($this->handle)->call($response, ...(is_array($payload) ? $payload : [$payload]));
+      } while ($this->handle);
+    }
     
-    return $res->delegate($route, $view);
+    return $payload ?? $response($this->template);
   }
-    
-  static public function __callStatic($action, $arguments) {
-    self::$endpoint[$action] ??= new self($action, ...array_slice($arguments, 1));
-    return self::$endpoint[$action]->setHandle(...$arguments);
-  }
+  
   
   
   public function index() {
     return Document::open(self::$endpoint[self::INDEX]->template['src']);
   }
   
-  static public function add($path, array $info = []) {
-    self::$endpoint[$path] ??= new self($path, $info);
-    self::$endpoint[$path]->setTemplate($info);
-  }
   
   static public function gather(array $files)
   {
@@ -74,6 +93,7 @@ class Route {
     if (file_exists($stash)) {
       
       foreach (json_decode(file_get_contents($stash), true) as $path => $route) {
+        // $path = $route->info['route'] ??= $DOM->info['path']['filename'];
         self::add($path, $route['info']);
       }
 
@@ -226,7 +246,7 @@ class Request
 interface Router
 {
   public function __invoke($template);
-  public function error(array $routes):Exception;
+  public function error($info):Exception;
   public function delegate(Route $route, $payload);
 }
 
@@ -264,7 +284,7 @@ class Response extends File implements Router
     return Document::open($template['src']);
   }
   
-  public function error(array $routes): Exception {
+  public function error($info): Exception {
     return new Exception("'{$this->action}' was not found\n", 404);
   }
   
@@ -295,7 +315,7 @@ class Response extends File implements Router
       // TODO template should be set as default within template itself. 
       $layout = new Template($route->index());
 
-      if ($route->index != Route::INDEX)
+      if ($route->path != Route::INDEX)
         $layout->set(Template::YIELD, $payload); 
     }
     

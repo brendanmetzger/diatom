@@ -30,8 +30,8 @@ class Command implements Router
     return trim(fgets($this->input));
   }
   
-  public function error(array $routes): Exception {
-    $routes = join("\n > ", array_keys($routes));
+  public function error($info): Exception {
+    $routes = join("\n > ", array_keys($info));
     return new Exception("hmm, {$this->action}' not a thing..\n\n > {$routes}\n", 404);
   }
   
