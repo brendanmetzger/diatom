@@ -95,7 +95,7 @@ class Route {
     $this->template = $info['src'];
   }
   
-  public function fulfill(?Router $response = null, $payload = null) {
+  public function fulfill(?Router $response = null, $payload = null, int $task = 0) {
     
     if ($response === $payload) 
       return Document::open(self::$endpoint[self::INDEX]->template);
@@ -104,9 +104,9 @@ class Route {
    
       $payload = $response->params;
       
-      do {
-       $payload = array_shift($this->handle)->call($response, ...(is_array($payload) ? $payload : [$payload]));
-      } while ($this->handle && ! $response->fulfilled);
+        do
+      $payload = $this->handle[$task++]->call($response, ...(is_array($payload) ? $payload : [$payload]));
+        while (isset($this->handle[$task]) && ! $response->fulfilled);
     }
 
     $response->fulfilled = true;
