@@ -14,10 +14,10 @@
     <section>
       <h1>${code} Error</h1>
       <p>${message}</p>
-      <p><a href="${wrapper}?url=file://${file}&amp;line=${line}">Open at line ${line}</a></p>
+      <p><a href="${mode}?url=file://${file}&amp;line=${line}">Open at line ${line}</a></p>
       <hr/>
       <h4>Trace</h4>
-      <ul data-protocol="${wrapper}">
+      <ul data-protocol="${mode}">
         <!-- iterate trace -->
         <li title="${file}"><strong>${class}::${function}</strong><span>line ${line}</span></li>
       </ul>

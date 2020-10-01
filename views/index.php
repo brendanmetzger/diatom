@@ -1,11 +1,8 @@
-<?php
-
-define('CONF', parse_ini_file('../data/config.ini'));
-
-require_once '../src/kernel.php';
+<?php define('CONFIG', parse_ini_file('../data/config.ini', true));
+      require_once '../src/kernel.php';
 
 
-/*** ROUTING *****************************************************************/
+/**** ROUTING ****************************************************************/
 
 
 Route::example(function($message = 'world') {
@@ -19,11 +16,11 @@ Route::example(function($message = 'world') {
 
 
 
-/*** IMPLEMENTATION **********************************************************/
+/**** IMPLEMENTATION **********************************************************/
 
 
 try {
-  if (CONF['dev'] ?? false) include 'edit.php';
+  if (CONFIG['dev'] ?? false) include 'edit.php';
   
   $request   = new Request($_SERVER);
   
@@ -40,15 +37,12 @@ try {
     // Set Application data
     $data = [
       'pages' => Route::gather(glob('pages/*.*')), 
-      'about' => 'A modeled templating framework, no dependencies.',
       'date'  => fn ($format, $time = 'now') => date($format, strtotime($time)),
-      'title' => 'Diatom Micro Framework',
-      'wrapper' =>  CONF['DEV'] ?? null,
-      'model'   => 'model::FACTORY',
+      'model' => 'model::FACTORY',
       'list' => [['name' => "A", 'other' => 'goo'], ['name' => 'B', 'other' => 'yep'], ['name' => 'D', 'other' => 'tope tope']],
     ];
     
-    $response = new Response($request, $data);    
+    $response = new Response($request, $data + CONFIG['data']);
     $output   = Route::compose($response);
 
     if ($output instanceof Template) {
@@ -64,7 +58,7 @@ try {
   http_response_code($e->getCode() ?: 400);
   // $toarr = (array)$e;
   $output = Request::GET('error', [
-    'wrapper' => CONF['DEV'] ?? null,
+    'wrapper' => CONFIG['DEV'] ?? null,
     'message' => $e->getMessage(),
     'code'    => $e->getCode(),
     'file'    => $e->getFile(),

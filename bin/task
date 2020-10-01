@@ -1,7 +1,7 @@
 #!/usr/bin/php
 
 <?php chdir(dirname(__FILE__).'/..');
-      define('CONF', parse_ini_file('data/config.ini'));
+      define('CONF', parse_ini_file('data/config.ini', true));
       require 'src/kernel.php';
 
 
@@ -15,11 +15,8 @@ Route::markdown(function($input = null) {
 });
 
 
-Route::merge(function() {
-  preg_match(Request::REGEX, '', $match, PREG_UNMATCHED_AS_NULL);
-  
-  print_r($match);
-  // print_r(array_replace(['/', 'index', 'html'], $match));
+Route::conf(function() {
+  print_r(CONF);
 });
 
 

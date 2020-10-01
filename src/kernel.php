@@ -81,7 +81,7 @@ class Route {
       
       foreach(Data::apply($files, 'Document::open') as $DOM) {
         $path = $DOM->info['route'] ??= $DOM->info['path']['filename'];
-        self::add($path, $route['info'], $DOM->info);
+        self::add($path, $DOM->info);
       }
       
       file_put_contents($stash, json_encode(self::$endpoint));
