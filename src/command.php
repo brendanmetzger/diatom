@@ -38,7 +38,7 @@ class Command implements Router
   
   
     
-  public function __invoke(...$params) {
+  public function __invoke($template) {
     
     return new Class($routes) extends Controller {
       public function __construct($routes) {

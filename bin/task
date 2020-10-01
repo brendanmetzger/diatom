@@ -15,6 +15,14 @@ Route::markdown(function($input = null) {
 });
 
 
+Route::merge(function() {
+  preg_match(Request::REGEX, '', $match, PREG_UNMATCHED_AS_NULL);
+  
+  print_r($match);
+  // print_r(array_replace(['/', 'index', 'html'], $match));
+});
+
+
 Route::test(function() {
   // echo "A B C D E F";
   exec('stty -icanon');

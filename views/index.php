@@ -5,18 +5,22 @@ define('CONF', parse_ini_file('../data/config.ini'));
 require_once '../src/kernel.php';
 
 
-/*** ROUTING **************************************************************************************/
+/*** ROUTING *****************************************************************/
 
-// visit http://localhost:8888/example to see this play out
-Route::example(function(int $padding = 2) {
-  $this->message = "hello world";
-  $this->padding = $padding;
-  // note, this string is not interpolated, those are variables rendered into the template
-  return new Document('<h1 style="padding: ${padding}em;">${message}</h1>');
 
-}, ['publish' => 4, 'title' => 'Login']);
 
-/*** IMPLEMENTATION *******************************************************************************/
+Route::example(function($message = 'world') {
+  $this->message = "hello {$message}";
+  $this->color   = join(array_map(fn($idx) => dechex(rand(0, $idx)), array_fill(0, 3, 255)));
+
+
+  return new Document('<h1 style="color: #${color};">${message}</h1>');
+
+}, ['publish' => 3, 'title' => 'Dynamic Route']);
+
+
+
+/*** IMPLEMENTATION **********************************************************/
 
 
 try {

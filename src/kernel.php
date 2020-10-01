@@ -13,20 +13,22 @@ spl_autoload_register();
 
 class Route {
   
+  const INDEX = 'index';
+  
   static private $endpoint = [];
 
   private $publish = 0, $handle = null, $template = null;
 
   public $index, $info = [];
 
-  private function __construct($path, $config) {
+  private function __construct($path, $config = []) {
     $this->index   = $path;
     $this->publish = $config['publish'] ?? 0;
     $this->info    = $config;
   }
   
   public function setHandle(callable $handle, $config = []) {
-    $this->handle  = $handle;
+    $this->handle = $handle;
     $this->info['route'] = $this->index;
     $this->info['title'] = $config['title'] ?? $this->index;
   }
@@ -54,9 +56,8 @@ class Route {
   }
   
   
-  static public function endpoint($key){
-    $obj = self::$endpoint[$key];
-    return ($obj->info['path'] ?? false) ? Document::open($obj->template['src']) : null;
+  public function index() {
+    return Document::open(self::$endpoint[self::INDEX]->template['src']);
   }
   
   static public function gather(array $files)
@@ -176,7 +177,7 @@ class Request
   const REGEX = '/^([\w\/-]*+)(?:\.(\w{1,4}))?$/i';
   const TYPE  = 'html';
   
-  public $uri, $method, $data = '', $basic = false, $index = 'index', $headers = [];
+  public $uri, $method, $data = '', $basic = false, $headers = [];
   
   public function __construct(array $headers)
   {
@@ -188,12 +189,10 @@ class Request
     preg_match(self::REGEX, trim($uri['path'], '/ .'), $match, PREG_UNMATCHED_AS_NULL);
     
     $this->uri   = $match[0] ?: '/';
-    $this->route = $match[1] ?: $this->index; 
+    $this->route = $match[1] ?: Route::INDEX; 
     $this->type  = $match[2] ?: self::TYPE;
     $this->mime  = $headers['CONTENT_TYPE'] ?? File::MIME[$this->type] ?? File::MIME[self::TYPE];
-    
-    // 'Basic' requests do not need a layout
-    $this->basic = $this->mime != 'text/html' || ($headers['HTTP_YIELD'] ?? false);  
+    $this->basic = $headers['HTTP_YIELD'] ?? ($this->mime != 'text/html');
     
     // can be POST, PUT or PATCH, which all contain a body
     if ($this->method[0] === 'P' && ($headers['CONTENT_LENGTH'] ?? 0) > 0)
@@ -234,7 +233,7 @@ class Response extends File implements Router
 {
   use Registry;
   
-  public $action, $params, $request, $headers = [], $layout = null;
+  public $action, $params, $request, $headers = [];
   
   private $templates = [];
   
@@ -245,7 +244,7 @@ class Response extends File implements Router
     $this->request = $request;
     $this->params  = explode('/', $request->route);
     $this->action  = strtolower(array_shift($this->params));
-    $this->id      = md5(implode('', $request->headers));
+    $this->id      = md5(join($request->headers));
   }
   
   public function yield($key, $template) {
@@ -265,7 +264,7 @@ class Response extends File implements Router
   
   public function header($resource, $header)
   {
-    if (!empty(trim($header))) {
+    if (! empty(trim($header))) {
       $split = strpos($header, ':') ?: 0;
       $key   = $split ? strtolower(substr($header, 0, $split)) : 'status'; 
       $this->headers[$key] = trim($split ? substr($header, $split+1) : $header);
@@ -283,22 +282,23 @@ class Response extends File implements Router
     // basic requests need no view, just return payload
     if ($this->request->basic) {
 
-      $this->layout = new Template($payload, $this->templates);
+      $layout = new Template($payload, $this->templates);
     
     } else {
       
-      $this->layout = new Template(Route::endpoint($this->request->index));
+      // TODO template should be set as default within template itself. 
+      $layout = new Template($route->index());
 
-      if ($route->index != $this->request->index)
-        $this->layout->set(Template::YIELD, $payload); 
+      if ($route->index != Route::INDEX)
+        $layout->set(Template::YIELD, $payload); 
     }
     
     foreach ($this->templates as $key => $template)
-      $this->layout->set($key, $template);
+      $layout->set($key, $template);
     
     $this->data['info'] = $payload->info;
     
-    return $this->layout;
+    return $layout;
   }
 }
 
