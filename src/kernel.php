@@ -14,7 +14,6 @@ spl_autoload_register();
 class Route {
   
   const INDEX = 'index';
-  
   static private $endpoint = [];
   
   static public function compose(Router $response)
@@ -24,7 +23,9 @@ class Route {
     
     return $response->delegate($route, $route->fulfill($response));
   }
-    
+  
+  
+  // TODO refactor add and __callStatic into one SET(...) method, callstatic is problematic with name collisions
   static public function add($path, array $info = []) {
     self::$endpoint[$path] ??= new self($path, $info);
     self::$endpoint[$path]->setTemplate($info);
@@ -35,9 +36,38 @@ class Route {
     return self::$endpoint[$action]->handle(...$arguments);
   }
   
+  static public function gather(array $files)
+  {
+    $dynamic = array_map(fn($obj) => $obj->publish, self::$endpoint);
+    $static  = array_map('filemtime', $files);
+    $stash   = sys_get_temp_dir() . '/' . md5(join($dynamic+$static));
+    
+    if (file_exists($stash)) {
+
+      foreach (json_decode(file_get_contents($stash), true) as $path => $route) {
+        self::add($path, $route['info']);
+      }
+
+    } else {
+      
+      foreach(Data::apply($files, 'Document::open') as $DOM) {
+        $path = $DOM->info['route'] ??= $DOM->info['path']['filename'];
+        self::add($path, $DOM->info);
+      }
+      
+      // print_r(json_decode(json_encode(self::$endpoint), true));
+      file_put_contents($stash, json_encode(self::$endpoint));
+    }
+        
+    // TODO see if this can be cached, as long as we are caching
+    uasort(self::$endpoint, fn($A, $B) => ($A->publish) <=> ($B->publish));
+    return array_map(fn($obj) => $obj->info, array_filter(self::$endpoint, fn($route) => $route->publish));
+  }
+  
+  
   /**** Instance Properties and Methods **************************************/
   
-  private $publish = 0, $handle = null, $template = null, $resolving = true;
+  private $publish = 0, $handle = null, $template = null;
 
   public $path, $info = [];
 
@@ -49,6 +79,7 @@ class Route {
   
   public function handle(callable $handle, $config = []) {
     $this->handle = [$handle];
+    // this is redundant?
     $this->info['route'] = $this->path;
     $this->info['title'] = $config['title'] ?? $this->path;
     return $this;
@@ -59,58 +90,30 @@ class Route {
   }
   
   public function setTemplate(array $info) {
-    if (!isset($info['path'])) return;
-    $this->info['type'] = $info['path']['extension'] == 'md' ? 'html' : $info['path']['extension'];
-    
-    $this->template = $info;
+    if (!isset($info['src'])) return;
+    $this->info['src']  = $info['src'];
+    $this->template = $info['src'];
   }
   
-  private function fulfill(Router $response, $payload = null) {
+  public function fulfill(?Router $response = null, $payload = null) {
+    
+    if ($response === $payload) 
+      return Document::open(self::$endpoint[self::INDEX]->template);
     
     if ($this->handle !== null) {
+   
       $payload = $response->params;
+      
       do {
        $payload = array_shift($this->handle)->call($response, ...(is_array($payload) ? $payload : [$payload]));
-      } while ($this->handle);
+      } while ($this->handle && ! $response->fulfilled);
     }
+
+    $response->fulfilled = true;
     
     return $payload ?? $response($this->template);
   }
   
-  
-  
-  public function index() {
-    return Document::open(self::$endpoint[self::INDEX]->template['src']);
-  }
-  
-  
-  static public function gather(array $files)
-  {
-    $dynamic = array_map(fn($obj) => $obj->publish, self::$endpoint);
-    $static  = array_map('filemtime', $files);
-    $stash   = sys_get_temp_dir() . '/' . md5(join($dynamic+$static));
-    
-    if (file_exists($stash)) {
-      
-      foreach (json_decode(file_get_contents($stash), true) as $path => $route) {
-        // $path = $route->info['route'] ??= $DOM->info['path']['filename'];
-        self::add($path, $route['info']);
-      }
-
-    } else {
-      
-      foreach(Data::apply($files, 'Document::open') as $DOM) {
-        $path = $DOM->info['route'] ??= $DOM->info['path']['filename'];
-        self::add($path, $DOM->info);
-      }
-      
-      file_put_contents($stash, json_encode(self::$endpoint));
-    }
-    
-    // TODO see if this can be cached, as long as we are caching
-    uasort(self::$endpoint, fn($A, $B) => ($A->publish) <=> ($B->publish));
-    return array_map(fn($obj) => $obj->info, array_filter(self::$endpoint, fn($route) => $route->publish));
-  }
 }
 
 
@@ -165,6 +168,7 @@ class File
   static public function load($path)
   {
     $instance = new static($path);
+    
     if (! $content = file_get_contents($instance->url))
       throw new InvalidArgumentException('Bad path: ' . $path);
 
@@ -259,7 +263,7 @@ class Response extends File implements Router
 {
   use Registry;
   
-  public $action, $params, $request, $headers = [];
+  public $action, $params, $request, $headers = [], $fulfilled = false;
   
   private $templates = [];
   
@@ -281,7 +285,7 @@ class Response extends File implements Router
     // if we are here, there is no callback specified, so the 'view' should always be a
     // template file. if there is no view, then there is nohing to do. this will return
     // eventually to delegate as the $config coption
-    return Document::open($template['src']);
+    return Document::open($template);
   }
   
   public function error($info): Exception {
@@ -313,7 +317,7 @@ class Response extends File implements Router
     } else {
       
       // TODO template should be set as default within template itself. 
-      $layout = new Template($route->index());
+      $layout = new Template($route->fulfill());
 
       if ($route->path != Route::INDEX)
         $layout->set(Template::YIELD, $payload); 
@@ -378,7 +382,7 @@ class Redirect extends Controller {
   ];
   
   public function __construct(string $location, $code = 'temporary') {
-    $this->headers[] = ["Location: {$location}", false, STATUS[$code]];
+    $this->headers[] = ["Location: {$location}", false, self::STATUS[$code]];
   }
   
   public function index() {

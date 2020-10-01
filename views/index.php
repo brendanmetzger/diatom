@@ -4,7 +4,11 @@
 
 /**** ROUTING ****************************************************************/
 
+
+
 Route::usher(function($message) {
+  // $this->fulfilled = true;
+    // ;
   return [new Document('<main><h2>${message}</h2></main>'), strtoupper($message)];
 })->then(function($payload, $message) {
   $this->message = $message;
