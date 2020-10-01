@@ -62,7 +62,9 @@ Route::plain(function() {
 
 
 try {
-  
+
+  Route::add('help');
+
   $command = new Command(array_slice($argv,1));
   $output  = Route::compose($command);
   

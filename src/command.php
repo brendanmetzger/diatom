@@ -30,43 +30,17 @@ class Command implements Router
     return trim(fgets($this->input));
   }
   
-  
   public function error(array $routes): Exception {
     $routes = join("\n > ", array_keys($routes));
     return new Exception("hmm, {$this->action}' not a thing..\n\n > {$routes}\n", 404);
   }
   
-  
-    
+
   public function __invoke($template) {
-    
-    return new Class($routes) extends Controller {
-      public function __construct($routes) {
-        $this->routes = $routes;
-      }
-      
-      public function index() {
-        return "Run 'bin/task help *name*' to see signatures\nCommands: \n" 
-               . print_r(array_keys($this->routes), true);
-      }
-      
-      public function __call($name, $args) {
-        $object = $this->routes[$name];
-        if ($object instanceof Controller) {
-          $in = new ReflectionObject($object);
-          $object = [];
-          foreach ($in->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
-            if($method->getDeclaringClass()->name == $in->name && $method->name[0] != '_') {
-              $object[$method->name] = array_map(fn($param) => (string)$param, $method->getParameters());
-            }
-          }
-        }
-        return print_r($object, true);
-      }
-    };
+    return "help not implemented at this time";
   }
   
-  public function delegate(Route $route, $config) {
-    return $config;
+  public function delegate(Route $route, $payload) {
+    return $payload;
   }
 }

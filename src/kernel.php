@@ -60,6 +60,11 @@ class Route {
     return Document::open(self::$endpoint[self::INDEX]->template['src']);
   }
   
+  static public function add($path, array $info = []) {
+    self::$endpoint[$path] ??= new self($path, $info);
+    self::$endpoint[$path]->setTemplate($info);
+  }
+  
   static public function gather(array $files)
   {
     $dynamic = array_map(fn($obj) => $obj->publish, self::$endpoint);
@@ -69,18 +74,19 @@ class Route {
     if (file_exists($stash)) {
       
       foreach (json_decode(file_get_contents($stash), true) as $path => $route) {
-        self::$endpoint[$path] ??= new self($path, $route['info']);
-        self::$endpoint[$path]->setTemplate($route['info']);
+        self::add($path, $route['info']);
       }
+
     } else {
       
       foreach(Data::apply($files, 'Document::open') as $DOM) {
         $path = $DOM->info['route'] ??= $DOM->info['path']['filename'];
-        self::$endpoint[$path] ??= new self($path, $DOM->info);
-        self::$endpoint[$path]->setTemplate($DOM->info);
+        self::add($path, $route['info'], $DOM->info);
       }
+      
       file_put_contents($stash, json_encode(self::$endpoint));
     }
+    
     // TODO see if this can be cached, as long as we are caching
     uasort(self::$endpoint, fn($A, $B) => ($A->publish) <=> ($B->publish));
     return array_map(fn($obj) => $obj->info, array_filter(self::$endpoint, fn($route) => $route->publish));
@@ -221,7 +227,7 @@ interface Router
 {
   public function __invoke($template);
   public function error(array $routes):Exception;
-  public function delegate(Route $route, $config);
+  public function delegate(Route $route, $payload);
 }
 
 
