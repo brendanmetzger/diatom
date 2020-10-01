@@ -8,7 +8,6 @@ require_once '../src/kernel.php';
 /*** ROUTING *****************************************************************/
 
 
-
 Route::example(function($message = 'world') {
   $this->message = "hello {$message}";
   $this->color   = join(array_map(fn($idx) => dechex(rand(0, $idx)), array_fill(0, 3, 255)));
@@ -65,7 +64,7 @@ try {
   http_response_code($e->getCode() ?: 400);
   // $toarr = (array)$e;
   $output = Request::GET('error', [
-    'wrapper' => CONF['DEV'] ?? null,    
+    'wrapper' => CONF['DEV'] ?? null,
     'message' => $e->getMessage(),
     'code'    => $e->getCode(),
     'file'    => $e->getFile(),
@@ -74,8 +73,7 @@ try {
   ]);
   
 } finally {
-
-  echo $output;
   
+  echo $output;
 
 }

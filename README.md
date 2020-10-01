@@ -113,8 +113,16 @@ TODO
    in traditional markdown. Delete this after you get a gist (if you like) */
 
 
-section[id$=tasks] ul {list-style:none;padding: 0;}
-section[id$=tasks] li[data-nested] ul {border-left: 1px dashed rgb(0 0 0 / 0.25);padding-left: 1rem;margin:0.25rem 0.65rem;}
+section[id$=tasks] ul {
+  list-style:none;
+  padding: 0;
+}
+
+section[id$=tasks] li[data-nested] ul {
+  border-left: 1px dashed rgb(0 0 0 / 0.25);
+  padding-left: 1rem;
+  margin:0.25rem 0.65rem;
+}
 
 
 ```

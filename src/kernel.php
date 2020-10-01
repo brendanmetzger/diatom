@@ -64,8 +64,8 @@ class Route {
   {
     $dynamic = array_map(fn($obj) => $obj->publish, self::$endpoint);
     $static  = array_map('filemtime', $files);
+    $stash   = sys_get_temp_dir() . '/' . md5(join($dynamic+$static));
     
-    $stash = sys_get_temp_dir() . '/dd' . md5(join($dynamic+$static));
     if (file_exists($stash)) {
       
       foreach (json_decode(file_get_contents($stash), true) as $path => $route) {
@@ -316,8 +316,7 @@ abstract class Controller
     return $this->router->{$key};
   }
 
-  public function yield($key, $value)
-  {
+  public function yield($key, $value) {
     return $this->router->yield($key, $value);
   }
   
@@ -328,11 +327,44 @@ abstract class Controller
   public function call(Router $route, $action = 'index', ...$params)
   {
     $this->router = $route;
+    $this($action, $params);
+  }
+  
+  public function __invoke($action, $params)
+  {
     $this->action = strtolower($action);
     if (! is_callable([$this, $this->action])) throw new Exception("'{$action}' not found", 404);
     return  $this->{$this->action}(...$params);
   }
 }
+
+/**
+ * Redirect | use as a controller, or instance or whatever. 
+ *
+**/
+
+class Redirect extends Controller {
+  const STATUS    = ['permanent' => 301, 'temporary' => 302, 'other' => 303];
+  public $headers = [
+    ['Cache-Control: no-store, no-cache, must-revalidate, max-age=0'],
+    ['Cache-Control: post-check=0, pre-check=0', false],
+    ['Pragma: no-cache'],
+  ];
+  
+  public function __construct(string $location, $code = 'temporary') {
+    $this->headers[] = ["Location: {$location}", false, STATUS[$code]];
+  }
+  
+  public function index() {
+    foreach ($this->headers as $header) header(...$header);
+    exit(0);
+  }
+  
+  public function __toString() {
+    $this->index();
+  }
+}
+
 
 
 /**
@@ -791,32 +823,5 @@ abstract class Model implements ArrayAccess {
   
   final public function __toString() {
     return $this->context['@id'];
-  }
-}
-
-/**
- * Redirect | simply throw this with a url and the app will catch it and exit nicely
- *
-**/
-
-class Redirect extends Controller {
-  // 301 permanent, 302, temporary, 303 after put/post
-  public $headers = [
-    ['Cache-Control: no-store, no-cache, must-revalidate, max-age=0'],
-    ['Cache-Control: post-check=0, pre-check=0', false],
-    ['Pragma: no-cache'],
-  ];
-  
-  static public function local($uri) {
-    (new Redirect($uri, 303))();
-  }
-  
-  public function __construct(string $location, $code = 302) {
-    $this->headers[] = ["Location: {$location}", false, $code];
-  }
-  
-  public function __invoke($action = 'index', ...$params) {
-    foreach ($this->headers as $header) header(...$header);
-    exit();
   }
 }
