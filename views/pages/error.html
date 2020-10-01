@@ -4,16 +4,21 @@
     <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
     <title>${message}</title>
     <style>
-      :root {font-family: 'Courier New';font-size: 1em;background-color: #222; color: #fff;}
-      body {margin: 5%;}
+      @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,700;1,400&amp;display=swap');
+      :root {font-family: 'IBM Plex Mono', monospace;font-size: 1em;}
+      body {
+        padding: 10rem;
+        background-color: #EEE;
+      }
+      
       pre {white-space:pre-wrap;}
       a {color: #FF0010;}
     </style>
   </head>
-  <body>
+  <body style="background-color: #222; color: #fff;">
     <section>
       <h1>${code} Error</h1>
-      <p>${message}</p>
+      <p style="font-size:200%">${message}</p>
       <p><a href="${mode}?url=file://${file}&amp;line=${line}">Open at line ${line}</a></p>
       <hr/>
       <h4>Trace</h4>

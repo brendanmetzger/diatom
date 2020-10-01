@@ -1,9 +1,8 @@
-@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:ital,wght@0,400;0,700;1,400&display=swap');
-
 :root {
   --pink: color: rgb(255 0 128);
   color: #333;
 }
+
 
 :target {
   text-decoration: underline;
@@ -18,16 +17,8 @@ body, h1,h2,h3,h4,h5, div {margin: 0; padding: 0; line-height:1.625;}
 li[data-nested] {list-style: none;}
 
 
-
-
-
 main {max-width: 100ch;}
 
-body {
-  padding: 10rem;
-  background-color: #EEE;
-  font-family: 'IBM Plex Mono', monospace;
-}
 
 h1 {font-size: 400%;}
 

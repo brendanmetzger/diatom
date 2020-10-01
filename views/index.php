@@ -56,15 +56,10 @@ try {
 } catch (Exception | Error $e) {
 
   http_response_code($e->getCode() ?: 400);
-  // $toarr = (array)$e;
-  $output = Request::GET('error', [
-    'wrapper' => CONFIG['DEV'] ?? null,
-    'message' => $e->getMessage(),
-    'code'    => $e->getCode(),
-    'file'    => $e->getFile(),
-    'line'    => $e->getLine(),
-    'trace'   => $e->getTrace(),
-  ]);
+
+  $keys   = ['message', 'code', 'file', 'line', 'trace'];
+  $data   = array_combine($keys, array_map(fn($m) => $e->{"get$m"}(), $keys));
+  $output = Request::GET('error', $data + CONFIG['data']);
   
 } finally {
   
