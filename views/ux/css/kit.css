@@ -18,7 +18,7 @@ li[data-nested] {list-style: none;}
 
 
 main {max-width: 100ch;}
-h1   {font-size: 400%;}
+h1   {font-size: 400%;line-height:1;padding-top:0.5em;}
 
 
 section {

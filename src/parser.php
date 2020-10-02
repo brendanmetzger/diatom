@@ -235,8 +235,9 @@ class Inline {
     $matches = [
       ...$this->gather(self::$rgxp['link'], $text, [$this, 'link']),
       ...$this->gather(self::$rgxp['pair'], $text, [$this, 'basic']),
-      ...$this->gather('/\{([a-z]+)\:(.+?)\}/u', $text, [$this, 'tag']),
-      ...$this->gather('/<((?:https?:\/)?\/([<>]*))>/', $text, [$this, 'autolink'])
+      ...$this->gather('/\{([\w]+)\: ?([^{}]++|(?R)*)\}/u', $text, [$this, 'tag']),
+      ...$this->gather('/<((?:https?:\/)?\/([<>]*))>/', $text, [$this, 'autolink']),
+      ...$this->gather('/ +(\\\) /', $text, [$this, 'breaks']),
     ];
     
     if ($node->nodeName == 'li')
@@ -277,8 +278,13 @@ class Inline {
   }
     
   private function basic($line, $match, $symbol, $text) {
-    $node   = new DOMElement(Token::INLINE[$symbol[0]], htmlspecialchars(trim($text[0]), ENT_XHTML, 'UTF-8', false));
+    $node   = new Element(Token::INLINE[$symbol[0]], htmlspecialchars(trim($text[0]), ENT_XHTML, 'UTF-8', false));
     return [...$this->offsets($line, $match), $node];
+  }
+  
+  private function breaks($line, $match, $text)
+  {
+    return [...$this->offsets($line, $match), new Element('br')];
   }
   
   private function tag($line, $match, $tag, $text)
@@ -374,8 +380,8 @@ class Plain {
   }
   
   public function rules():self {
-    foreach ($this->document->find('//hr') as $node)
-      $node("\n\n----\n\n");
+    foreach ($this->document->find('//hr|//br') as $node)
+      $node($node->nodeName == 'hr' ? "\n\n----\n\n" : ' \ ');
     return $this;
   }
   
@@ -385,7 +391,7 @@ class Plain {
     foreach ($context->find($name) as $node) {
       $text  = $name == 'a' ? $this->inline($node) : $node->getAttribute('alt');
       $title = $node->hasAttribute('title') ? ' "'.$node->getAttribute('title').'"' : '';
-      $context->replaceChild(new Text('%s[%s](%s%s)', $flag, $text, $node[$attr], $title), $node);
+      $context->replaceChild(new Text('%s[%s](%s%s)', $flag, $text, $node->getAttribute($attr), $title), $node);
     }
   }
   
@@ -406,17 +412,17 @@ class Plain {
   
   public function tags($context):void {
     foreach ($context->find('span[@class]') as $node)
-      $context->replaceChild(new Text('{%s: %s}', $node['@class'], $node->getAttribute('title') ?: $this->inline($node)), $node);
+      $context->replaceChild(new Text('{%s: %s}', $node->getAttribute('class'), $node->getAttribute('title') ?: $this->inline($node)), $node);
   }
   
   public function inline(Element $node):string
   {
     $this->basic($node);
-    $this->references($node, 'a', '@href', '');
-    $this->references($node, 'img', '@src', '!');
+    $this->references($node, 'a', 'href', '');
+    $this->references($node, 'img', 'src', '!');
     $this->tags($node);
     $this->input($node);
-    return trim($node->nodeValue);
+    return trim($node->nodeValue, '\ ');
   }
   
   public function CDATA():self

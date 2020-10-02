@@ -58,6 +58,10 @@ An API could be facilitated with the routing paradigm, or a receiver of webhooks
 
 Templating is a powerful feature, and it stems from a premise that all content authored is a [Document](https://en.wikipedia.org/wiki/Document_Object_Model), and thus, can be sliced apart an queried. Any template can insert other documents, or parts of other documents as desired. Any markdown document is automatically parsed into a valid Document, and thus, adheres to the same principles.
 
+- escaping: done by default
+- conditions unnecessary: set datapoint to null (or undefined) to remove node
+- yield, insert, and iterate components
+- tested: templates can only be html, so, pretty safe when it comes to injection—they will never be exposed to a programming language.
 - author in markdown (slightly modified) or strict xHTML
 - use [template literals](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals) to embed a variables (`${${expression}}`)
 - embed scripts directly into the template; to lazy load, add `<?render behavior?>` to your document (see list below) [autoload-js]

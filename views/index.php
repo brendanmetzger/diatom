@@ -55,13 +55,7 @@ try {
     
     $response = new Response($request, $data + CONFIG['data']);
     $output   = Route::compose($response);
-
-    if ($output instanceof Template) {
-      $output = Render::DOM($output->render($response->data));
-      
-      if ($request->type == 'json')
-        $output = json_encode(simplexml_import_dom($output));
-    }
+    
   }
   
 } catch (Exception | Error $e) {
@@ -76,6 +70,6 @@ try {
   
   echo $output;
   
-  echo "\n<!-- " . (memory_get_peak_usage() / 1000) ."kb -->\n";
+  // echo "<!-- " . (memory_get_peak_usage() / 1000). "kb -->\n";
 
 }

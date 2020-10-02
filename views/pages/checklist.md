@@ -1,7 +1,7 @@
 ?title Getting Started
 ?publish 2
 
-# Quickstart
+# Quickstart \ Guide
 
 Open [this document](${wrapper}?url=${info.path.url}) to amend and edit project tasks
 

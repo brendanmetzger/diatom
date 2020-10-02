@@ -236,9 +236,9 @@ class Request
       'REQUEST_METHOD' => 'GET',
       'CONTENT_TYPE'   => $headers['content-type'] ?? null,
       'HTTP_YIELD'     => true,
-    ])));
+    ])), $data);
 
-    return Route::compose($response)->render($response->merge($data));
+    return Route::compose($response);
   }
   
   public function __toString() {
@@ -325,10 +325,17 @@ class Response extends File implements Router
     
     foreach ($this->templates as $key => $template)
       $layout->set($key, $template);
-    
-    $this->data['info'] = $payload->info;
-    
-    return $layout;
+        
+    $output = Render::DOM($layout->render($this->data + $payload->info));
+
+    if ($this->request->type == 'json')
+      $output = json_encode(simplexml_import_dom($output));
+
+    if($this->request->type == 'md')
+      $output = Parser::convert($output);
+
+
+    return $output;
   }
 }
 
