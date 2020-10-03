@@ -1,14 +1,14 @@
 <?php
 
 /**
- * Command | this is the non-http version of the router interface.
+ * Command | this is the non-http version of the routable interface.
  * can interact with same components of the application, including running the
  * applications own Request/Response calls to gather data (if specified properly).
  */
 
 
 
-class Command implements Router
+class Command implements routable
 {
   use Registry;
   public $script, $params, $action, $status = 0, $input;

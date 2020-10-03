@@ -16,7 +16,7 @@ class Route {
   const INDEX = 'index';
   static private $endpoint = [];
   
-  static public function compose(Router $response)
+  static public function compose(routable $response)
   {
     if (! $route = self::$endpoint[$response->action] ?? false)
       throw $response->error(self::$endpoint);
@@ -98,7 +98,7 @@ class Route {
     $this->template = $info['src'];
   }
   
-  public function fulfill(Router $response, $out = null, int $i = 0) {
+  public function fulfill(routable $response, $out = null, int $i = 0) {
         
     if ($this->handle !== null) {
       $out = $response->params;
@@ -248,7 +248,7 @@ class Request
 /*
   TODO change to 'routable'
 */
-interface Router
+interface routable
 {
   public function __invoke($template);
   public function error($info):Exception;
@@ -260,7 +260,7 @@ interface Router
  * Response | finds correct template object, renders it, tracks headers...
 **/
 
-class Response extends File implements Router
+class Response extends File implements routable
 {
   use Registry;
   
@@ -342,29 +342,29 @@ class Response extends File implements Router
 
 
 /**
- * Controller | Usually extended, but can be instantiatied @see Router. Follows the common practice of
+ * Controller | Usually extended, but can be instantiatied @see Route class.
  * 
 **/
 
 abstract class Controller
 {
-  protected $router;
+  protected $response;
 
   public function __get($key) {
-    return $this->router->{$key};
+    return $this->response->{$key};
   }
 
   public function yield($key, $value) {
-    return $this->router->yield($key, $value);
+    return $this->response->yield($key, $value);
   }
   
   public function index() {
     throw new Exception('Not Implemented', 501);
   }
   
-  public function call(Router $route, $action = 'index', ...$params)
+  public function call(routable $response, $action = 'index', ...$params)
   {
-    $this->router = $route;
+    $this->response = $response;
     $this($action, $params);
   }
   
@@ -393,7 +393,7 @@ class Redirect extends Exception {
     $this->headers[] = ["Location: {$location}", false, self::STATUS[$code]];
   }
   
-  public function call(router $response) {
+  public function call(routable $response) {
     throw $this;
   }
   
