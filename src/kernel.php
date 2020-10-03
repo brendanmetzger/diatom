@@ -95,23 +95,21 @@ class Route {
     $this->template = $info['src'];
   }
   
-  public function fulfill(?Router $response = null, $payload = null, int $task = 0) {
-    
-    if ($response === $payload) 
-      return Document::open(self::$endpoint[self::INDEX]->template);
-    
+  public function fulfill(Router $response, $out = null, int $i = 0) {
+        
     if ($this->handle !== null) {
    
-      $payload = $response->params;
+      $out = $response->params;
       
         do
-      $payload = $this->handle[$task++]->call($response, ...(is_array($payload) ? $payload : [$payload]));
-        while (isset($this->handle[$task]) && ! $response->fulfilled);
+          $out = $this->handle[$i++]->call($response, ...(is_array($out) ? $out : [$out]));
+        while (isset($this->handle[$i]) && ! $response->fulfilled);
     }
-
-    $response->fulfilled = true;
     
-    return $payload ?? $response($this->template);
+    $response->fulfilled = true;
+    $response->layout  ??= $this->info['layout'] ?? self::$endpoint[self::INDEX]->template;
+    
+    return $out ?? $response($this->template);
   }
   
 }
@@ -246,7 +244,9 @@ class Request
   }
 }
 
-
+/*
+  TODO change to 'routable'
+*/
 interface Router
 {
   public function __invoke($template);
@@ -263,7 +263,7 @@ class Response extends File implements Router
 {
   use Registry;
   
-  public $action, $params, $request, $headers = [], $fulfilled = false;
+  public $action, $params, $request, $headers = [], $fulfilled = false, $layout = null;
   
   private $templates = [];
   
@@ -316,8 +316,7 @@ class Response extends File implements Router
     
     } else {
       
-      // TODO template should be set as default within template itself. 
-      $layout = new Template($route->fulfill());
+      $layout = new Template(Document::open($this->layout));
 
       if ($route->path != Route::INDEX)
         $layout->set(Template::YIELD, $payload); 
@@ -328,6 +327,9 @@ class Response extends File implements Router
         
     $output = Render::DOM($layout->render($this->data + $payload->info));
 
+    /*
+      TODO make this a ceteral elment of render (above) and have everything happen at once.
+    */
     if ($this->request->type == 'json')
       $output = json_encode(simplexml_import_dom($output));
 

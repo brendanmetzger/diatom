@@ -20,7 +20,6 @@ Route::example(function($message = 'world') {
   $this->message = "hello {$message}";
   $this->color   = join(array_map(fn($idx) => dechex(rand(0, $idx)), array_fill(0, 3, 255)));
 
-
   return new Document('<h1 style="color: #${color};">${message}</h1>');
 
 }, ['publish' => 3, 'title' => 'Dynamic Route']);
@@ -37,11 +36,10 @@ try {
   
   header("Content-Type: {$request->mime}");
   
+  // php dev server handles static files too; prod could use this for cache
   if (is_file($request->uri)) {
-    // php dev server handles static files too; prod could use this for cache
     $output = Response::load($request)->body;
     header('Content-Length: '. strlen($output));
-
   } else {
     
     
