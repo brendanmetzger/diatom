@@ -20,7 +20,7 @@ class Command implements Router
   public function __construct(array $params = [])
   {
     $this->params = $params;
-    $this->action = array_shift($this->params) ?: 'help';
+    $this->action = array_shift($this->params) ?: 'index';
     $this->input  = STDIN;
   }
   
@@ -37,7 +37,7 @@ class Command implements Router
   
 
   public function __invoke($template) {
-    return "help not implemented at this time";
+    return $template;
   }
   
   public function delegate(Route $route, $payload) {

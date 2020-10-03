@@ -322,8 +322,9 @@ class Response extends File implements Router
     
     foreach ($this->templates as $key => $template)
       $layout->set($key, $template);
-        
-    $output = Render::DOM($layout->render($this->data + $payload->info));
+      
+    
+    $output = Render::DOM($layout->render($this->data + $payload->info), $route->info['render'] ?? null);
 
     /*
       TODO make this a ceteral elment of render (above) and have everything happen at once.

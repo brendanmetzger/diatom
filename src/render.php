@@ -3,18 +3,30 @@
 class Render
 {
   private $document, $renders = [];
-  private function __construct(Document $document)
+  private function __construct(Document $document, ?string $renders = null)
   {
     $this->document = $document;
-    if ($pi = $this->document->select("//processing-instruction('render')"))
-      $this->renders = preg_split('/,\s+/', trim($pi->data));
+    
+    foreach($this->document->find("/processing-instruction('render')") as $pi)
+      $this->parseInstructions($pi->data);
+    
+    if ($renders)
+      $this->parseInstructions($renders);
+
   }
   
-  static public function DOM($object) {
-    $instance = new self($object instanceof Parser ? $object->DOM : $object);
+  public function parseInstructions($text)
+  {
+    preg_match_all('/([a-z]+)(?:\:([^\s]+))?,?/i', $text, $match, PREG_SET_ORDER|PREG_UNMATCHED_AS_NULL);
+    foreach ($match as [$full, $method, $args])
+      $this->renders[$method] = empty($args) ? [] : explode('|', $args);
+  }
+  
+  static public function DOM($object, ?string $renders = null) {
+    $instance = new self($object instanceof Parser ? $object->DOM : $object, $renders);
     
-    foreach($instance->renders as $callback)
-      call_user_func_array([$instance, strtok($callback, ':')], array_filter(explode('|', strtok($callback))));
+    foreach($instance->renders as $callback => $args)
+      call_user_func_array([$instance, $callback], $args);
 
     return $instance->document;
   }
@@ -80,5 +92,12 @@ class Render
       $this->document->documentElement->setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
       foreach ($this->document->find('.//style|.//meta|.//link', $head->nextSibling) as $node) $head->appendChild($node);
     } 
+  }
+  
+  private function example($color = "red")
+  {
+    foreach ($this->document->find('//body//*') as $node) {
+      $node->setAttribute('style', 'background-color: '. $color);
+    }
   }
 }

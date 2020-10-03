@@ -15,8 +15,15 @@ Route::markdown(function($input = null) {
 });
 
 
-Route::conf(function() {
-  print_r(CONF);
+
+Route::play(function() {
+  $string = 'behavior canonical sections:|4';
+  preg_match_all('/([a-z]+)(?:\:([^\s]+))?/i', $string, $matches, PREG_SET_ORDER|PREG_UNMATCHED_AS_NULL);
+  foreach ($matches as $key => [$full, $method, $args]) {
+    $matches[$method] = explode('|', $args);
+    unset($matches[$key]);
+  }
+  print_r($matches);
 });
 
 
@@ -60,7 +67,7 @@ Route::plain(function() {
 
 try {
 
-  Route::add('help');
+  Route::add('index');
 
   $command = new Command(array_slice($argv,1));
   $output  = Route::compose($command);
