@@ -24,6 +24,9 @@ class Route {
     return $response->delegate($route, $route->fulfill($response));
   }
   
+  static public function set($path, $callback, $config) {
+    
+  }
   
   // TODO refactor add and __callStatic into one SET(...) method, callstatic is problematic with name collisions
   static public function add($path, array $info = []) {
@@ -98,12 +101,10 @@ class Route {
   public function fulfill(Router $response, $out = null, int $i = 0) {
         
     if ($this->handle !== null) {
-   
       $out = $response->params;
-      
-        do
-          $out = $this->handle[$i++]->call($response, ...(is_array($out) ? $out : [$out]));
-        while (isset($this->handle[$i]) && ! $response->fulfilled);
+      do
+       $out = $this->handle[$i++]->call($response, ...(is_array($out) ? $out : [$out]));
+      while (isset($this->handle[$i]) && ! $response->fulfilled);
     }
     
     $response->fulfilled = true;
@@ -378,11 +379,11 @@ abstract class Controller
 }
 
 /**
- * Redirect | use as a controller, or instance or whatever. 
+ * Redirect | use as a controller, or throw anywhere to get a redirect going
  *
 **/
 
-class Redirect extends Controller {
+class Redirect extends Exception {
   const STATUS    = ['permanent' => 301, 'temporary' => 302, 'other' => 303];
   public $headers = [
     ['Cache-Control: no-store, no-cache, must-revalidate, max-age=0'],
@@ -394,13 +395,12 @@ class Redirect extends Controller {
     $this->headers[] = ["Location: {$location}", false, self::STATUS[$code]];
   }
   
-  public function index() {
-    foreach ($this->headers as $header) header(...$header);
-    exit(0);
+  public function call(router $response) {
+    throw $this;
   }
   
-  public function __toString() {
-    $this->index();
+  public function __invoke() {
+    foreach ($this->headers as $header) header(...$header);
   }
 }
 

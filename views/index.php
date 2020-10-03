@@ -8,13 +8,14 @@
 
 Route::usher(function($message) {
   // $this->fulfilled = true;
-    // ;
   return [new Document('<main><h2>${message}</h2></main>'), strtoupper($message)];
 })->then(function($payload, $message) {
   $this->message = $message;
   $payload->documentElement->appendChild(new Element('h1', 'cool?'));
   return $payload;
 });
+
+
 
 Route::example(function($message = 'world') {
   $this->message = "hello {$message}";
@@ -55,6 +56,12 @@ try {
     $output   = Route::compose($response);
     
   }
+  
+} catch (Redirect $notice) {
+  
+  call_user_func($notice);
+
+  exit(0);
   
 } catch (Exception | Error $e) {
 
