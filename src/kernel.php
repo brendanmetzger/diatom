@@ -577,7 +577,9 @@ class Document extends DOMDocument
     $DOM->info['src']     = $path;
     $DOM->info['path']    = $file->info;
     $DOM->info['title'] ??= $DOM->info['path']['filename'];
-
+    
+    Render::set('before', $DOM);
+    
     return self::$cache[$key] = $DOM;
   }
   

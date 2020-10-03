@@ -7,18 +7,17 @@ class Render
     'after'  => [],
   ];
   
-  static public function set(string $when, callable $callback) {
-    self::$queue[$when][] = $callback;
+  static public function set(string $when, $object) {
+    if ($object instanceof Document)
+      foreach (self::$queue[$when] as $callback)
+        call_user_func($callback, $object);
+    else if (is_callable($object))
+      self::$queue[$when][] = $object;
   }
   
   static public function transform(Document $DOM, ?string $renders = null) {
     $instance = new self($DOM, $renders);
-    
-    // run 'before' renders
-    foreach (self::$queue['before'] as $callback)
-      call_user_func($callback, $instance->document);
 
-  
     foreach($instance->renders as $callback => $args)
       call_user_func_array([$instance, $callback], $args);
     

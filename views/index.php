@@ -33,6 +33,7 @@ Route::example(function($message = 'world') {
 
 
 try {
+  
   if (CONFIG['dev'] ?? false) include 'edit.php';
   
   $request   = new Request($_SERVER);
