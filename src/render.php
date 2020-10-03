@@ -2,6 +2,34 @@
 
 class Render
 {
+  static private $queue = [
+    'before' => [],
+    'after'  => [],
+  ];
+  
+  static public function set(string $when, callable $callback) {
+    self::$queue[$when][] = $callback;
+  }
+  
+  static public function transform(Document $DOM, ?string $renders = null) {
+    $instance = new self($DOM, $renders);
+    
+    // run 'before' renders
+    foreach (self::$queue['before'] as $callback)
+      call_user_func($callback, $instance->document);
+
+  
+    foreach($instance->renders as $callback => $args)
+      call_user_func_array([$instance, $callback], $args);
+    
+    // run 'after' renders
+    foreach (self::$queue['after'] as $callback)
+      call_user_func($callback, $instance->document);
+
+    return $instance->document;
+  }
+  
+  
   private $document, $renders = [];
   private function __construct(Document $document, ?string $renders = null)
   {
@@ -15,6 +43,8 @@ class Render
 
   }
   
+  
+  
   public function parseInstructions($text)
   {
     preg_match_all('/([a-z]+)(?:\:([^\s]+))?,?/i', $text, $match, PREG_SET_ORDER|PREG_UNMATCHED_AS_NULL);
@@ -22,14 +52,6 @@ class Render
       $this->renders[$method] = empty($args) ? [] : explode('|', $args);
   }
   
-  static public function DOM($object, ?string $renders = null) {
-    $instance = new self($object instanceof Parser ? $object->DOM : $object, $renders);
-    
-    foreach($instance->renders as $callback => $args)
-      call_user_func_array([$instance, $callback], $args);
-
-    return $instance->document;
-  }
   
   private function sections(?Element $context = null, int $level = 2)
   {
@@ -100,4 +122,5 @@ class Render
       $node->setAttribute('style', 'background-color: '. $color);
     }
   }
+  
 }

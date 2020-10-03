@@ -307,36 +307,29 @@ class Response extends File implements routable
     // if payload is not a DOM component, no processing to do
     if (! $payload instanceof DOMNode) return $payload;
     
-    // basic requests need no view, just return payload
-    if ($this->request->basic) {
-
-      $layout = new Template($payload, $this->templates);
     
+    if ($this->request->basic) {
+       //no layout needed, just use payload document
+      $layout = new Template($payload, $this->templates);
     } else {
-      
+      // find main document to use as layout
       $layout = new Template(Document::open($this->layout));
 
+      // make sure we aren't putting the layout into itself
       if ($route->path != Route::INDEX)
         $layout->set(Template::YIELD, $payload); 
     }
     
+    // add in additional templates specified with yield method
     foreach ($this->templates as $key => $template)
       $layout->set($key, $template);
-      
     
-    $output = Render::DOM($layout->render($this->data + $payload->info), $route->info['render'] ?? null);
-
-    /*
-      TODO make this a ceteral elment of render (above) and have everything happen at once.
-    */
-    if ($this->request->type == 'json')
-      $output = json_encode(simplexml_import_dom($output));
-
-    if($this->request->type == 'md')
-      $output = Parser::convert($output);
-
-
-    return $output;
+    // render and transform the document layout
+    $output = $layout->render($this->data + $payload->info);
+    $output = Render::transform($output, $route->info['render'] ?? null);
+    
+    // convert if request type is not markup
+    return Parser::check($output, $this->request->type);
   }
 }
 

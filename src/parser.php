@@ -16,7 +16,7 @@ class Parser {
     $ext = ['css' => '<style/>', 'js' => '<script/>', 'txt' => '<pre/>'];
     
     if ($file->type == 'md')
-      return Render::DOM(new self($file->uri));
+      return (new self($file->uri))->DOM;
     
     else if (isset($ext[$file->type])) {
       $DOM = new Document($ext[$file->type]);
@@ -26,10 +26,19 @@ class Parser {
     throw new Error("{$file->type} Not Supported", 500);
   }
   
-  static public function convert(Document $DOM)
+
+  
+  
+  static public function check(Document $output, string $type)
   {
-    $md = new Plain($DOM);
-    return (string) $md->blocks()->rules()->list()->headings()->CDATA();
+    if ($type == 'json')
+      $output = json_encode(simplexml_import_dom($output));
+    
+    else if ($type == 'md')
+      $output = (string) (new Plain($output))->blocks()->rules()->list()->headings()->CDATA();
+    
+    
+    return $output;
   }
   
   
