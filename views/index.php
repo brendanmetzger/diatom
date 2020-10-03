@@ -46,7 +46,7 @@ try {
     
     // Set Application data
     $data = [
-      'pages' => Route::gather(glob('pages/*.*')), 
+      'pages' => Route::gather(glob('pages/*.{html,xml,md}', GLOB_BRACE)), 
       'date'  => fn ($format, $time = 'now') => date($format, strtotime($time)),
       'model' => 'model::FACTORY',
       'list' => [['name' => "A", 'other' => 'goo'], ['name' => 'B', 'other' => 'yep'], ['name' => 'D', 'other' => 'tope tope']],

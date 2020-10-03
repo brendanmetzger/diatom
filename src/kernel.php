@@ -282,11 +282,9 @@ class Response extends File implements Router
     $this->templates[$key] = $template;
   }
   
-  public function __invoke($template) {
-    // if we are here, there is no callback specified, so the 'view' should always be a
-    // template file. if there is no view, then there is nohing to do. this will return
-    // eventually to delegate as the $config coption
-    return Document::open($template);
+  public function __invoke($path) {
+    // if we are here, there is no callback specified OR the callback did not return a value
+    return $path ? Document::open($path) : new Document("<p>\u{26A0} /{$this->action}</p>");
   }
   
   public function error($info): Exception {
@@ -304,9 +302,8 @@ class Response extends File implements Router
     return strlen($header);
   }
   
-  public function delegate(Route $route, $payload) {
-    
-    
+  public function delegate(Route $route, $payload)
+  {
     // if payload is not a DOM component, no processing to do
     if (! $payload instanceof DOMNode) return $payload;
     
