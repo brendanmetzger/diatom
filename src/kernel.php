@@ -41,14 +41,16 @@ class Route {
   
   static public function gather(array $files)
   {
+    // this could be tallied on `set` so that it doesn't have to be mapped
     $dynamic = array_map(fn($obj) => $obj->publish, self::$endpoint);
     $static  = array_map('filemtime', $files);
     $stash   = sys_get_temp_dir() . '/' . md5(join($dynamic+$static));
     
     if (file_exists($stash)) {
-
-      foreach (json_decode(file_get_contents($stash), true) as $path => $route)
-        self::add($path, $route['info']);
+      $routes = json_decode(file_get_contents($stash), true);
+      foreach ($routes as $path => $info)
+        if (isset($info['path']))
+          self::add($path, $info);
 
     } else {
       
@@ -57,20 +59,24 @@ class Route {
         self::add($path, $DOM->info);
       }
       
-      file_put_contents($stash, json_encode(self::$endpoint));
+      uasort(self::$endpoint, fn($A, $B) => ($A->publish) <=> ($B->publish));
+
+      $routes = array_map(fn($obj) => $obj->info, self::$endpoint);
+
+      file_put_contents($stash, json_encode($routes));
     }
     
-    uasort(self::$endpoint, fn($A, $B) => ($A->publish) <=> ($B->publish));
     
-    return array_map(fn($obj) => $obj->info, array_filter(self::$endpoint, fn($route) => $route->publish));
+    
+    return array_filter($routes, fn($route) => $route['publish'] ?? false);
   }
   
   
   /**** Instance Properties and Methods **************************************/
   
-  private $publish = 0, $handle = null, $template = null;
+  private $handle = null, $template = null;
 
-  public $path, $info = [];
+  public $path, $publish = 0, $info = [];
 
   private function __construct($path, $config = []) {
     $this->path    = $path;
@@ -167,7 +173,7 @@ class File
     $instance = new static($path);
     
     if (! $content = file_get_contents($instance->url))
-      throw new InvalidArgumentException('Bad path: ' . $path);
+      throw new Error('Bad path: ' . $path);
 
     return $instance->setBody($content);
   }

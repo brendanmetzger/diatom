@@ -122,4 +122,10 @@ class Render
     }
   }
   
+  public function markdown($exp)
+  {
+    foreach ($this->document->find("//*[{$exp}]") as $node)
+      Parser::markdown($node);
+  }
+  
 }

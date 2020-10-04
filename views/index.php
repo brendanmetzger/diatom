@@ -45,7 +45,6 @@ try {
     header('Content-Length: '. strlen($output));
   } else {
     
-    
     // Set Application data
     $data = [
       'pages' => Route::gather(glob('pages/*.{html,xml,md}', GLOB_BRACE)), 
