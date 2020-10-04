@@ -24,19 +24,19 @@ class Route {
     return $response->compose($route, $route->fulfill($response));
   }
   
-  static public function set($path, $callback, $config) {
-    
+  static public function set($path, $callback, array $config = []) {
+    self::$endpoint[$path] ??= new self($path, $config);
+    return self::$endpoint[$path]->handle($callback, $config);
   }
   
-  // TODO refactor add and __callStatic into one SET(...) method, callstatic is problematic with name collisions
+  // TODO refactor add and __callStatic into set(...) method, callstatic is problematic with name collisions
   static public function add($path, array $info = []) {
     self::$endpoint[$path] ??= new self($path, $info);
     self::$endpoint[$path]->setTemplate($info);
   }
 
   static public function __callStatic($action, $arguments) {
-    self::$endpoint[$action] ??= new self($action, ...array_slice($arguments, 1));
-    return self::$endpoint[$action]->handle(...$arguments);
+    return self::set($action, ...$arguments);
   }
   
   static public function gather(array $files)
@@ -47,9 +47,8 @@ class Route {
     
     if (file_exists($stash)) {
 
-      foreach (json_decode(file_get_contents($stash), true) as $path => $route) {
+      foreach (json_decode(file_get_contents($stash), true) as $path => $route)
         self::add($path, $route['info']);
-      }
 
     } else {
       
@@ -58,12 +57,11 @@ class Route {
         self::add($path, $DOM->info);
       }
       
-      // print_r(json_decode(json_encode(self::$endpoint), true));
       file_put_contents($stash, json_encode(self::$endpoint));
     }
-        
-    // TODO see if this can be cached, as long as we are caching
+    
     uasort(self::$endpoint, fn($A, $B) => ($A->publish) <=> ($B->publish));
+    
     return array_map(fn($obj) => $obj->info, array_filter(self::$endpoint, fn($route) => $route->publish));
   }
   
@@ -407,9 +405,9 @@ class Template
 {
   public const YIELD = '-default-view-object-';
   
-  private $DOM, $templates = [], $slugs = [], $cache;
+  private $DOM, $templates = [], $slugs = [], $cache = null;
   
-  public function __construct(DOMnode $input, ?array $templates = [], $cache = false)
+  public function __construct(DOMnode $input, ?array $templates = [])
   {
     if ($input instanceof Element) {
       $this->DOM = new Document($input->export());
@@ -419,15 +417,11 @@ class Template
     }
     
     $this->templates += $templates;
-    
-    if ($cache) $this->cache = $this->DOM->documentElement->cloneNode(true);
-
   }
   
+  
   public function reset() {
-    if ($this->cache instanceof DOMNode)
-      $this->DOM->replaceChild($this->cache->cloneNode(true), $this->DOM->firstChild);
-    
+    $this->DOM->replaceChild($this->cache->cloneNode(true), $this->DOM->firstChild);
   }
 
   
@@ -447,7 +441,7 @@ class Template
     foreach ($this->getStubs('yield') as [$cmd, $prop, $exp, $ref]) {
       if ($DOM = $this->templates[$prop ?? Template::YIELD] ?? null) {
         $context = ($exp !== '/') ? $ref : $ref->nextSibling;
-        $node     = (new self($DOM, $this->templates))->render($data, false)->documentElement;
+        $node    = (new self($DOM, $this->templates))->render($data, false)->documentElement;
         $ref->parentNode->replaceChild($this->DOM->importNode($node, true), $context);
 
         if ($ref !== $context) $ref->parentNode->removeChild($ref);
@@ -456,8 +450,10 @@ class Template
 
     foreach ($this->getStubs('iterate') as [$cmd, $key, $exp, $ref]) {
       $context  = $slug = $ref->nextSibling;
-      $template = new self($context, [], true);
-      $invert  = $exp !== '/';
+      
+      $template = new self($context);
+      $template->cache = $template->DOM->documentElement->cloneNode(true);
+      $invert   = $exp !== '/';
       
       foreach (Data::fetch($key, $data) ?? [] as $datum) {
         if ($import = $template->render($datum, true)->documentElement) {
@@ -465,7 +461,6 @@ class Template
           $slug = $context->parentNode->insertBefore($node, $invert ? $slug : $context);
           $template->reset();
         }
-        
       }
       
       $context->remove();
@@ -478,10 +473,8 @@ class Template
   }
   
   # Note, this has a DOMNode as typecase, but should be Document|Element in 8.0
-  public function set(string $key, $stub = null): self
-  {
-    if ($stub instanceof DOMNode) $this->templates[$key] = $stub;
-    return $this;
+  public function set(string $key, DOMNode $stub = null) {
+    $this->templates[$key] = $stub;
   }
   
   private function parse($data)
@@ -495,6 +488,7 @@ class Template
           $text = substr_replace($text, $replacement, ...$offset);
         }
         $node($text);
+        // Parser::markdown($node($text)));
       }
     }
   }

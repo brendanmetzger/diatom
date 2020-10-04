@@ -22,7 +22,6 @@ Route::example(function($message = 'world') {
   $this->message = "hello {$message}";
   $this->color   = join(array_map(fn($idx) => dechex(rand(0, $idx)), array_fill(0, 3, 255)));
 
-  // $this->render = ['admin' => ['bloop']];
   return new Document('<h2 style="color: #${color};">${message}</h2>');
 
 }, ['publish' => 3, 'title' => 'Dynamic Route']);
@@ -78,6 +77,6 @@ try {
   
   echo $output;
   
-  // echo "<!-- " . (memory_get_peak_usage() / 1000). "kb -->\n";
+  echo "<!-- " . (memory_get_peak_usage() / 1000). "kb -->\n";
 
 }

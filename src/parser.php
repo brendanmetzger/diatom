@@ -41,6 +41,11 @@ class Parser {
     return $output;
   }
   
+  static public function markdown($node)
+  {
+    return (new Inline($node))->parse();
+  }
+  
   
   private function scan($iterator)
   {
