@@ -16,12 +16,12 @@ class Route {
   const INDEX = 'index';
   static private $endpoint = [];
   
-  static public function compose(routable $response)
+  static public function delegate(routable $response)
   {
     if (! $route = self::$endpoint[$response->action] ?? false)
       throw $response->error(self::$endpoint);
     
-    return $response->delegate($route, $route->fulfill($response));
+    return $response->compose($route, $route->fulfill($response));
   }
   
   static public function set($path, $callback, $config) {
@@ -237,7 +237,7 @@ class Request
       'HTTP_YIELD'     => true,
     ])), $data);
 
-    return Route::compose($response);
+    return Route::delegate($response);
   }
   
   public function __toString() {
@@ -252,7 +252,7 @@ interface routable
 {
   public function __invoke($template);
   public function error($info):Exception;
-  public function delegate(Route $route, $payload);
+  public function compose(Route $route, $payload);
 }
 
 
@@ -302,7 +302,7 @@ class Response extends File implements routable
     return strlen($header);
   }
   
-  public function delegate(Route $route, $payload)
+  public function compose(Route $route, $payload)
   {
     // if payload is not a DOM component, no processing to do
     if (! $payload instanceof DOMNode) return $payload;
@@ -421,11 +421,13 @@ class Template
     $this->templates += $templates;
     
     if ($cache) $this->cache = $this->DOM->documentElement->cloneNode(true);
+
   }
   
   public function reset() {
     if ($this->cache instanceof DOMNode)
-      $this->DOM->replaceChild($this->cache->cloneNode(true), $this->DOM->documentElement);
+      $this->DOM->replaceChild($this->cache->cloneNode(true), $this->DOM->firstChild);
+    
   }
 
   
@@ -458,9 +460,12 @@ class Template
       $invert  = $exp !== '/';
       
       foreach (Data::fetch($key, $data) ?? [] as $datum) {
-        $node = $this->DOM->importNode($template->render($datum, true)->documentElement, true);
-        $slug = $context->parentNode->insertBefore($node, $invert ? $slug : $context);
-        $template->reset();
+        if ($import = $template->render($datum, true)->documentElement) {
+          $node = $this->DOM->importNode($import, true);
+          $slug = $context->parentNode->insertBefore($node, $invert ? $slug : $context);
+          $template->reset();
+        }
+        
       }
       
       $context->remove();
@@ -483,7 +488,6 @@ class Template
   {
     foreach ($this->getSlugs() as $path => $slugs) {
       if ($node = $this->DOM->select($path)) {
-        if ($node instanceof Element) $node->removeAttribute('data-id');
         $text = $node->nodeValue;
         foreach ($slugs as [$key, $offset]) {
           $replacement = Data::fetch($key, $data);
@@ -509,9 +513,12 @@ class Template
 
   protected function getSlugs(): iterable
   {
+    /*
+      TODO mark nodes containing replacements as uneditable (remove @data-path attr prolly)
+    */
     if (empty($this->slugs)) {
       $xp = "contains(.,'\${') and not(*)";
-      foreach ( $this->DOM->find("//*[{$xp} and not(self::script)]|//*/@*[{$xp}]") as $var ) {
+      foreach ( $this->DOM->find("//*[{$xp} and not(self::script or self::code)]|//*/@*[{$xp}]") as $var ) {
         $path  = $var->getNodePath();
         $this->slugs[$path] ??= [];
         

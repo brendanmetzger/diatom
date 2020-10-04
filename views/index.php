@@ -56,7 +56,7 @@ try {
     ];
     
     $response = new Response($request, $data + CONFIG['data']);
-    $output   = Route::compose($response);
+    $output   = Route::delegate($response);
     
   }
   

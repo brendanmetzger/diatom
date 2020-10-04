@@ -40,7 +40,7 @@ class Command implements routable
     return $template;
   }
   
-  public function delegate(Route $route, $payload) {
+  public function compose(Route $route, $payload) {
     return $payload;
   }
 }

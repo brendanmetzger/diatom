@@ -60,13 +60,19 @@ Templating is a powerful feature, and it stems from a premise that all content a
 
 - escaping: done by default
 - conditions unnecessary: set datapoint to null (or undefined) to remove node
-- yield, insert, and iterate components
+- yield, insert, and iterate components simpl
 - tested: templates can only be html, so, pretty safe when it comes to injection—they will never be exposed to a programming language.
 - author in markdown (slightly modified) or strict xHTML
-- use [template literals](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals) to embed a variables (`${${expression}}`)
+- use [template literals](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals) to embed a variables (`${expression}`)
 - embed scripts directly into the template; to lazy load, add `<?render behavior?>` to your document (see list below) [autoload-js]
 - CSS, similar to javascript, can be written in a `<style>` element directly in any page or a stylesheet added with `<link/>`. 
 
+### Caveats
+
+#### variables cannot mix contexts:
+`<li>${A} ${B}</li>` is Ok, A and B share the same context
+`<li>${A} <span>${B}</span></li>` is **not** ok:  B is in an `Element` adjacent to a `Text` node (which contains A). The variable parser will ignore these conditions.  (TODO;  reconsider this, if it can be done elegantly)
+`<li><span>${A}</span> <span>${B}</span></li>` is OK as both variables have a single nodetype (`Text`) as a context
 
 ### Renderers
 
@@ -104,30 +110,4 @@ TODO
 ### Models
 
 TODO
-
-
-### Embedding stylesheets and links
-
-
-``` style
-
-
-/* The custom markdown parser will look for a flag after the code fence embed style/script,
-   depending on the flag. This will be unseen in the Diatom framework markdown, but visible
-   in traditional markdown. Delete this after you get a gist (if you like) */
-
-
-section[id$=tasks] ul {
-  list-style:none;
-  padding: 0;
-}
-
-section[id$=tasks] li[data-nested] ul {
-  border-left: 1px dashed rgb(0 0 0 / 0.25);
-  padding-left: 1rem;
-  margin:0.25rem 0.65rem;
-}
-
-
-```
 
