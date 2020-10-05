@@ -19,7 +19,6 @@ Route::usher(function($message) {
 
 
 Route::example(function($message = 'world') {
-  
   $this->message = "hello {$message}";
   $this->color   = join(array_map(fn($c) => sprintf('%02X',rand($c, 255)), [100,200,100]));
 

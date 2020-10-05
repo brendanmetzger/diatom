@@ -33,15 +33,20 @@ class Route {
     return $response->compose($route->fulfill($response), $route->path == Route::INDEX);
   }
   
-  static public function set($path, $callback, array $config = []) {
-    self::$paths[$path] ??= new self($path, $config);
-    return self::$paths[$path]->handle($callback, $config);
-  }
-  
-  // TODO refactor add to use into set(...) method
-  static public function add($path, array $info = []) {
-    self::$paths[$path] ??= new self($path, $info);
-    self::$paths[$path]->setTemplate($info);
+  static public function set($path, ?callable $callback = null, array $config = []) {
+    $instance = self::$paths[$path] ??= new self($path, $config['publish'] ?? 0);
+    $instance->info +=  $config;
+
+    if ($callback === null) {
+      $instance->template = $config['src'];
+    } else {
+      $instance->info['route']   = $instance->path;
+      $instance->info['title'] ??= $instance->path;
+      
+      $instance->then($callback);
+    }
+
+    return $instance;
   }
 
   // Note: this is really an alias for the above, but I like for writing quick bin/task stuff.
@@ -61,19 +66,18 @@ class Route {
       $routes = json_decode(file_get_contents($stash), true);
       foreach ($routes as $path => $info)
         if (isset($info['path']))
-          self::add($path, $info);
+          self::set($path, null, $info);
 
     } else {
       
       foreach(Data::apply($files, 'Document::open') as $DOM) {
         $path = $DOM->info['route'] ??= $DOM->info['path']['filename'];
-        self::add($path, $DOM->info);
+        self::set($path, null, $DOM->info);
       }
       
       uasort(self::$paths, fn($A, $B) => ($A->publish) <=> ($B->publish));
 
       $routes = array_map(fn($R) => $R->info, self::$paths);
-
       file_put_contents($stash, json_encode($routes));
     }
     
@@ -85,30 +89,15 @@ class Route {
   
   private $handle = null, $template = null;
 
-  public $path, $publish = 0, $info = [];
+  public $path, $publish, $info = [];
 
-  private function __construct($path, $config = []) {
+  private function __construct(string $path, int $publish = 0) {
     $this->path    = $path;
-    $this->publish = $config['publish'] ?? 0;
-    $this->info    = $config;
-  }
-  
-  public function handle(callable $handle, $config = []) {
-    $this->handle = [$handle];
-    // this is redundant?
-    $this->info['route'] = $this->path;
-    $this->info['title'] = $config['title'] ?? $this->path;
-    return $this;
+    $this->publish = $publish;
   }
   
   public function then(callable $handle) {
     $this->handle[] = $handle;
-  }
-  
-  public function setTemplate(array $info) {
-    if (!isset($info['src'])) return;
-    $this->info['src']  = $info['src'];
-    $this->template = $info['src'];
   }
   
   public function fulfill(routable $response, $out = null, int $i = 0) {
