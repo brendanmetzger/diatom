@@ -23,7 +23,7 @@ Route::example(function($message = 'world') {
   $this->color   = join(array_map(fn($c) => sprintf('%02X',rand($c, 255)), [100,200,100]));
 
   // return new Document('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600"/>');
-  return new Document('<h2 style="color:#${color}">${message}</h2>');
+  return new Document('<main><h2 style="color:#${color}">${message}</h2></main>');
 }, ['publish' => 3, 'title' => 'Dynamic Route']);
 
 

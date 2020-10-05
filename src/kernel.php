@@ -273,8 +273,9 @@ class Response extends File implements routable
     $this->id      = md5(join($request->headers));
   }
   
-  public function yield($key, $template) {
-    $this->templates[$key] = $template;
+  // string|Document $template 
+  public function yield(string $key, $source) {
+    $this->templates[$key] = $source instanceof Document ? $source : Document::open($source);
   }
   
   public function __invoke($path) {
