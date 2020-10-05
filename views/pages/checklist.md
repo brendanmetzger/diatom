@@ -40,6 +40,7 @@ document.querySelector('article').addEventListener('click', evt => {
     Request.GET('pages/checklist.md').then(alert);
 });
 
+
 ```
 
 

@@ -10,3 +10,5 @@ addEventListener('DOMContentLoaded', (function(s, js, cache) {
     js.forEach(Node.prototype.appendChild.bind(document.head));
   };
 })(document.createElement('script'), [], Object.create(null)));
+
+KIT.script('/ux/js/kit.js');

@@ -40,7 +40,7 @@ class Command implements routable
     return $template;
   }
   
-  public function compose(Route $route, $payload) {
+  public function compose($payload, bool $default) {
     return $payload;
   }
 }

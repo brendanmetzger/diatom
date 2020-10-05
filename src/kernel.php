@@ -6,6 +6,15 @@ libxml_use_internal_errors(true);
 spl_autoload_register();
 
 
+
+
+interface routable
+{
+  public function __invoke($template);
+  public function error($info):Exception;
+  public function compose($payload, bool $default);
+}
+
 /**
  * Route | Provides to enable default and callback routing
  *
@@ -14,27 +23,29 @@ spl_autoload_register();
 class Route {
   
   const INDEX = 'index';
-  static private $endpoint = [];
+  static private $paths = [];
   
   static public function delegate(routable $response)
   {
-    if (! $route = self::$endpoint[$response->action] ?? false)
-      throw $response->error(self::$endpoint);
+    if (! $route = self::$paths[$response->action] ?? false)
+      throw $response->error(self::$paths);
     
-    return $response->compose($route, $route->fulfill($response));
+    return $response->compose($route->fulfill($response), $route->path == Route::INDEX);
   }
   
   static public function set($path, $callback, array $config = []) {
-    self::$endpoint[$path] ??= new self($path, $config);
-    return self::$endpoint[$path]->handle($callback, $config);
+    self::$paths[$path] ??= new self($path, $config);
+    return self::$paths[$path]->handle($callback, $config);
   }
   
-  // TODO refactor add and __callStatic into set(...) method, callstatic is problematic with name collisions
+  // TODO refactor add to use into set(...) method
   static public function add($path, array $info = []) {
-    self::$endpoint[$path] ??= new self($path, $info);
-    self::$endpoint[$path]->setTemplate($info);
+    self::$paths[$path] ??= new self($path, $info);
+    self::$paths[$path]->setTemplate($info);
   }
 
+  // Note: this is really an alias for the above, but I like for writing quick bin/task stuff.
+  // Warning: __callStatic to set route can potentially collide with an existing Route method
   static public function __callStatic($action, $arguments) {
     return self::set($action, ...$arguments);
   }
@@ -42,7 +53,7 @@ class Route {
   static public function gather(array $files)
   {
     // this could be tallied on `set` so that it doesn't have to be mapped
-    $dynamic = array_map(fn($obj) => $obj->publish, self::$endpoint);
+    $dynamic = array_map(fn($obj) => $obj->publish, self::$paths);
     $static  = array_map('filemtime', $files);
     $stash   = sys_get_temp_dir() . '/' . md5(join($dynamic+$static));
     
@@ -59,14 +70,12 @@ class Route {
         self::add($path, $DOM->info);
       }
       
-      uasort(self::$endpoint, fn($A, $B) => ($A->publish) <=> ($B->publish));
+      uasort(self::$paths, fn($A, $B) => ($A->publish) <=> ($B->publish));
 
-      $routes = array_map(fn($obj) => $obj->info, self::$endpoint);
+      $routes = array_map(fn($R) => $R->info, self::$paths);
 
       file_put_contents($stash, json_encode($routes));
     }
-    
-    
     
     return array_filter($routes, fn($route) => $route['publish'] ?? false);
   }
@@ -112,8 +121,9 @@ class Route {
     }
     
     $response->fulfilled = true;
-    $response->layout  ??= $this->info['layout'] ?? self::$endpoint[self::INDEX]->template;
-    
+    $response->layout  ??= $this->info['layout'] ?? self::$paths[self::INDEX]->template;
+    $response->render  ??= $this->info['render'] ?? null;
+      
     return $out ?? $response($this->template);
   }
   
@@ -225,7 +235,7 @@ class Request
     $this->route = $match[1] ?: Route::INDEX; 
     $this->type  = $match[2] ?: self::TYPE;
     $this->mime  = $headers['CONTENT_TYPE'] ?? File::MIME[$this->type] ?? File::MIME[self::TYPE];
-    $this->basic = $headers['HTTP_YIELD'] ?? ($this->mime != 'text/html');
+    $this->basic = $headers['HTTP_YIELD']   ?? ($this->mime != 'text/html');
     
     // can be POST, PUT or PATCH, which all contain a body
     if ($this->method[0] === 'P' && ($headers['CONTENT_LENGTH'] ?? 0) > 0)
@@ -249,15 +259,7 @@ class Request
   }
 }
 
-/*
-  TODO change to 'routable'
-*/
-interface routable
-{
-  public function __invoke($template);
-  public function error($info):Exception;
-  public function compose(Route $route, $payload);
-}
+
 
 
 /**
@@ -268,7 +270,7 @@ class Response extends File implements routable
 {
   use Registry;
   
-  public $action, $params, $request, $headers = [], $fulfilled = false, $layout = null;
+  public $action, $params, $request, $headers = [], $fulfilled = false, $layout = null, $render = null;
   
   private $templates = [];
   
@@ -306,7 +308,7 @@ class Response extends File implements routable
     return strlen($header);
   }
   
-  public function compose(Route $route, $payload)
+  public function compose($payload, bool $default)
   {
     // if payload is not a DOM component, no processing to do
     if (! $payload instanceof DOMNode) return $payload;
@@ -320,7 +322,7 @@ class Response extends File implements routable
       $layout = new Template(Document::open($this->layout));
 
       // make sure we aren't putting the layout into itself
-      if ($route->path != Route::INDEX)
+      if (! $default)
         $layout->set(Template::YIELD, $payload); 
     }
     
@@ -330,7 +332,7 @@ class Response extends File implements routable
     
     // render and transform the document layout
     $output = $layout->render($this->data + $payload->info);
-    $output = Render::transform($output, $route->info['render'] ?? null);
+    $output = Render::transform($output, $this->render);
     
     // convert if request type is not markup
     return Parser::check($output, $this->request->type);
@@ -638,7 +640,7 @@ class Document extends DOMDocument
 
 
 class Element extends DOMElement implements ArrayAccess {
-  use invocable;
+  use DOMtextUtility;
   
   public function __construct($name, $value = null) {
     parent::__construct($name);
@@ -703,19 +705,19 @@ class Element extends DOMElement implements ArrayAccess {
 }
 
 class Text extends DOMText {
-  use invocable; 
+  use DOMtextUtility; 
   public function __construct(string $input, ...$args) {
     parent::__construct($args ? vsprintf($input, $args) : $input);
   }
 }
 class Attr extends DOMAttr {
-  use invocable;
+  use DOMtextUtility;
   public function remove() {
     return ($elem = $this->ownerElement) ? $elem->removeAttribute($this->nodeName) : null;
   }
 }
 
-trait invocable
+trait DOMtextUtility
 {
   public function __invoke($input): self
   {
