@@ -206,7 +206,7 @@ class File
 
 class Request
 {
-  const REGEX = '/^([\w\/-]*+)(?:\.(\w{1,4}))?$/i';
+  const REGEX = '/^([\w\/-]*+)(?:\.(\w{1,5}))?$/i';
   const TYPE  = 'html';
   
   public $uri, $method, $data = '', $basic = false, $headers = [];
@@ -337,8 +337,14 @@ class Response extends File implements routable
 
 abstract class Controller
 {
+  abstract protected function initialize(routable $response);
+
   protected $response;
 
+  public function __set($key, $value) {
+    return $this->response->{$key} = $value;
+  }
+  
   public function __get($key) {
     return $this->response->{$key};
   }
@@ -348,20 +354,21 @@ abstract class Controller
   }
   
   public function index() {
-    throw new Exception('Not Implemented', 501);
+    $this->response->request->basic = true;
+    return call_user_func($this->response, $this->response->layout);
   }
   
   public function call(routable $response, $action = 'index', ...$params)
   {
     $this->response = $response;
-    $this($action, $params);
+    $this->action   = strtolower($action);
+    $this->initialize($response);
+    return $this($action, $params);
   }
   
-  public function __invoke($action, $params)
-  {
-    $this->action = strtolower($action);
+  public function __invoke($action, $params) {
     if (! is_callable([$this, $this->action])) throw new Exception("'{$action}' not found", 404);
-    return  $this->{$this->action}(...$params);
+    return call_user_func_array([$this, $this->action], $params);
   }
 }
 

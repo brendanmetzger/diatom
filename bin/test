@@ -22,7 +22,20 @@ try {
   $test = (new Template(new Document('<ok value="${msg}"/>')))->render(['msg' => 'ok']);
   assert('<ok value="ok"/>' === (string) $test);
   
+  // can convert markdown to html
+  
+  // can convert html to markdown
+  
+  // can load a static route
+  
+  // can load a dynamic route
+  
   // Can Make a Request
+  
+  // Can chain requests
+  
+  // Can 'fulfill' request early
+  
   
 } catch (AssertionError $e) {
   

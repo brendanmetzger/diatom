@@ -19,11 +19,12 @@ Route::usher(function($message) {
 
 
 Route::example(function($message = 'world') {
+  $this->yield('sample', 'pages/_samp.html');
   $this->message = "hello {$message}";
   $this->color   = join(array_map(fn($c) => sprintf('%02X',rand($c, 255)), [100,200,100]));
 
   // return new Document('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600"/>');
-  return new Document('<main><h2 style="color:#${color}">${message}</h2></main>');
+  return new Document('<main><h2 style="color:#${color}">${message}</h2><!-- yield sample ! --></main>');
 }, ['publish' => 3, 'title' => 'Dynamic Route']);
 
 
