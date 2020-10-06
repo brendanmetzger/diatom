@@ -432,17 +432,6 @@ class Template
   
   public function render($data = [], $parse = true): Document
   {
-    foreach ($this->getStubs('insert') as [$cmd, $path, $xpath, $context]) {
-      
-      $DOM = is_file($path) ? Document::open($path) : Request::GET($path, $data);
-      $ref = $context->parentNode;
-      foreach ($DOM->find($xpath) as $node) {
-        if (!$node instanceof Text) $node = (new self($node))->render($data, false)->documentElement;
-        $ref->insertBefore($this->DOM->importNode($node, true), $context);
-      }
-      $ref->removeChild($context);
-    }
-    
     foreach ($this->getStubs('yield') as [$cmd, $prop, $exp, $ref]) {
       if ($DOM = $this->templates[$prop ?? Template::YIELD] ?? null) {
         $context = ($exp !== '/') ? $ref : $ref->nextSibling;
@@ -452,6 +441,18 @@ class Template
         if ($ref !== $context) $ref->parentNode->removeChild($ref);
       }
     }
+
+
+    foreach ($this->getStubs('insert') as [$cmd, $path, $xpath, $context]) {
+      $DOM = is_file($path) ? Document::open($path) : Request::GET($path, $data);
+      $ref = $context->parentNode;
+      foreach ($DOM->find($xpath) as $node) {
+        if (!$node instanceof Text) $node = (new self($node))->render($data, false)->documentElement;
+        $ref->insertBefore($this->DOM->importNode($node, true), $context);
+      }
+      $ref->removeChild($context);
+    }
+    
 
     foreach ($this->getStubs('iterate') as [$cmd, $key, $exp, $ref]) {
       $context  = $slug = $ref->nextSibling;

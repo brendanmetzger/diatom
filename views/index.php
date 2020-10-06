@@ -1,6 +1,7 @@
 <?php define('CONFIG', parse_ini_file('../data/config.ini', true));
       require_once '../src/kernel.php';
 
+      $mark = new util\bench;
 
 /**** ROUTING ****************************************************************/
 
@@ -77,6 +78,6 @@ try {
   
   echo $output;
   
-  echo "<!-- " . (memory_get_peak_usage() / 1000). "kb -->\n";
-
+  // echo "<!-- " . (memory_get_peak_usage() / 1000). "kb -->\n";
+  // echo "<!-- " . ($mark->split('end', 'start')). "ms -->\n";
 }

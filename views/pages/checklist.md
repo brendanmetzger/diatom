@@ -1,5 +1,6 @@
 ?title Getting Started
 ?publish 2
+?render sections
 
 # Quickstart \ Guide
 
