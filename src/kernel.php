@@ -209,7 +209,7 @@ class Request
   const REGEX = '/^([\w\/-]*+)(?:\.(\w{1,5}))?$/i';
   const TYPE  = 'html';
   
-  public $uri, $method, $data = '', $basic = false, $headers = [];
+  public $uri, $method, $data = '', $headers = [];
   
   public function __construct(array $headers)
   {
@@ -224,7 +224,6 @@ class Request
     $this->route = $match[1] ?: Route::INDEX; 
     $this->type  = $match[2] ?: self::TYPE;
     $this->mime  = $headers['CONTENT_TYPE'] ?? File::MIME[$this->type] ?? File::MIME[self::TYPE];
-    $this->basic = $headers['HTTP_YIELD']   ?? ($this->mime != 'text/html');
     
     // can be POST, PUT or PATCH, which all contain a body
     if ($this->method[0] === 'P' && ($headers['CONTENT_LENGTH'] ?? 0) > 0)
@@ -259,7 +258,7 @@ class Response extends File implements routable
 {
   use Registry;
   
-  public $action, $params, $request, $headers = [], $fulfilled = false, $layout = null, $render = null;
+  public $action, $params, $request, $basic, $headers = [], $fulfilled = false, $layout = null, $render = null;
   
   private $templates = [];
   
@@ -271,6 +270,7 @@ class Response extends File implements routable
     $this->params  = explode('/', $request->route);
     $this->action  = strtolower(array_shift($this->params));
     $this->id      = md5(join($request->headers));
+    $this->basic   = $request->headers['HTTP_YIELD'] ?? ($request->mime != 'text/html');
   }
   
   // string|Document $template 
@@ -304,7 +304,7 @@ class Response extends File implements routable
     if (! $payload instanceof DOMNode) return $payload;
     
     
-    if ($this->request->basic) {
+    if ($this->basic) {
        //no layout needed, just use payload document
       $layout = new Template($payload, $this->templates);
     } else {
@@ -354,7 +354,7 @@ abstract class Controller
   }
   
   public function index() {
-    $this->response->request->basic = true;
+    $this->response->basic = true;
     return call_user_func($this->response, $this->response->layout);
   }
   

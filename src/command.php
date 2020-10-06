@@ -11,7 +11,7 @@
 class Command implements routable
 {
   use Registry;
-  public $script, $params, $action, $status = 0, $input;
+  public $script, $params, $action, $basic, $status = 0, $input;
     
   static public function __callStatic($key, $args) {
     return Route::compose(new self([$key, ...$args]));

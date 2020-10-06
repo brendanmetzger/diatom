@@ -67,10 +67,10 @@ Route::plain(function() {
 
 try {
 
-  Route::add('index');
+  Route::set('index', null, ['src' => 'bin/task']);
 
   $command = new Command(array_slice($argv,1));
-  $output  = Route::compose($command);
+  $output  = Route::delegate($command);
   
 } catch (Exception | Error $e) {
   
@@ -78,6 +78,7 @@ try {
   $output .= sprintf("line %s in %s\n", $e->getLine(), $e->getFile());
   
 } finally {
+
 
   echo $output;
   echo "\n- Finished {$command->action} -\n";
