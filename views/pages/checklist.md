@@ -15,7 +15,7 @@ Open [this document](${wrapper}?url=${info.path.url}) to amend and edit project 
 
 ## Explore Tasks
 
-- [ ] Change port in `bin/php`
+- [x] Change port in `bin/php`
 - [ ] Create a new file in `view/pages/`
 - [ ] make a syntax error in an ^^html^^ document
 - [ ] Checkout out `index.php`, note example route and play around

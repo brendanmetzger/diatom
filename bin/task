@@ -55,7 +55,8 @@ Route::test(function() {
 Route::plain(function() {
   $mca = '/Volumes/work/clients/mcachicago.org/mcachicago-scrape/mcachicago.org/The-Commons-Online.html';
   $check = 'views/pages/checklist.md';
-   echo Parser::convert(Document::open($check));
+  $list = 'data/benchmarks/lists.md';
+  echo Parser::check(Document::open($list), 'md');
 
 });
 

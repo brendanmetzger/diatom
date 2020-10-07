@@ -57,7 +57,7 @@ class Route {
   static public function gather(array $files)
   {
     // this could be tallied on `set` so that it doesn't have to be mapped
-    $dynamic = array_map(fn($obj) => $obj->publish, self::$paths);
+    $dynamic = array_map(fn($obj) => join($obj->info) . $obj->path, self::$paths);
     $static  = array_map('filemtime', $files);
     $stash   = sys_get_temp_dir() . '/' . md5(join($dynamic+$static));
     
@@ -657,13 +657,15 @@ class Element extends DOMElement implements ArrayAccess {
     return $this->ownerDocument->saveXML($this);
   }
   
-  public function adopt(Element $element)
+  public function adopt(DOMNode $element)
   {
     if ($element->ownerDocument != $this->ownerDocument)
       $element = $this->ownerDocument->importNode($element, true);
     while($node = $element->firstChild)
       $this->appendChild($node);
+    return $this;
   }
+  
 
   public function offsetExists($key) {
     return $this->find($key)->count() > 0;

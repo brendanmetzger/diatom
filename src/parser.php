@@ -70,7 +70,7 @@ class Token {
   
   const BLOCK = [
     'name' => [ 'ol'    , 'ul' ,  'h%d' ,'CDATA', 'blockquote',  'hr'  ,'comment', 'pi', 'p' ],
-    'rgxp' => ['\d+\. ?', '- ' ,'#{1,6}','`{3}' ,   '> ?'     , '-{3,}',  '\/\/' , '\?', '\S'],
+    'rgxp' => ['\d+\. ?', '[-*] ' ,'#{1,6}','`{3}' ,   '> ?'     , '-{3,}',  '\/\/' , '\?', '\S'],
   ];
   
   const INLINE = [
@@ -199,8 +199,8 @@ class Block {
         $context = $context->select(join('/', array_fill(0, $delta, '../..')));
       else {
         if ($delta < 0) {
-         $context = $context->appendChild(new Element($token->element));
-         $context->setAttribute('data-nested', $token->depth - 1);
+         $context = $context->lastChild;
+         $context->appendChild($context->ownerDocument->createElement('span')->adopt($context));
         }
         $context = $context->appendChild(new Element($token->name));
       }
@@ -372,7 +372,11 @@ class Plain {
   
   public function list():self
   {
-    foreach ($this->document->find("//li[not(ul) and not(ol)]") as $node) {
+    // move nest ol/ul's out of li's for proper parsing
+    foreach ($this->document->find('//li/ul|//li/ol') as $node)
+      $node->parentNode->parentNode->insertBefore($node, $node->parentNode->nextSibling);
+    
+    foreach ($this->document->find("//li") as $node) {
       $indent = str_repeat(' ', ($node->find('ancestor::ul|ancestor::ol')->length - 1) * Block::INDENT);
       $prefix = ($node->parentNode->nodeName == 'ol')
         ? preg_replace('/.*li(\[(\d+)\])(?1)?$/', '\2', $node->getNodePath().'[1]') . '.'
