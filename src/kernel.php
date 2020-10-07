@@ -36,7 +36,6 @@ class Route {
   static public function set($path, ?callable $callback = null, array $config = []) {
     $instance = self::$paths[$path] ??= new self($path, $config['publish'] ?? 0);
     $instance->info +=  $config;
-
     if ($callback === null) {
       $instance->template = $config['src'];
     } else {
@@ -309,7 +308,8 @@ class Response extends File implements routable
       $layout = new Template($payload, $this->templates);
     } else {
       // find main document to use as layout
-      $layout = new Template(Document::open($this->layout));
+      
+      $layout = new Template(Document::open($payload->info['layout'] ?? $this->layout));
 
       // make sure we aren't putting the layout into itself
       if (! $default)
