@@ -205,7 +205,7 @@ class File
 
 class Request
 {
-  const REGEX = '/^([\w\/-]*+)(?:\.(\w{1,5}))?$/i';
+  const REGEX = '/^((?>[^.]*).*?)(?:\.(\w{1,5}))?$/i';
   const TYPE  = 'html';
   
   public $uri, $method, $data = '', $headers = [];
@@ -219,7 +219,7 @@ class Request
 
     preg_match(self::REGEX, trim($uri['path'], '/ .'), $match, PREG_UNMATCHED_AS_NULL);
     
-    $this->uri   = $match[0] ?: '/';
+    $this->uri   = $match[0] ?: $headers['REQUEST_URI'];
     $this->route = $match[1] ?: Route::INDEX; 
     $this->type  = $match[2] ?: self::TYPE;
     $this->mime  = $headers['CONTENT_TYPE'] ?? File::MIME[$this->type] ?? File::MIME[self::TYPE];
@@ -631,6 +631,10 @@ class Document extends DOMDocument
     return $this->xpath->evaluate("string({$exp})", $context);
   }
   
+  public function map(string $exp, callable $callback, ?DOMNode $context = null) {
+    return Data::apply($this->find($exp, $context), $callback);
+  }
+  
   public function save($path) {
     return file_put_contents($path, $this->saveXML(), LOCK_EX);
   }
@@ -651,6 +655,10 @@ class Element extends DOMElement implements ArrayAccess {
   
   public function select(string $path) {
     return $this->ownerDocument->select($path, $this);
+  }
+  
+  public function map(string $exp, callable $callback) {
+    return $this->ownerDocument->map($exp, $callback, $this);
   }
   
   public function export(): string {
@@ -701,6 +709,13 @@ class Element extends DOMElement implements ArrayAccess {
     $out = [];
     foreach ($this->childNodes as $node) $out[] = $node->nodeValue;
     return join(' ', $out);
+  }
+}
+
+class NodeList extends DOMNodeList {
+  public function __toString()
+  {
+    return $this->length;
   }
 }
 
@@ -780,6 +795,10 @@ class Data extends ArrayIterator
       $data = iterator_to_array($data);
     parent::__construct($data);
     $this->length = count($data);
+  }
+  
+  public function join(string $glue = '') {
+    return join($glue, iterator_to_array($this));
   }
   
   public function current() {
