@@ -43,7 +43,7 @@ try {
   
   // php dev server handles static files too; prod could use this for cache
   if (is_file($request->uri)) {
-    $output = Response::load($request)->body;
+    $output = Response::load($request);
     header('Content-Length: '. strlen($output));
   } else {
     
@@ -57,7 +57,6 @@ try {
     
     $response = new Response($request, $data + CONFIG['data']);
     $output   = Route::delegate($response);
-    
   }
   
 } catch (Redirect $notice) {
@@ -76,8 +75,10 @@ try {
   
 } finally {
   
+
   echo $output;
   
   // echo "<!-- " . (memory_get_peak_usage() / 1000). "kb -->\n";
   // echo "<!-- " . ($mark->split('end', 'start')). "ms -->\n";
+  exit(0);
 }

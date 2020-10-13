@@ -325,7 +325,7 @@ class Response extends File implements routable
     $output = Render::transform($output, $this->render);
     
     // convert if request type is not markup
-    return Parser::check($output, $this->request->type);
+    return $this->setBody(Parser::check($output, $this->request->type));
   }
 }
 

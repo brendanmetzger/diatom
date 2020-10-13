@@ -11,7 +11,14 @@
 
 
 Route::markdown(function($input = null) {
-  echo Document::open('data/benchmarks/lists.md');
+  // $out = json_decode(file_get_contents('data/benchmarks/style.json'), true);
+  // foreach ($out['web_modules'] as $m) {
+  //   echo $m['body'] ?? "\n";
+  // }
+  // return;
+  $mark = new util\bench;
+  Document::open('data/benchmarks/bootstrap.md');
+  echo $mark->split('end', 'start');
 });
 
 

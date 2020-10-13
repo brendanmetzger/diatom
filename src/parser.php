@@ -4,11 +4,19 @@ class Parser {
 
   public $DOM, $context = null;
       
-  public function __construct(string $input, string $xml = '<article/>', string $xpath = '/*') {
-    $this->DOM     = new Document($xml);
-    $this->context = $this->DOM->select($xpath) ?? $this->DOM->documentElement;
+  public function __construct(string $input, $context = '<article/>', string $xpath = '/*') {
+    if ($context instanceof Element) {
+      $this->DOM     = $context->ownerDocument;
+      $this->context = $context;
+      
+    } else {
+      $this->DOM     = new Document($context);
+      $this->context = $this->DOM->select($xpath) ?? $this->DOM->documentElement;
+    }
+    
     $path  = substr($input, -3) == '.md' && strpos($input, "\n") === false;
-    $input = $path ? new SplFileObject($input) : array_map(fn($line) => $line . "\n", explode("\n", $input));
+    $input = str_replace(['&nbsp;'], [' '], html_entity_decode($input, ENT_NOQUOTES));
+    $input = $path ? new SplFileObject($input) : array_map(fn($line) => $line . "\n", preg_split('/\R/u', $input));
     foreach ($this->scan($input) as $block) $block->process($this->context);
   }
   
@@ -69,20 +77,20 @@ class Parser {
 class Token {
   
   const BLOCK = [
-    'name' => [ 'ol'    , 'ul' ,  'h%d' ,'CDATA', 'blockquote',  'hr'  ,'comment', 'pi', 'p' ],
+    'name' => [ 'ol'    ,   'ul'  ,  'h%d' ,'CDATA', 'blockquote',  'hr'  ,'comment', 'pi', 'p' ],
     'rgxp' => ['\d+\. ?', '[-*] ' ,'#{1,6}','`{3}' ,   '> ?'     , '-{3,}',  '\/\/' , '\?', '\S'],
   ];
   
   const INLINE = [
     '~~' => 's',
     '**' => 'strong',
-    '__' => 'em',
+    '_' => 'em',
     '``' => 'time',
     '`'  => 'code',
     '^^' => 'abbr',
     '|'  => 'mark',
     '"'  => 'q',
-    '*'  => 'i',
+    '*'  => 'cite',
   ];
   
   public $flag, $trim, $depth, $text, $name, $rgxp, $value, $context = false, $element = null;
@@ -91,9 +99,10 @@ class Token {
     foreach ($data as $prop => $value) $this->{$prop} = $value;
     $this->value =  trim(substr($this->text, $this->name == 'p' ? 0 : $this->trim));
     if ($this->context = in_array($this->name, ['CDATA','ol','ul','blockquote'])) {
-      if ($this->name == 'CDATA')
-        $this->element = trim(substr($this->text, 3)) ?: 'pre';
-      else 
+      if ($this->name == 'CDATA') {
+        $name = trim(substr($this->text, 3));
+        $this->element = in_array($name, ['style', 'script']) ? $name : 'pre';
+      } else 
         $this->element = $this->name == 'blockquote' ? 'p' : 'li';
     }
   }
@@ -215,9 +224,12 @@ class Block {
     if ($token->name === 'CDATA')
       return $element->appendChild(new DOMText($token->text));
     
-    $element(preg_replace(['/(?<=\s)\'/u', '/(?<=\S)\'/u', '/\s?--\s?/u'], ['‘', '’', '—'], $token->value));
+    $text = preg_replace(['/(?<=\s)\'/u', '/(?<=\S)\'/u', '/\s?--\s?/u'], ['‘', '’', '—'], $token->value);
+    $element($text);
     
-    (new Inline($element))->parse();
+    // if (preg_match('/[~*\[_`^|{<"\\\]/', $text))
+      (new Inline($element))->parse();
+    
 
     return $context;
   }
@@ -225,17 +237,18 @@ class Block {
 
 
 class Inline {
-  private static $rgxp = null;
+  const  RGXP = [
+    'link'     => '/(!?)\[([^\[\]]++|(?R))\]\((\S+?)\s*(?:\"(.*)\")?\)/u',
+    'basic'    => '/([~*_`^|]+|")((?:(?!\1).)+)\1/u',
+    'tag'      => '/\{([\w]+)\: ?([^{}]++|(?R)*)\}/u',
+    'autolink' => '/<((?:https?:\/)?\/([<>]*))>/',
+    'breaks'   => '/ +(\\\) /',
+  ];
   
   private $DOM, $node;
   
   public function __construct(DOMElement $node)
   {
-    self::$rgxp ??= [
-      'pair' => sprintf('/(%s)((?:(?!\1).)+)\1/u', join('|', array_map(fn($k)=> addcslashes($k, '!..~'), array_keys(Token::INLINE)))),
-      'link' => '/(!?)\[([^\[\]]++|(?R))\]\((\S+?)\s*(?:\"(.*)\")?\)/u'
-    ];
-    
     $this->DOM  = $node->ownerDocument;
     $this->node = $node;
   } 
@@ -247,11 +260,11 @@ class Inline {
     $text = $node->nodeValue;
     
     $matches = [
-      ...$this->gather(self::$rgxp['link'], $text, [$this, 'link']),
-      ...$this->gather(self::$rgxp['pair'], $text, [$this, 'basic']),
-      ...$this->gather('/\{([\w]+)\: ?([^{}]++|(?R)*)\}/u', $text, [$this, 'tag']),
-      ...$this->gather('/<((?:https?:\/)?\/([<>]*))>/', $text, [$this, 'autolink']),
-      ...$this->gather('/ +(\\\) /', $text, [$this, 'breaks']),
+      ...$this->gather(self::RGXP['link'], $text, [$this, 'link']),
+      ...$this->gather(self::RGXP['basic'], $text, [$this, 'basic']),
+      ...$this->gather(self::RGXP['tag'], $text, [$this, 'tag']),
+      ...$this->gather(self::RGXP['autolink'], $text, [$this, 'autolink']),
+      ...$this->gather(self::RGXP['breaks'], $text, [$this, 'breaks']),
     ];
     
     if ($node->nodeName == 'li')
@@ -269,7 +282,10 @@ class Inline {
 
       $textnode = $node->firstChild;
       while ($textnode->nodeType !== XML_TEXT_NODE) $textnode = $textnode->nextSibling;
-      $node->replaceChild($elem, $textnode->splitText($in)->splitText($out)->previousSibling);
+
+      if ($split = $textnode->splitText($in)->splitText($out))
+        $node->replaceChild($elem, $split->previousSibling);
+      
       $this->parse($elem);
     }
     return $node;
@@ -292,7 +308,8 @@ class Inline {
   }
     
   private function basic($line, $match, $symbol, $text) {
-    $node   = new Element(Token::INLINE[$symbol[0]], htmlspecialchars(trim($text[0]), ENT_XHTML, 'UTF-8', false));
+    $mark = str_repeat($symbol[0][0], 2 - (1 * strlen($symbol[0]) % 2));
+    $node = new Element(Token::INLINE[$mark], htmlspecialchars(trim($text[0]), ENT_XHTML, 'UTF-8', false));
     return [...$this->offsets($line, $match), $node];
   }
   
