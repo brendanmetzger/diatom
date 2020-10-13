@@ -77,21 +77,22 @@ class Parser {
 class Token {
   
   const BLOCK = [
-    'name' => ['ol'    ,   'ul'  ,  'h%d' ,'CDATA', 'blockquote',  'hr'  ,'comment', 'pi', 'p' ],
-    'rgxp' => ['\d+\. ?', '[-*] ' ,'#{1,6}','`{3}' ,   '> ?'     , '-{3,}',  '\/\/' , '\?', '\S'],
+    'name' => ['dl' ,'ol'    ,   'ul'  ,  'h%d' ,'CDATA', 'blockquote',  'hr'  ,'comment', 'pi', 'p' ],
+    'rgxp' => ['[:=]{2} ', '\d+\. ', '[-*] ' ,'#{1,6}','`{3}' ,   '> ?'     , '-{3,}',  '\/\/' , '\?', '\S'],
   ];
   
   const INLINE = [
     '~~' => 's',
     '**' => 'strong',
     '_'  => 'em',
+    '__' => 'u',
     '``' => 'time',
     '`'  => 'code',
     '^^' => 'abbr',
     '|'  => 'mark',
     '"'  => 'q',
     '*'  => 'cite',
-    '='  => 'dfn'
+    '='  => 'dfn',
   ];
   
   public $flag, $trim, $depth, $text, $name, $rgxp, $value, $context = false, $element = null;
@@ -99,12 +100,12 @@ class Token {
   function __construct($data) {
     foreach ($data as $prop => $value) $this->{$prop} = $value;
     $this->value =  trim(substr($this->text, $this->name == 'p' ? 0 : $this->trim));
-    if ($this->context = in_array($this->name, ['CDATA','ol','ul','blockquote'])) {
+    if ($this->context = in_array($this->name, ['CDATA','ol','ul','dl','blockquote'])) {
       if ($this->name == 'CDATA') {
         $name = trim(substr($this->text, 3));
         $this->element = in_array($name, ['style', 'script']) ? $name : 'pre';
-      } else 
-        $this->element = $this->name == 'blockquote' ? 'p' : 'li';
+      } else
+        $this->element = $this->name == 'blockquote' ? 'p' : ([':='=>'dt', '::'=>'dd'][trim($this->flag)] ?? 'li');
     }
   }
 }
@@ -229,7 +230,7 @@ class Block {
     $text = preg_replace(['/(?<=\s)\'/u', '/(?<=\S)\'/u', '/\s?--\s?/u'], ['‘', '’', '—'], $token->value);
     $element($text);
     
-    if (preg_match('/^[^!~*\[_`^|{<"\\\]*+(.).*$/', $text, $offset, PREG_OFFSET_CAPTURE))
+    if (preg_match('/^[^!~*\[_`^|{<"\\\=]*+(.).*$/', $text, $offset, PREG_OFFSET_CAPTURE))
       (new Inline($element))->parse(null, $offset[1][1]);
 
     return $context;
@@ -240,9 +241,9 @@ class Block {
 class Inline {
   const  RGXP = [
     'link'     => '/(!?)\[([^\[\]]++|(?R))\]\((\S+?)\s*(?:\"(.*)\")?\)/u',
-    'basic'    => '/([~*_`^|]+|")((?:(?!\1).)+)\1/u',
-    'tag'      => '/\{([\w]+)\: ?([^{}]++|(?R)*)\}/u',
-    'autolink' => '/<((?>https?:\/)?\/([^>]+))>/',
+    'basic'    => '/([~*_`^|=]+|")((?:(?!\1).)+)\1/u',
+    'tag'      => '/\{([-\w]+)\: ?([^{}]++|(?R)*)\}/u',
+    'autolink' => '/<((?>https?:\/)?\/([^<>]+))>/',
     'breaks'   => '/ +(\\\) /',
   ];
   
@@ -288,6 +289,7 @@ class Inline {
         $node->replaceChild($elem, $split->previousSibling);
       
       $this->parse($elem);
+      
     }
     return $node;
   }
@@ -309,7 +311,7 @@ class Inline {
   }
     
   private function basic($line, $match, $symbol, $text) {
-    $mark = str_repeat($symbol[0][0], 2 - (1 * strlen($symbol[0]) % 2));
+    $mark = str_repeat($symbol[0][0], 2 - strlen($symbol[0]) % 2);
     $node = new Element(Token::INLINE[$mark], htmlspecialchars(trim($text[0]), ENT_XHTML, 'UTF-8', false));
     return [...$this->offsets($line, $match), $node];
   }
@@ -323,10 +325,10 @@ class Inline {
   {
     $text  = trim($text[0]);
     $clean = preg_replace('/(?:\s?\[([^\]]+)\]\s?)?/', '', $text); 
-    $node = $this->DOM->createElement('span', htmlspecialchars($clean, ENT_XHTML, 'UTF-8', false));
+    $node = $this->DOM->createElement('data', htmlspecialchars($clean, ENT_XHTML, 'UTF-8', false));
     $title = str_replace(['[', ']'], '', $text);
     $node->setAttribute('title', str_replace(['‘', '’', '—'], ["'", "'", '--'], $title));
-    $node->setAttribute('class', $tag[0]);
+    $node->setAttribute('value', $tag[0]);
     return [...$this->offsets($line, $match), $node];
   }
   
@@ -447,8 +449,8 @@ class Plain {
   }
   
   public function tags($context):void {
-    foreach ($context->find('span[@class]') as $node)
-      $context->replaceChild(new Text('{%s: %s}', $node->getAttribute('class'), $node->getAttribute('title') ?: $this->inline($node)), $node);
+    foreach ($context->find('data[@value]') as $node)
+      $context->replaceChild(new Text('{%s: %s}', $node->getAttribute('value'), $node->getAttribute('title') ?: $this->inline($node)), $node);
   }
   
   public function inline(Element $node):string
