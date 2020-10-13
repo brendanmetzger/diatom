@@ -11,14 +11,13 @@
 
 
 Route::markdown(function($input = null) {
-  // $out = json_decode(file_get_contents('data/benchmarks/style.json'), true);
-  // foreach ($out['web_modules'] as $m) {
-  //   echo $m['body'] ?? "\n";
-  // }
-  // return;
+  include 'data/benchmarks/vendor/parsedown.php';
+
   $mark = new util\bench;
-  Document::open('data/benchmarks/bootstrap.md');
-  echo $mark->split('end', 'start');
+  // echo new Document("<article>".(new Parsedown())->text(file_get_contents('data/benchmarks/bootstrap.md'))."</article>");
+  
+  echo Document::open('data/benchmarks/bootstrap.md');
+  echo "\n\n" . $mark->split('end', 'start');
 });
 
 

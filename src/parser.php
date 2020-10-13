@@ -15,7 +15,7 @@ class Parser {
     }
     
     $path  = substr($input, -3) == '.md' && strpos($input, "\n") === false;
-    $input = str_replace(['&nbsp;'], [' '], html_entity_decode($input, ENT_NOQUOTES));
+    $input = str_replace(['&nbsp;'], [' '], $input);
     $input = $path ? new SplFileObject($input) : array_map(fn($line) => $line . "\n", preg_split('/\R/u', $input));
     foreach ($this->scan($input) as $block) $block->process($this->context);
   }
@@ -77,20 +77,21 @@ class Parser {
 class Token {
   
   const BLOCK = [
-    'name' => [ 'ol'    ,   'ul'  ,  'h%d' ,'CDATA', 'blockquote',  'hr'  ,'comment', 'pi', 'p' ],
+    'name' => ['ol'    ,   'ul'  ,  'h%d' ,'CDATA', 'blockquote',  'hr'  ,'comment', 'pi', 'p' ],
     'rgxp' => ['\d+\. ?', '[-*] ' ,'#{1,6}','`{3}' ,   '> ?'     , '-{3,}',  '\/\/' , '\?', '\S'],
   ];
   
   const INLINE = [
     '~~' => 's',
     '**' => 'strong',
-    '_' => 'em',
+    '_'  => 'em',
     '``' => 'time',
     '`'  => 'code',
     '^^' => 'abbr',
     '|'  => 'mark',
     '"'  => 'q',
     '*'  => 'cite',
+    '='  => 'dfn'
   ];
   
   public $flag, $trim, $depth, $text, $name, $rgxp, $value, $context = false, $element = null;
@@ -115,7 +116,8 @@ class Block {
   private static $rgxp;
 
   public function __construct(?Token $token = null) {
-    self::$rgxp ??= sprintf("/^\s*(?:%s)/Ai", implode('|', array_map(fn($x) => "($x)", Token::BLOCK['rgxp'])));
+    self::$rgxp ??= sprintf("/^\s*(?:%s)/i", implode('|', array_map(fn($x) => "($x)", Token::BLOCK['rgxp'])));
+
     if ($token) $this->push($token);
   }
   
@@ -227,9 +229,8 @@ class Block {
     $text = preg_replace(['/(?<=\s)\'/u', '/(?<=\S)\'/u', '/\s?--\s?/u'], ['‘', '’', '—'], $token->value);
     $element($text);
     
-    // if (preg_match('/[~*\[_`^|{<"\\\]/', $text))
-      (new Inline($element))->parse();
-    
+    if (preg_match('/^[^!~*\[_`^|{<"\\\]*+(.).*$/', $text, $offset, PREG_OFFSET_CAPTURE))
+      (new Inline($element))->parse(null, $offset[1][1]);
 
     return $context;
   }
@@ -241,7 +242,7 @@ class Inline {
     'link'     => '/(!?)\[([^\[\]]++|(?R))\]\((\S+?)\s*(?:\"(.*)\")?\)/u',
     'basic'    => '/([~*_`^|]+|")((?:(?!\1).)+)\1/u',
     'tag'      => '/\{([\w]+)\: ?([^{}]++|(?R)*)\}/u',
-    'autolink' => '/<((?:https?:\/)?\/([<>]*))>/',
+    'autolink' => '/<((?>https?:\/)?\/([^>]+))>/',
     'breaks'   => '/ +(\\\) /',
   ];
   
@@ -253,22 +254,22 @@ class Inline {
     $this->node = $node;
   } 
   
-  public function parse(?DOMElement $node = null)
+  public function parse(?DOMElement $node = null, int $offset = 0)
   {
     $node ??= $this->node;
-
+    
     $text = $node->nodeValue;
     
     $matches = [
-      ...$this->gather(self::RGXP['link'], $text, [$this, 'link']),
-      ...$this->gather(self::RGXP['basic'], $text, [$this, 'basic']),
-      ...$this->gather(self::RGXP['tag'], $text, [$this, 'tag']),
-      ...$this->gather(self::RGXP['autolink'], $text, [$this, 'autolink']),
-      ...$this->gather(self::RGXP['breaks'], $text, [$this, 'breaks']),
+      ...$this->gather(self::RGXP['link'], $text, [$this, 'link'], $offset),
+      ...$this->gather(self::RGXP['basic'], $text, [$this, 'basic'], $offset),
+      ...$this->gather(self::RGXP['tag'], $text, [$this, 'tag'], $offset),
+      ...$this->gather(self::RGXP['autolink'], $text, [$this, 'autolink'], $offset),
+      ...$this->gather(self::RGXP['breaks'], $text, [$this, 'breaks'], $offset),
     ];
     
     if ($node->nodeName == 'li')
-      array_unshift($matches, ...$this->gather('/^\[([x\s])\](.*)$/u', $text, [$this, 'input']));
+      array_unshift($matches, ...$this->gather('/^\[([x\s])\](.*)$/u', $text, [$this, 'input'], $offset));
 
     
     usort($matches, fn($A, $B)=> $B[2] <=> $A[2]);
@@ -295,7 +296,7 @@ class Inline {
     return (new self($node))->parse();
   }
   
-  public function gather($rgxp, $text, callable $callback)
+  public function gather($rgxp, $text, callable $callback, int $offset)
   {
     preg_match_all($rgxp, $text, $matches, PREG_OFFSET_CAPTURE|PREG_SET_ORDER);
     return array_map(fn($match) => $callback($text, ...$match), $matches);
