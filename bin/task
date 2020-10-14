@@ -14,9 +14,13 @@ Route::markdown(function($input = null) {
   include 'data/benchmarks/vendor/parsedown.php';
 
   $mark = new util\bench;
-  // echo new Document("<article>".(new Parsedown())->text(file_get_contents('data/benchmarks/bootstrap.md'))."</article>");
+  // new Document("<article>".(new Parsedown())->text(file_get_contents('data/benchmarks/bootstrap.md'))."</article>");
+  // new Document("<article>".(new Parsedown())->text(file_get_contents('data/benchmarks/fenced.md'))."</article>");
+  // new Document("<article>".(new Parsedown())->text(file_get_contents('data/benchmarks/first.md'))."</article>");
   
-  echo Document::open('data/benchmarks/bootstrap.md');
+  new Parser('data/benchmarks/bootstrap.md');
+  new Parser('data/benchmarks/fenced.md');
+  new Parser('data/benchmarks/first.md');
   echo "\n\n" . $mark->split('end', 'start');
 });
 
@@ -81,6 +85,7 @@ try {
   
 } catch (Exception | Error $e) {
   
+  print_r($e->getTrace());
   $output  = sprintf("\n\033[0;31m%s\033[0m\n", $e->getMessage());
   $output .= sprintf("line %s in %s\n", $e->getLine(), $e->getFile());
   

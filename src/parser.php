@@ -15,7 +15,6 @@ class Parser {
     }
     
     $path  = substr($input, -3) == '.md' && strpos($input, "\n") === false;
-    $input = str_replace(['&nbsp;'], [' '], $input);
     $input = $path ? new SplFileObject($input) : array_map(fn($line) => $line . "\n", preg_split('/\R/u', $input));
     foreach ($this->scan($input) as $block) $block->process($this->context);
   }
@@ -33,8 +32,6 @@ class Parser {
     }
     throw new Error("{$file->type} Not Supported", 500);
   }
-  
-
   
   
   static public function check(Document $output, string $type)
@@ -77,8 +74,8 @@ class Parser {
 class Token {
   
   const BLOCK = [
-    'name' => ['dl' ,'ol'    ,   'ul'  ,  'h%d' ,'CDATA', 'blockquote',  'hr'  ,'comment', 'pi', 'p' ],
-    'rgxp' => ['[:=]{2} ', '\d+\. ', '[-*] ' ,'#{1,6}','`{3}' ,   '> ?'     , '-{3,}',  '\/\/' , '\?', '\S'],
+    'name' => [  'p'  ,   'dl'   ,  'ol'   ,   'ul'  ,  'h%d' ,'CDATA', 'blockquote',  'hr'  ,'comment', 'pi',     'table'       , 'p' ],
+    'rgxp' => ['[A-z]','[:=]{2} ', '\d+\. ', '[-*] ' ,'#{1,6}','`{3}' ,   '> ?'     , '-{3,}',  '\/\/' , '\?', '^\|(?=.+\|.+\|$)', '\S'],
   ];
   
   const INLINE = [
@@ -92,7 +89,7 @@ class Token {
     '|'  => 'mark',
     '"'  => 'q',
     '*'  => 'cite',
-    '='  => 'dfn',
+    '~'  => 'dfn',
   ];
   
   public $flag, $trim, $depth, $text, $name, $rgxp, $value, $context = false, $element = null;
@@ -100,10 +97,13 @@ class Token {
   function __construct($data) {
     foreach ($data as $prop => $value) $this->{$prop} = $value;
     $this->value =  trim(substr($this->text, $this->name == 'p' ? 0 : $this->trim));
-    if ($this->context = in_array($this->name, ['CDATA','ol','ul','dl','blockquote'])) {
+    if ($this->context = in_array($this->name, ['CDATA','ol','ul','dl','blockquote','table'])) {
       if ($this->name == 'CDATA') {
         $name = trim(substr($this->text, 3));
         $this->element = in_array($name, ['style', 'script']) ? $name : 'pre';
+      } else if ($this->name == 'table') {
+        $this->element = 'tr';
+        $this->value = trim($this->value, '|');
       } else
         $this->element = $this->name == 'blockquote' ? 'p' : ([':='=>'dt', '::'=>'dd'][trim($this->flag)] ?? 'li');
     }
@@ -144,6 +144,7 @@ class Block {
   
   public function capture(string $line)
   {
+    $line = str_replace(['&nbsp;', '&mdash;', '&ndash;', '”', '“'], [' ', '—', '–', '"', '"'], $line);
     if (! $token = $this->parse($line)) {
       if ($this->trap) $this->push(new Token(['text' => $line]));
       return $this;
@@ -164,7 +165,6 @@ class Block {
         $token->text = "\n";
         return $this->push($token);
       }
-        
 
       elseif ($this->trap == trim($token->text))
         return new self;
@@ -206,7 +206,7 @@ class Block {
       return $context;
     }
     
-    if ($token->element && $token->name != 'CDATA' && ($context->nodeName != $token->name || $delta != 0)) {
+    if ($token->element && $token->name != 'CDATA' && ($context->nodeName != $token->name || $delta != 0) && $context->nodeName != 'tbody') {
       if ($delta > 0)
         $context = $context->select(join('/', array_fill(0, $delta, '../..')));
       else {
@@ -217,7 +217,6 @@ class Block {
         $context = $context->appendChild(new Element($token->name));
       }
     }
-     
     
     $element = $context->appendChild(new Element($token->element ?? $token->name));
     
@@ -227,11 +226,28 @@ class Block {
     if ($token->name === 'CDATA')
       return $element->appendChild(new DOMText($token->text));
     
-    $text = preg_replace(['/(?<=\s)\'/u', '/(?<=\S)\'/u', '/\s?--\s?/u'], ['‘', '’', '—'], $token->value);
-    $element($text);
     
-    if (preg_match('/^[^!~*\[_`^|{<"\\\=]*+(.)/', $text, $offset, PREG_OFFSET_CAPTURE))
-      (new Inline($element))->parse(null, $offset[1][1]);
+    
+    if ($token->element == 'tr') {
+      if (preg_match('/\-{3,}/', $token->value)) {
+        $head = new Element('thead');
+        $body = new Element('tbody');
+        $row = $head->appendChild($context->replaceChild($head, $element->previousSibling));
+        $context->replaceChild($body, $element);
+        $context = $body;
+      } else
+        foreach (explode('|', $token->value) as $cell)
+          $element->appendChild(new Element($context->nodeName == 'tbody' ? 'td' :'th', trim($cell)));
+
+    } else {
+      $text = preg_replace(['/(?<=\s)\'/u', '/(?<=\S)\'/u', '/\s?--\s?/u'], ['‘', '’', '—'], $token->value);
+      $element($text);
+    
+      if (preg_match('/^[^!~*\[_`^|{<"\\\=]*+(.)/', $text, $offset, PREG_OFFSET_CAPTURE))
+        (new Inline($element))->parse(null, $offset[1][1]);
+      
+    }
+    
 
     return $context;
   }
@@ -241,7 +257,7 @@ class Block {
 class Inline {
   const  RGXP = [
     'link'     => '/(!?)\[([^\[\]]++|(?R))\]\((\S+?)\s*(?:\"(.*)\")?\)/u',
-    'basic'    => '/([~*_`^|=]+|")((?:(?!\1).)+)\1/u',
+    'basic'    => '/([~*_`^|]+|")((?:(?!\1).)+)\1/u',
     'tag'      => '/\{([-\w]+)\: ?([^{}]++|(?R)*)\}/u',
     'autolink' => '/<((?>https?:\/)?\/([^<>]+))>/',
     'breaks'   => '/ +(\\\) /',
@@ -258,7 +274,6 @@ class Inline {
   public function parse(?DOMElement $node = null, int $offset = 0)
   {
     $node ??= $this->node;
-    
     $text = $node->nodeValue;
     
     $matches = [
@@ -268,7 +283,7 @@ class Inline {
       ...$this->gather(self::RGXP['autolink'], $text, [$this, 'autolink'], $offset),
       ...$this->gather(self::RGXP['breaks'], $text, [$this, 'breaks'], $offset),
     ];
-    
+
     if ($node->nodeName == 'li')
       array_unshift($matches, ...$this->gather('/^\[([x\s])\](.*)$/u', $text, [$this, 'input'], $offset));
 
@@ -277,7 +292,7 @@ class Inline {
 
     foreach ($matches as $i => [$in, $out, $end, $elem]) {
       // skip nested.. parsed recursively
-      if ($i > 0 && $in > $matches[$i-1][0]) {
+      if ($i > 0 && $end > $matches[$i-1][0]) {
         $matches[$i] = $matches[$i-1];
         continue;
       }
@@ -288,7 +303,7 @@ class Inline {
       if ($split = $textnode->splitText($in)->splitText($out))
         $node->replaceChild($elem, $split->previousSibling);
       
-      if ($node->nodeName != 'code' && $node->nodeValue == '') 
+      if ($elem->nodeName != 'code' && $elem->nodeValue)
         $this->parse($elem);
       
     }

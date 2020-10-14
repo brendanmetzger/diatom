@@ -170,8 +170,8 @@ class File
   {
     $instance = new static($path);
     
-    if (! $content = file_get_contents($instance->url))
-      throw new Error('Bad path: ' . $path);
+    // 8.0 $content = file_get_contents($instance->url) ?? throw new Error('Bad path');
+    if (! $content = file_get_contents($instance->url)) throw new Error('Bad path: ' . $path);
 
     return $instance->setBody($content);
   }
@@ -248,7 +248,6 @@ class Request
 
 
 
-
 /**
  * Response | finds correct template object, renders it, tracks headers...
 **/
@@ -258,9 +257,7 @@ class Response extends File implements routable
   use Registry;
   
   public $action, $params, $request, $basic, $headers = [], $fulfilled = false, $layout = null, $render = null;
-  
-  private $templates = [];
-  
+    
   public function __construct(Request $request, array $data = [])
   {
     parent::__construct($request->uri);
@@ -274,7 +271,7 @@ class Response extends File implements routable
   
   // string|Document $template 
   public function yield(string $key, $source) {
-    $this->templates[$key] = $source instanceof Document ? $source : Document::open($source);
+    Template::set($key, $source instanceof Document ? $source : Document::open($source));
   }
   
   public function __invoke($path) {
@@ -305,7 +302,7 @@ class Response extends File implements routable
     
     if ($this->basic) {
        //no layout needed, just use payload document
-      $layout = new Template($payload, $this->templates);
+      $layout = new Template($payload);
     } else {
       // find main document to use as layout
       
@@ -313,12 +310,9 @@ class Response extends File implements routable
 
       // make sure we aren't putting the layout into itself
       if (! $default)
-        $layout->set(Template::YIELD, $payload); 
+        Template::set(Template::YIELD, $payload); 
     }
     
-    // add in additional templates specified with yield method
-    foreach ($this->templates as $key => $template)
-      $layout->set($key, $template);
     
     // render and transform the document layout
     $output = $layout->render($this->data + $payload->info);
@@ -410,9 +404,15 @@ class Template
 {
   public const YIELD = '-default-view-object-';
   
-  private $DOM, $templates = [], $slugs = [], $cache = null;
+  private static $yield = [];
+  # Note, this has a DOMNode as typecase, but should be Document|Element in 8.0
+  static public function set(string $key, DOMNode $stub = null) {
+    self::$yield[$key] = $stub;
+  }
   
-  public function __construct(DOMnode $input, ?array $templates = [])
+  private $DOM, $slugs = [], $cache = null;
+  
+  public function __construct(DOMnode $input)
   {
     if ($input instanceof Element) {
       $this->DOM = new Document($input->export());
@@ -420,10 +420,7 @@ class Template
     } else {
       $this->DOM = $input;
     }
-    
-    $this->templates += $templates;
   }
-  
   
   public function reset() {
     $this->DOM->replaceChild($this->cache->cloneNode(true), $this->DOM->firstChild);
@@ -432,16 +429,15 @@ class Template
   
   public function render($data = [], $parse = true): Document
   {
+    
     foreach ($this->getStubs('yield') as [$cmd, $prop, $exp, $ref]) {
-      if ($DOM = $this->templates[$prop ?? Template::YIELD] ?? null) {
+      if ($DOM = self::$yield[$prop ?? Template::YIELD] ?? null) {
         $context = ($exp !== '/') ? $ref : $ref->nextSibling;
-        $node    = (new self($DOM, $this->templates))->render($data, false)->documentElement;
+        $node    = (new self($DOM))->render($data, false)->documentElement;
         $ref->parentNode->replaceChild($this->DOM->importNode($node, true), $context);
-
         if ($ref !== $context) $ref->parentNode->removeChild($ref);
       }
     }
-
 
     foreach ($this->getStubs('insert') as [$cmd, $path, $xpath, $context]) {
       $DOM = is_file($path) ? Document::open($path) : Request::GET($path, $data);
@@ -476,11 +472,6 @@ class Template
     if ($parse) $this->parse($data);
     
     return $this->DOM;
-  }
-  
-  # Note, this has a DOMNode as typecase, but should be Document|Element in 8.0
-  public function set(string $key, DOMNode $stub = null) {
-    $this->templates[$key] = $stub;
   }
   
   private function parse($data)

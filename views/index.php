@@ -74,11 +74,10 @@ try {
   $output = Request::GET('error', $data + CONFIG['data']);
   
 } finally {
-  
 
   echo $output;
   
-  // echo "<!-- " . (memory_get_peak_usage() / 1000). "kb -->\n";
+  echo "<!-- " . (memory_get_peak_usage() / 1000). "kb -->\n";
   // echo "<!-- " . ($mark->split('end', 'start')). "ms -->\n";
   exit(0);
 }
