@@ -14,7 +14,7 @@ Guidance is offered when mistakes occur, ensuring that all output is entirely va
 The bulk of authorship is __completely standard__ xHTML, CSS, JavaScript. Then to program things, use PHP and reference [php.net](http://php.net) for misc. documentation (there are no dependencies).
 
 - Linux or Mac OS)
-- php 7.4+ - `[brew](https://brew.sh/) install php`  to get that if needed
+- php 7.4+ - `brew install php`  to get that if needed
 - Understanding of HTML and the Document Object Model
 
 ### Quickstart
@@ -74,10 +74,6 @@ Templating is a powerful feature, and it stems from a premise that all content a
 `<li><span>${A}</span> <span>${B}</span></li>` is OK as both variables have a single nodetype (`Text`) as a context
 
 ### Renderers
-
-- 
-     - `<script src="path"></script>`  to `<script>Kit.script(path);</script>`
-     - `<script>code</script>`  to `<script>Kit.script(data://uri,b64 code);</script>`
 - **canonical** reorders the document to place (and organize) `<style>`, `<link>`, `<meta>`  into the `<head>` of the Document
 - **sections** recursively looks for heading elements and builds sections around them.
 - **editable** marks embedded Documents with their original source, and maps nodepaths fore editable nodes against that nodepath

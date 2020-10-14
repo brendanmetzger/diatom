@@ -230,7 +230,7 @@ class Block {
     $text = preg_replace(['/(?<=\s)\'/u', '/(?<=\S)\'/u', '/\s?--\s?/u'], ['‘', '’', '—'], $token->value);
     $element($text);
     
-    if (preg_match('/^[^!~*\[_`^|{<"\\\=]*+(.).*$/', $text, $offset, PREG_OFFSET_CAPTURE))
+    if (preg_match('/^[^!~*\[_`^|{<"\\\=]*+(.)/', $text, $offset, PREG_OFFSET_CAPTURE))
       (new Inline($element))->parse(null, $offset[1][1]);
 
     return $context;
@@ -288,7 +288,8 @@ class Inline {
       if ($split = $textnode->splitText($in)->splitText($out))
         $node->replaceChild($elem, $split->previousSibling);
       
-      $this->parse($elem);
+      if ($node->nodeName != 'code' && $node->nodeValue == '') 
+        $this->parse($elem);
       
     }
     return $node;
@@ -304,21 +305,21 @@ class Inline {
     return array_map(fn($match) => $callback($text, ...$match), $matches);
   }
   
-  private function offsets($line, $match) {
+  private function offsets($line, $match, $node) {
     $in  = mb_strlen(substr($line, 0, $match[1]));
     $out = mb_strlen($match[0]);
-    return [$in, $out, $in+$out];
+    return [$in, $out, $in+$out, $node];
   }
     
   private function basic($line, $match, $symbol, $text) {
-    $mark = str_repeat($symbol[0][0], 2 - strlen($symbol[0]) % 2);
+    $mark = substr($symbol[0], 0, 2 - strlen($symbol[0]) % 2);
     $node = new Element(Token::INLINE[$mark], htmlspecialchars(trim($text[0]), ENT_XHTML, 'UTF-8', false));
-    return [...$this->offsets($line, $match), $node];
+    return $this->offsets($line, $match, $node);
   }
   
   private function breaks($line, $match, $text)
   {
-    return [...$this->offsets($line, $match), new Element('br')];
+    return $this->offsets($line, $match, new Element('br'));
   }
   
   private function tag($line, $match, $tag, $text)
@@ -329,7 +330,7 @@ class Inline {
     $title = str_replace(['[', ']'], '', $text);
     $node->setAttribute('title', str_replace(['‘', '’', '—'], ["'", "'", '--'], $title));
     $node->setAttribute('value', $tag[0]);
-    return [...$this->offsets($line, $match), $node];
+    return $this->offsets($line, $match, $node);
   }
   
   public function autolink($line, $match, $pathordomain, $url)
@@ -352,7 +353,7 @@ class Inline {
       $node->setAttribute('title', $caption[0]);
     }
     
-    return [...$this->offsets($line, $match), $node];
+    return $this->offsets($line, $match, $node);
   }
 
   private function input($line, $match, $checked, $text)
@@ -368,9 +369,6 @@ class Inline {
 
 class Plain {
   
-  /*
-    TODO still need to convert blockquotes, convert any element containing text into p
-  */
   private $document;
   
   public function __construct(Document $DOM) {
