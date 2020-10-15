@@ -34,7 +34,7 @@ This application is often used on the ^^AWS^^ Platform, particularly *lightsail*
 
 // insert ../README.md //style
 
-```script
+``` script
 
 document.querySelector('article').addEventListener('click', evt => {
   if (evt.target.nodeName == 'INPUT')

@@ -18,9 +18,7 @@ Route::markdown(function($input = null) {
   // new Document("<article>".(new Parsedown())->text(file_get_contents('data/benchmarks/fenced.md'))."</article>");
   // new Document("<article>".(new Parsedown())->text(file_get_contents('data/benchmarks/first.md'))."</article>");
   
-  new Parser('data/benchmarks/bootstrap.md');
-  new Parser('data/benchmarks/fenced.md');
-  new Parser('data/benchmarks/first.md');
+  echo new Parser('data/benchmarks/first.md');
   echo "\n\n" . $mark->split('end', 'start');
 });
 
