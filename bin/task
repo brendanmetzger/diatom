@@ -11,14 +11,13 @@
 
 
 Route::markdown(function($input = null) {
-  include 'data/benchmarks/vendor/parsedown.php';
-
   $mark = new util\bench;
+  // include 'data/benchmarks/vendor/parsedown.php';
   // new Document("<article>".(new Parsedown())->text(file_get_contents('data/benchmarks/bootstrap.md'))."</article>");
   // new Document("<article>".(new Parsedown())->text(file_get_contents('data/benchmarks/fenced.md'))."</article>");
   // new Document("<article>".(new Parsedown())->text(file_get_contents('data/benchmarks/first.md'))."</article>");
   
-  echo new Parser('data/benchmarks/first.md');
+  echo new Parser('data/benchmarks/bootstrap.md');
   echo "\n\n" . $mark->split('end', 'start');
 });
 

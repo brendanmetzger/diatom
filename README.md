@@ -5,9 +5,7 @@
 
 ## Overview
 
-This framework is primarily focused around creating reusable templates (HTML) and allowing them to be programmed elegantly by  avoiding parse errors (CDATA mishaps, unencoded entities, unclosed elements, etc.) that occur with non-validating templates or markdown libraries.
-
-Guidance is offered when mistakes occur, ensuring that all output is entirely valid, queryable, and can undergo mutations, etc.
+This framework is focused on creating reusable templates (HTML) and allowing them to be routed, reused and organized pretty well by default. If more control is desired, some light programming can facilitate that.
 
 ### Requirements
 
@@ -15,7 +13,9 @@ The bulk of authorship is __completely standard__ xHTML, CSS, JavaScript. Then t
 
 - Linux or Mac OS)
 - php 7.4+ - `brew install php`  to get that if needed
-- Understanding of HTML and the Document Object Model
+- Solid understanding of the Document Object Model
+- familiarity with xpath ([a good resource](https://devhints.io/xpath))
+
 
 ### Quickstart
 

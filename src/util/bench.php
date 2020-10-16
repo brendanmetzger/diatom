@@ -21,7 +21,7 @@ class Bench {
   
   public function split($key, $split = false) {
     $this->mark[$key] = hrtime(true);
-    if ($split) $this->split[$key] = ($this->mark[$key] - $this->mark[$split]) / 1e+6;
+    if ($split) $this->split[$key] = ($this->mark[$key] - $this->mark[$split]) / 1e+9;
     return $split ? $this->split[$key] : $this->mark[$key];
   }
   

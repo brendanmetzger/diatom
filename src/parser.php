@@ -40,7 +40,7 @@ class Parser {
       $output = json_encode(simplexml_import_dom($output));
     
     else if ($type == 'md')
-      $output = (string) (new Plain($output))->blocks()->rules()->list()->headings()->CDATA();
+      $output = (string) (new Plain($output))->blocks()->rules()->list()->headings()->table()->CDATA();
     
     
     return $output;
@@ -74,22 +74,25 @@ class Parser {
 class Token {
   
   const BLOCK = [
-    'name' => [  'p'  ,   'dl'   ,  'ol'   ,   'ul'  ,  'h%d' ,'CDATA', 'blockquote',  'hr'  ,'comment', 'pi',     'table'       , 'p' ],
-    'rgxp' => ['[A-Za-z]','[:=]{2} ', '\d+\. ', '[-*] ' ,'#{1,6}','`{3}' ,   '> ?'     , '-{3,}',  '\/\/' , '\?', '^\|(?=.+\|.+\|$)', '\S'],
+    'name' => [  'p'  ,   'dl'   ,  'ol'   ,   'ul'  ,  'h%d' ,'CDATA', 'BLOCK' ,  'hr'  ,'comment', 'pi' ,     'table'       , 'p' ],
+    'rgxp' => ['[A-Z]','[: ]{2}', '\d+\. ', '[-*] ' ,'#{1,6}','`{3}' ,  '[>+] ', '-{3,}',  '\/\/' , '\?' , '^\|(?=.+\|.+\|$)', '\S'],
+    'trap' => [ false ,   true   ,  true   ,  true   ,  false , true  ,   true  ,  false , false   , false,     true          ,false],
   ];
   
   const INLINE = [
     '~~' => 's',
+    '~'  => 'dfn',
     '**' => 'strong',
-    '_'  => 'em',
+    '*'  => 'em',
+    '_'  => 'cite',
     '__' => 'u',
     '``' => 'time',
     '`'  => 'code',
     '^^' => 'abbr',
+    '^'  => 'small',
     '|'  => 'mark',
-    '"'  => 'q',
-    '*'  => 'cite',
-    '~'  => 'dfn',
+    '||' => 'b',
+    '""' => 'q',
   ];
   
   public $flag, $trim, $depth, $text, $name, $rgxp, $value, $context = false, $element = null;
@@ -97,15 +100,22 @@ class Token {
   function __construct($data) {
     foreach ($data as $prop => $value) $this->{$prop} = $value;
     $this->value =  trim(substr($this->text, $this->name == 'p' ? 0 : $this->trim));
-    if ($this->context = in_array($this->name, ['CDATA','ol','ul','dl','blockquote','table'])) {
+    if ($this->context) {
       if ($this->name == 'CDATA') {
         $name = trim(substr($this->text, 3));
         $this->element = in_array($name, ['style', 'script']) ? $name : 'pre';
       } else if ($this->name == 'table') {
         $this->element = 'tr';
         $this->value = trim($this->value, '|');
-      } else
-        $this->element = $this->name == 'blockquote' ? 'p' : ([':='=>'dt', '::'=>'dd'][trim($this->flag)] ?? 'li');
+      } else if ($this->name == 'BLOCK') {
+        // TODO, this is going to be a more complicated capture based on indentation
+        $this->name = ['+' => 'details', '>' => 'blockquote'][trim($this->flag)];
+        $this->element = ['details' => 'summary', 'blockquote' => 'p'][$this->name];
+      }  else {
+        print_r($this->flag);
+        $this->element = [': '=>'dt', '::'=>'dd'][$this->flag] ?? 'li';
+      }
+        
     }
   }
 }
@@ -127,13 +137,15 @@ class Block {
     if (preg_match(self::$rgxp, $text, $list, PREG_OFFSET_CAPTURE) < 1) return false;
 
     [$symbol, $offset] = array_pop($list); // last match contains match & offset: [string $symbol, int offset]
+    $idx  = count($list) - 1;
     $trim = strlen($symbol);
     return new Token ([
-      'name'  => sprintf(Token::BLOCK['name'][count($list) - 1], $trim),
-      'flag'  => $symbol,
-      'trim'  => $offset + $trim,
-      'depth' => floor($offset / self::INDENT) + 1,
-      'text'  => $text,
+      'name'    => sprintf(Token::BLOCK['name'][$idx], $trim),
+      'context' => Token::BLOCK['trap'][$idx],
+      'flag'    => $symbol,
+      'trim'    => $offset + $trim,
+      'depth'   => floor($offset / self::INDENT) + 1,
+      'text'    => $text,
     ]);
   }
   
@@ -240,7 +252,7 @@ class Block {
           $element->appendChild(new Element($context->nodeName == 'tbody' ? 'td' :'th', trim($cell)));
 
     } else {
-      $text = preg_replace(['/(?<=\s)\'/u', '/(?<=\S)\'/u', '/\s?--\s?/u'], ['‘', '’', '—'], $token->value);
+      $text = preg_replace(['/\\\([~*_`^|])/', '/(?<=\s)\'/u', '/(?<=\S)\'/u', '/\s?--\s?/u'], ['$1', '‘', '’', '—'], $token->value);
       $element($text);
     
       if (preg_match('/^[^!~*\[_`^|{<"\\\=]*+(.)/', $text, $offset, PREG_OFFSET_CAPTURE))
@@ -257,7 +269,7 @@ class Block {
 class Inline {
   const  RGXP = [
     'link'     => '/(!?)\[([^\[\]]++|(?R))\]\((\S+?)\s*(?:\"(.*)\")?\)/u',
-    'basic'    => '/([~*_`^|]+|")((?:(?!\1).)+)\1/u',
+    'basic'    => '/(?<!\\\)([~*_`^|]+|"")((?:(?!\1).)+)\1/u',
     'tag'      => '/\{([-\w]+)\: ?([^{}]++|(?R)*)\}/u',
     'autolink' => '/<((?>https?:\/)?\/([^<>]+))>/',
     'breaks'   => '/ +(\\\) /',
@@ -275,25 +287,21 @@ class Inline {
   {
     $node ??= $this->node;
     $text = $node->nodeValue;
-    
-    $matches = [
-      ...$this->gather(self::RGXP['link'], $text, [$this, 'link'], $offset),
-      ...$this->gather(self::RGXP['basic'], $text, [$this, 'basic'], $offset),
-      ...$this->gather(self::RGXP['tag'], $text, [$this, 'tag'], $offset),
-      ...$this->gather(self::RGXP['autolink'], $text, [$this, 'autolink'], $offset),
-      ...$this->gather(self::RGXP['breaks'], $text, [$this, 'breaks'], $offset),
-    ];
+    $mark = [];
+
+    foreach (self::RGXP as $key => $exp)
+      array_push($mark, ...$this->gather($exp, $text, [$this, $key], $offset));
 
     if ($node->nodeName == 'li')
-      array_unshift($matches, ...$this->gather('/^\[([x\s])\](.*)$/u', $text, [$this, 'input'], $offset));
+      array_unshift($mark, ...$this->gather('/^\[([x\s])\](.*)$/u', $text, [$this, 'input'], $offset));
 
     
-    usort($matches, fn($A, $B)=> $B[2] <=> $A[2]);
+    usort($mark, fn($A, $B)=> $B[2] <=> $A[2]);
 
-    foreach ($matches as $i => [$in, $out, $end, $elem]) {
+    foreach ($mark as $i => [$in, $out, $end, $elem]) {
       // skip nested.. parsed recursively
-      if ($i > 0 && $end > $matches[$i-1][0]) {
-        $matches[$i] = $matches[$i-1];
+      if ($i > 0 && $end > $mark[$i-1][0]) {
+        $mark[$i] = $mark[$i-1];
         continue;
       }
 
@@ -420,6 +428,29 @@ class Plain {
     foreach($this->document->find('//ul|//ol') as $node)
       $node->parentNode->replaceChild(new Text($node->nodeValue. "\n"), $node);
     
+    return $this;
+  }
+  
+  public function table():self
+  {
+    foreach ($this->document->find('//table') as $node) {
+      $col = array_fill(0, $node->find('//th')->length, 0);
+      
+
+      for ($i=1; $i <= count($col); $i++)
+        $col[$i-1] = max(array_map(fn($n) => strlen($n($this->inline($n))), iterator_to_array($node->find(".//tr/*[$i]"))));
+
+      foreach ($node->find('.//tr') as $row) {
+        foreach ($row->childNodes as $i => $cell) {
+          $cell('| ' . str_pad($cell, $col[$i],' ', STR_PAD_LEFT). ' ');
+        }
+        $row->parentNode->replaceChild(new Text($row->nodeValue . "|\n"), $row);
+      }
+      
+      $head = $node->select('thead');
+      $node->replaceChild(new Text("\n" . $head . preg_replace('/[^|\n]/', '-', $head)), $head);
+
+    }
     return $this;
   }
   

@@ -17,7 +17,7 @@ class Render
   
   static public function transform(Document $DOM, ?string $renders = null) {
     $instance = new self($DOM, $renders);
-
+    
     foreach($instance->renders as $callback => $args)
       call_user_func_array([$instance, $callback], $args);
     
@@ -54,25 +54,24 @@ class Render
   
   private function sections(?Element $context = null, int $level = 2)
   {
+
     if ($level > 4) return;
     
-    $flag     = "h{$level}";
-    $context??= $this->document->documentElement;
-    $nodeName = $level > 3 ? 'aside' : 'section';
-    $sections = $this->document->find('.//'.$flag, $context);
-
+    $context ??= $this->document->documentElement;
+    $flag      = "h{$level}";
+    $name      = $level > 3 ? 'aside' : 'section';
+    $query     = ".//{$flag}[not(parent::{$name}) or count(parent::{$name}/{$flag}) > 1]";
+    $sections  = $this->document->find($query, $context);
+    
     if ($sections->length > 0) {
 
       foreach ($sections as $node) {
-
-        $nodeName = strtolower(substr($node->nodeValue, 0, 4)) == 'foot' ? 'footer' : $nodeName;
-        $section  = new Element($nodeName);
-
+        $section = new Element($name);
         $section->appendChild($node->parentNode->replaceChild($section, $node));
         $section->setAttribute('id', preg_replace('/[^a-z]+/', '', strtolower($node)));
         $sibling = $section->nextSibling;
   
-        while($sibling && $sibling->nodeName != $flag && $sibling->nodeName != $nodeName) {
+        while($sibling && $sibling->nodeName != $flag && $sibling->nodeName != $name) {
           $next = $sibling->nextSibling;
           $section->appendChild($sibling);
           $sibling = $next;
