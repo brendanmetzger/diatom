@@ -10,14 +10,17 @@
 
 
 
-Route::markdown(function($input = null) {
+Route::markdown(function($file = 'bootstrap', $type = 'local') {
+  $file = 'data/benchmarks/'.$file.'.md';
   $mark = new util\bench;
-  // include 'data/benchmarks/vendor/parsedown.php';
-  // new Document("<article>".(new Parsedown())->text(file_get_contents('data/benchmarks/bootstrap.md'))."</article>");
-  // new Document("<article>".(new Parsedown())->text(file_get_contents('data/benchmarks/fenced.md'))."</article>");
-  // new Document("<article>".(new Parsedown())->text(file_get_contents('data/benchmarks/first.md'))."</article>");
-  
-  echo new Parser('data/benchmarks/bootstrap.md');
+
+  if ($type === 'local') {
+    $out = Document::open($file);
+  } else {
+    include 'data/benchmarks/vendor/parsedown.php';
+    $out = new Document("<article>".(new Parsedown())->text(file_get_contents($file))."</article>");
+  }
+  echo $out;
   echo "\n\n" . $mark->split('end', 'start');
 });
 
@@ -62,7 +65,7 @@ Route::test(function() {
 Route::plain(function() {
   $mca = '/Volumes/work/clients/mcachicago.org/mcachicago-scrape/mcachicago.org/The-Commons-Online.html';
   $check = 'views/pages/checklist.md';
-  $list = 'data/benchmarks/lists.md';
+  $list = 'data/benchmarks/blocks.md';
   echo Parser::check(Document::open($list), 'md');
 
 });

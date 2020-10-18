@@ -414,9 +414,9 @@ class Template
   
   public function __construct(DOMnode $input)
   {
-    if ($input instanceof Element) {
-      $this->DOM = new Document($input->export());
-      $this->DOM->info = $input->ownerDocument->info ?? null;
+    if ($input instanceof Element && $doc = $input->ownerDocument) {
+      $this->DOM = new Document($doc->saveXML($input));
+      $this->DOM->info = $doc->info ?? null;
     } else {
       $this->DOM = $input;
     }
@@ -443,7 +443,9 @@ class Template
       $DOM = is_file($path) ? Document::open($path) : Request::GET($path, $data);
       $ref = $context->parentNode;
       foreach ($DOM->find($xpath) as $node) {
-        if (!$node instanceof Text) $node = (new self($node))->render($data, false)->documentElement;
+        if (!$node instanceof Text)
+          $node = (new self($node))->render($data, false)->documentElement;
+        
         $ref->insertBefore($this->DOM->importNode($node, true), $context);
       }
       $ref->removeChild($context);
@@ -604,8 +606,6 @@ class Document extends DOMDocument
     return $prefix . $this->saveXML($this->documentElement);
   }
   
-  
-  
   public function find($exp, ?DOMNode $context = null): DOMNodelist
   {
     if (! $result = $this->xpath->query($exp, $context))
@@ -651,11 +651,7 @@ class Element extends DOMElement implements ArrayAccess {
   public function map(string $exp, callable $callback) {
     return $this->ownerDocument->map($exp, $callback, $this);
   }
-  
-  public function export(): string {
-    return $this->ownerDocument->saveXML($this);
-  }
-  
+
   public function adopt(DOMNode $element)
   {
     if ($element->ownerDocument != $this->ownerDocument)
@@ -667,17 +663,17 @@ class Element extends DOMElement implements ArrayAccess {
   
 
   public function offsetExists($key) {
-    return $this->find($key)->count() > 0;
+    return $this->find($key)->length > 0;
   }
 
   public function offsetGet($key, $create = false, $index = 0)
   {
     if (($nodes = $this->find($key)) && ($nodes->length > $index))
       return new Data($nodes);
-    else if ($create)
-      return $this->appendChild(($key[0] == '@') ? new Attr(substr($key, 1)) : new Element($key));
-    else 
-      throw new UnexpectedValueException("{$this->parentNode->nodeName} does not have {$key}");
+    elseif ($create && $type = $key[0] == '@' ? 'Attr' : 'Element')
+      return $this->appendChild(new $type(ltrim($key, '@')));
+
+    return null;
   }
 
   public function offsetSet($key, $value) {
@@ -685,7 +681,7 @@ class Element extends DOMElement implements ArrayAccess {
   }
 
   public function offsetUnset($key) {
-    return $this[$key]->remove();
+    foreach ($this[$key] as $node) $node->remove();
   }
   
   public function remove() {
@@ -703,12 +699,7 @@ class Element extends DOMElement implements ArrayAccess {
   }
 }
 
-class NodeList extends DOMNodeList {
-  public function __toString()
-  {
-    return $this->length;
-  }
-}
+
 
 class Text extends DOMText {
   use DOMtextUtility; 

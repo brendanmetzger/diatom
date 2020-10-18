@@ -25,11 +25,12 @@ class Parser {
     if ($file->type == 'md')
       return (new self($file->uri))->DOM;
     
-    else if (isset($ext[$file->type])) {
-      $DOM = new Document($ext[$file->type]);
+    elseif ($tag = $ext[$file->type] ?? false) {
+      $DOM = new Document($tag);
       $DOM->documentElement->appendChild(new Text($file->body));
       return $DOM;
     }
+    
     throw new Error("{$file->type} Not Supported", 500);
   }
   
@@ -40,8 +41,7 @@ class Parser {
       $output = json_encode(simplexml_import_dom($output));
     
     else if ($type == 'md')
-      $output = (string) (new Plain($output))->blocks()->rules()->list()->headings()->table()->CDATA();
-    
+      $output = Plain::convert($output);
     
     return $output;
   }
@@ -74,9 +74,9 @@ class Parser {
 class Token {
   
   const BLOCK = [
-    'name' => [  'p'  ,   'dl'   ,  'ol'   ,   'ul'  ,  'h%d' ,'CDATA', 'BLOCK' ,  'hr'  ,'comment', 'pi' ,     'table'       , 'p' ],
-    'rgxp' => ['[A-Z]','[: ]{2}', '\d+\. ', '[-*] ' ,'#{1,6}','`{3}' ,  '[>+] ', '-{3,}',  '\/\/' , '\?' , '^\|(?=.+\|.+\|$)', '\S'],
-    'trap' => [ false ,   true   ,  true   ,  true   ,  false , true  ,   true  ,  false , false   , false,     true          ,false],
+    'name' => [  'p'  ,  'ol'   ,   'ul'  ,  'h%d' ,'CDATA',    'dl'   , 'BLOCK' ,  'hr'  ,'comment', 'pi' ,     'table'       , 'p' ],
+    'rgxp' => ['[A-Z]', '\d+\. ', '[-*] ' ,'#{1,6}','`{3}' , '::?' ,  '[>+] ', '-{3,}',  '\/\/' , '\?' , '\|(?=.+\|.+\|$)', '\S'],
+    'trap' => [ false ,  true   ,  true   ,  false , true  ,    true   ,   true  ,  false , false   , false,     true          ,false],
   ];
   
   const INLINE = [
@@ -95,25 +95,25 @@ class Token {
     '""' => 'q',
   ];
   
-  public $flag, $trim, $depth, $text, $name, $rgxp, $value, $context = false, $element = null;
+  public $flag, $trim, $depth, $text, $name, $value, $context = false, $element = null;
   
   function __construct($data) {
+
     foreach ($data as $prop => $value) $this->{$prop} = $value;
     $this->value =  trim(substr($this->text, $this->name == 'p' ? 0 : $this->trim));
+    
     if ($this->context) {
       if ($this->name == 'CDATA') {
         $name = trim(substr($this->text, 3));
         $this->element = in_array($name, ['style', 'script']) ? $name : 'pre';
-      } else if ($this->name == 'table') {
+      } elseif ($this->name == 'table') {
         $this->element = 'tr';
         $this->value = trim($this->value, '|');
       } else if ($this->name == 'BLOCK') {
-        // TODO, this is going to be a more complicated capture based on indentation
-        $this->name = ['+' => 'details', '>' => 'blockquote'][trim($this->flag)];
+        $this->name    = ['+' => 'details', '>' => 'blockquote'][trim($this->flag)];
         $this->element = ['details' => 'summary', 'blockquote' => 'p'][$this->name];
       }  else {
-        print_r($this->flag);
-        $this->element = [': '=>'dt', '::'=>'dd'][$this->flag] ?? 'li';
+        $this->element = [':'=>'dt', '::'=>'dd'][$this->flag] ?? 'li';
       }
         
     }
@@ -123,12 +123,13 @@ class Token {
 
 class Block {
   const INDENT = 4;
-  private $token = [], $trap = false, $cursor = null;
+  private $token = [], $trap, $precursor = null;
   private static $rgxp;
 
-  public function __construct(?Token $token = null) {
+  public function __construct(?Token $token = null, bool $trap = false)
+  {
     self::$rgxp ??= sprintf("/^\s*(?:%s)/i", implode('|', array_map(fn($x) => "($x)", Token::BLOCK['rgxp'])));
-
+    $this->trap = $trap;
     if ($token) $this->push($token);
   }
   
@@ -144,21 +145,22 @@ class Block {
       'context' => Token::BLOCK['trap'][$idx],
       'flag'    => $symbol,
       'trim'    => $offset + $trim,
-      'depth'   => floor($offset / self::INDENT) + 1,
+      'depth'   => ceil($offset / self::INDENT) + 1,
       'text'    => $text,
     ]);
   }
   
-  public function push(Token $token): Block {
-    $this->token[] = $this->cursor = $token;
+  public function push(Token $token): Block
+  {
+    $this->token[] = $this->precursor = $token;
     return $this;
   }
   
   public function capture(string $line)
   {
-    $line = str_replace(['&nbsp;', '&mdash;', '&ndash;', '”', '“'], [' ', '—', '–', '"', '"'], $line);
+    // $line = str_replace(['&nbsp;', '&mdash;', '&ndash;', '”', '“'], [' ', '—', '–', '"', '"'], $line);
     if (! $token = $this->parse($line)) {
-      if ($this->trap) $this->push(new Token(['text' => $line]));
+      if ($this->trap && $this->precursor->name === 'CDATA') $this->push(new Token(['text' => $line]));
       return $this;
     }
       
@@ -172,27 +174,39 @@ class Block {
   public function evaluate(Token $token)
   {
     
-    if ($this->trap || $token->name === 'CDATA') {
-      if ($this->trap === false && $this->trap = $token->flag) {
-        $token->text = "\n";
-        return $this->push($token);
+    if ($this->trap) {
+      
+      if ($token->name === 'CDATA') {
+        if ($this->trap === false && $this->trap = $token->flag) {
+          $token->text = "\n";
+          return $this->push($token);
+        }
+
+        elseif ($this->trap == trim($token->text))
+          return new self;
+
+        $token->name = 'CDATA';
+        
+      } elseif ($token->depth < $this->precursor->depth) {
+        return new self($token);
       }
-
-      elseif ($this->trap == trim($token->text))
-        return new self;
-
-      $token->name = 'CDATA';
+      
 
       return $this->push($token);
     }
-    
-    if ($this->cursor && $token->name != $this->cursor->name && $token->depth == $this->cursor->depth)
+      
+    if ($token->name == 'blockquote' || $token->name == 'details') {
+      $this->trap = true;
+      if ($this->precursor) {
+        return new self($token, $this->trap); 
+      }
+      
+    } else if ($this->precursor && $token->name != $this->precursor->name && $token->depth == $this->precursor->depth)
       return new self($token);
-        
+
     return $this->push($token);
   }
-  
-  
+   
   public function process(DOMElement $context): void
   {
     foreach($this->token as $idx => $token) {
@@ -222,12 +236,16 @@ class Block {
       if ($delta > 0)
         $context = $context->select(join('/', array_fill(0, $delta, '../..')));
       else {
-        if ($delta < 0) {
-         $context = $context->lastChild;
-         $context->appendChild($context->ownerDocument->createElement('span')->adopt($context));
+        if ($delta < 0 && $token->element != 'tr') {
+          $context = $context->lastChild;
+          $context->appendChild($context->ownerDocument->createElement('span')->adopt($context));
         }
         $context = $context->appendChild(new Element($token->name));
       }
+    }
+    
+    if ($context->nodeName == 'tbody' && $token->element != 'tr') {
+      $context = $context->select('../..');
     }
     
     $element = $context->appendChild(new Element($token->element ?? $token->name));
@@ -238,13 +256,11 @@ class Block {
     if ($token->name === 'CDATA')
       return $element->appendChild(new DOMText($token->text));
     
-    
-    
     if ($token->element == 'tr') {
-      if (preg_match('/\-{3,}/', $token->value)) {
+      if (preg_match('/\-{3,}/', $token->value) && $swap = $element->previousSibling) {
         $head = new Element('thead');
         $body = new Element('tbody');
-        $row = $head->appendChild($context->replaceChild($head, $element->previousSibling));
+        $row = $head->appendChild($context->replaceChild($head, $swap));
         $context->replaceChild($body, $element);
         $context = $body;
       } else
@@ -259,6 +275,7 @@ class Block {
         (new Inline($element))->parse(null, $offset[1][1]);
       
     }
+    
     
 
     return $context;
@@ -392,9 +409,13 @@ class Inline {
 
 class Plain {
   
+  static public function convert($node) {
+    return (string)(new self($node))->paragraphs()->rules()->list()->headings()->table()->CDATA();
+  }
+  
   private $document;
   
-  public function __construct(Document $DOM) {
+  private function __construct(Document $DOM) {
     $this->document = $DOM;
     $this->basic = array_flip(Token::INLINE);
     $this->query = join('|', array_keys($this->basic));
@@ -405,10 +426,15 @@ class Plain {
     return str_replace(['‘', '’', '—'], ["'", "'", '--'], trim(html_entity_decode(strip_tags($this->document))));
   }
   
-  public function blocks():self {
+  public function paragraphs():self {
     foreach ($this->document->find('//p|//figure') as $node)
       $node->parentNode->replaceChild(new Text("\n".$this->inline($node)."\n"), $node);
     return $this;
+  }
+  
+  public function blocks()
+  {
+    //
   }
   
   public function list():self
@@ -427,6 +453,8 @@ class Plain {
     
     foreach($this->document->find('//ul|//ol') as $node)
       $node->parentNode->replaceChild(new Text($node->nodeValue. "\n"), $node);
+    
+    // definition lists
     
     return $this;
   }

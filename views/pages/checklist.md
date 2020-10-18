@@ -4,6 +4,8 @@
 
 # Quickstart \ Guide
 
+// insert ../data/benchmarks/blocks.md
+
 Open [this document](${wrapper}?url=${info.path.url}) to amend and edit project tasks
 
 ## Startup Tasks
