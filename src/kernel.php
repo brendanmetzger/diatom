@@ -765,6 +765,7 @@ class Data extends ArrayIterator
       }
       return $data;
     }
+    
     return $data[$namespace] ?? self::fetch(explode($wedge, $namespace), $data);
   }
     

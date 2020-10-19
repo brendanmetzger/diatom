@@ -24,12 +24,15 @@ Route::promisy(function($message) {
 
 
 
-Route::example(function($message = 'world') {
-  $this->yield('sample', 'pages/_samp.html');
-  $this->message = "hello {$message}";
+Route::example(function($greeting = 'world') {
+  
+  $this->yield('sample', 'partials/table.md');
+  
+  $this->greeting = "hello {$greeting}";
+
   $this->color   = join(array_map(fn($c) => sprintf('%02X',rand($c, 255)), [100,200,100]));
 
-  return new Document('<main><h2 style="color:#${color}">${message}</h2><!-- yield sample ! --></main>');
+  return new Document('<main><h2 style="color:#${color}">${greeting}</h2><!-- yield sample ! --></main>');
   
 }, ['publish' => 3, 'title' => 'Dynamic Route']);
 
