@@ -74,9 +74,9 @@ class Parser {
 class Token {
   
   const BLOCK = [
-    'name' => [  'p'  ,  'ol'   ,   'ul'  ,  'h%d' ,'CDATA',    'dl'   , 'BLOCK' ,  'hr'  ,'comment', 'pi' ,     'table'       , 'p' ],
-    'rgxp' => ['[A-Z]', '\d+\. ', '[-*] ' ,'#{1,6}','`{3}' , '::?' ,  '[>+] ', '-{3,}',  '\/\/' , '\?' , '\|(?=.+\|.+\|$)', '\S'],
-    'trap' => [ false ,  true   ,  true   ,  false , true  ,    true   ,   true  ,  false , false   , false,     true          ,false],
+    'name' => [  'p'  ,  'ol'   ,   'ul'  ,  'h%d' ,'CDATA', 'dl' , 'BLOCK' ,  'hr'  ,'comment', 'pi' ,     'table'      , 'p' ],
+    'rgxp' => ['[A-Z]', '\d+\. ', '[-*] ' ,'#{1,6}','`{3}' , '::?',  '[>+] ', '-{3,}',  '\/\/' , '\?' , '\|(?=.+\|.+\|$)', '\S'],
+    'trap' => [ false ,  true   ,  true   ,  false , true  , true ,   true  ,  false , false   , false,     true         ,false],
   ];
   
   const INLINE = [
@@ -409,8 +409,20 @@ class Inline {
 
 class Plain {
   
-  static public function convert($node) {
-    return (string)(new self($node))->paragraphs()->rules()->list()->headings()->table()->CDATA();
+  const METHODS = ['paragraphs', 'rules', 'list', 'headings', 'table', 'CDATA', 'blocks'];
+  
+  static public function convert(DOMNode $node) {
+    
+    [$DOM, $context] = $node instanceof Document
+                     ? [$node, $node->documentElement]
+                     : [$node->ownerDocument, $node];
+    
+    $instance = new self($DOM);
+    
+    foreach (self::METHODS as $method)
+      call_user_func([$instance, $method], $context);
+    
+    return (string) $instance;
   }
   
   private $document;
@@ -423,76 +435,94 @@ class Plain {
   
   public function __toString() {
     if ($head = $this->document->select('head')) $head->remove();
-    return str_replace(['‘', '’', '—'], ["'", "'", '--'], trim(html_entity_decode(strip_tags($this->document))));
+    return html_entity_decode(str_replace(['‘', '’', '—'], ["'", "'", '--'], trim(strip_tags($this->document))));
   }
   
-  public function paragraphs():self {
-    foreach ($this->document->find('//p|//figure') as $node)
-      $node->parentNode->replaceChild(new Text("\n".$this->inline($node)."\n"), $node);
-    return $this;
+  public function prefix($context, array $ancestors = [], $offset = 0) {
+    $exp = join('|', array_map(fn($tag) => 'ancestor::'.$tag, $ancestors));
+    $num = $this->document->evaluate("count({$exp})", $context) - $offset;
+    return "\n" . str_repeat(' ', max(0, $num * Block::INDENT - 2));
   }
   
-  public function blocks()
+  public function paragraphs(Element $context) {
+    foreach ($context->find('.//p|.//figure') as $node) {
+      $indent = $this->prefix($node, ['blockquote', 'details']);
+      $node->parentNode->replaceChild(new Text($indent.$this->inline($node) . "\n"), $node);
+    }
+  }
+  
+  public function blocks(Element $context)
   {
-    //
+    $key = ['blockquote' => '>', 'details' => '+'];
+    foreach ($context->find('.//blockquote|.//details') as $node) {
+      $node->parentNode->replaceChild(new Text("\n\n{$key[$node->nodeName]} " . trim($node->nodeValue) . "\n"), $node);
+    }
   }
   
-  public function list():self
+  public function list(Element $context)
   {
     // move nest ol/ul's out of li's for proper parsing
-    foreach ($this->document->find('//li/ul|//li/ol') as $node)
+    foreach ($context->find('.//li/ul|.//li/ol') as $node)
       $node->parentNode->parentNode->insertBefore($node, $node->parentNode->nextSibling);
     
-    foreach ($this->document->find("//li") as $node) {
-      $indent = str_repeat(' ', ($node->find('ancestor::ul|ancestor::ol')->length - 1) * Block::INDENT);
+    
+    foreach ($context->find(".//li") as $node) {
+      $indent = $this->prefix($node, ['ul', 'ol', 'blockquote', 'details'], 1);
+      
       $prefix = ($node->parentNode->nodeName == 'ol')
         ? preg_replace('/.*li(\[(\d+)\])(?1)?$/', '\2', $node->getNodePath().'[1]') . '.'
         : '-';
-      $node("\n{$indent}{$prefix} " . $this->inline($node));
+      $node("{$indent}{$prefix} " . $this->inline($node));
     }
     
-    foreach($this->document->find('//ul|//ol') as $node)
+    
+    $type = ['dt' => ': ', 'dd' => ':: '];
+    foreach ($context->find('.//dt|.//dd') as $node) {
+      $indent = $this->prefix($node, ['blockquote', 'details', 'dl'], 1);
+      $key = $type[$node->nodeName];
+      $node->parentNode->replaceChild(new Text($indent . $key . $node->nodeValue), $node);
+    }
+    
+    foreach($context->find('.//ul|.//ol|.//dl') as $node)
       $node->parentNode->replaceChild(new Text($node->nodeValue. "\n"), $node);
     
-    // definition lists
-    
-    return $this;
   }
   
-  public function table():self
+  public function table(Element $context)
   {
-    foreach ($this->document->find('//table') as $node) {
-      $col = array_fill(0, $node->find('//th')->length, 0);
+    foreach ($context->find('.//table') as $node) {
+      $col = array_fill(0, $node->find('.//th')->length, 0);
       
-
+      $indent = $this->prefix($node, ['details']);
+      
       for ($i=1; $i <= count($col); $i++)
         $col[$i-1] = max(array_map(fn($n) => strlen($n($this->inline($n))), iterator_to_array($node->find(".//tr/*[$i]"))));
 
       foreach ($node->find('.//tr') as $row) {
         foreach ($row->childNodes as $i => $cell) {
-          $cell('| ' . str_pad($cell, $col[$i],' ', STR_PAD_LEFT). ' ');
+          $cell(' ' . str_pad($cell, $col[$i],' ', STR_PAD_LEFT). ' |');
         }
-        $row->parentNode->replaceChild(new Text($row->nodeValue . "|\n"), $row);
+        
+        $row->parentNode->replaceChild(new Text("{$indent}|" .$row->nodeValue ), $row);
       }
       
       $head = $node->select('thead');
-      $node->replaceChild(new Text("\n" . $head . preg_replace('/[^|\n]/', '-', $head)), $head);
-
+      $divider = substr_replace(preg_replace('/[^|\n]/', '-', $head), $indent, 0, strlen($indent));
+      $node->replaceChild(new Text("\n" . $head . $divider), $head);
+      
+      $node->appendChild(new Text("\n"));
     }
-    return $this;
   }
   
-  public function headings():self
+  public function headings(Element $context)
   {
-    foreach ($this->document->find("//*[substring-after(name(), 'h') > 0]") as $node)
+    foreach ($context->find(".//*[substring-after(name(), 'h') > 0]") as $node)
       $node("\n".str_repeat('#', substr($node->nodeName, 1)) . ' ' . $this->inline($node) . "\n");
-    return $this;
   }
   
-  public function rules():self {
-    foreach ($this->document->find('//hr|//br') as $node)
+  public function rules($context) {
+    foreach ($context->find('.//hr|.//br') as $node)
       $node($node->nodeName == 'hr' ? "\n\n----\n\n" : ' \ ');
-    return $this;
   }
   
   
@@ -535,19 +565,18 @@ class Plain {
     return trim($node->nodeValue, '\ ');
   }
   
-  public function CDATA():self
+  public function CDATA($context)
   {
-    foreach ($this->document->find('//pre|//style|//script') as $node) {
+    foreach ($context->find('.//pre|.//style|.//script') as $node) {
       $flag = $node->nodeName == 'pre' ? '' : $node->nodeName;
       $node("\n```{$flag}$node->nodeValue```\n");
     }
     
-    foreach ($this->document->find('/processing-instruction()|//comment()') as $node) {
+    foreach ($context->find('./processing-instruction()|.//comment()') as $node) {
       if ($node->nodeName == '#comment')
         $node->parentNode->replaceChild(new Text("\n// {$node->data}\n"), $node);
       else
         $this->document->documentElement->insertBefore(new Text("?{$node->target} {$node->data}\n"), $this->document->documentElement->firstChild);
     }
-    return $this;
   }
 }
