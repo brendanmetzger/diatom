@@ -4,8 +4,6 @@
 
 # Quickstart \ Guide
 
-// insert ../data/benchmarks/blocks.md
-
 Open [this document](${wrapper}?url=${info.path.url}) to amend and edit project tasks
 
 ## Startup Tasks
@@ -17,7 +15,7 @@ Open [this document](${wrapper}?url=${info.path.url}) to amend and edit project 
 
 ## Explore Tasks
 
-- [x] Change port in `bin/php`
+- [ ] Change port in `bin/php`
 - [ ] Create a new file in `view/pages/`
 - [ ] make a syntax error in an ^^html^^ document
 - [ ] Checkout out `index.php`, note example route and play around

@@ -7,12 +7,17 @@
 
 
 
-Route::usher(function($message) {
-  // $this->fulfilled = true;
-  return [new Document('<main><h2>${message}</h2></main>'), strtoupper($message)];
+Route::promisy(function($message) {
+  // try visiting  /promisy/blorf to see how fullfilled might work
+  $this->message = strtoupper($message);
   
-})->then(function($payload, $message){
-  $this->message = $message;
+  $this->fulfilled = ($this->message === 'BLORF'); 
+  
+  return new Document('<main><h2>giving up quicker...${message}</h2></main>');
+  
+})->then(function($payload){
+  // otherwise document is not fullfilled, so the return value of the previous method
+  // is an argument to this method. This is useful for caching or authentication I'd think
   $payload->documentElement->appendChild(new Element('h1', 'cool?'));
   return $payload;
 });
@@ -24,8 +29,8 @@ Route::example(function($message = 'world') {
   $this->message = "hello {$message}";
   $this->color   = join(array_map(fn($c) => sprintf('%02X',rand($c, 255)), [100,200,100]));
 
-  // return new Document('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 600"/>');
   return new Document('<main><h2 style="color:#${color}">${message}</h2><!-- yield sample ! --></main>');
+  
 }, ['publish' => 3, 'title' => 'Dynamic Route']);
 
 
@@ -79,7 +84,5 @@ try {
   
   echo $output;
   
-  echo "<!-- " . (memory_get_peak_usage() / 1000). "kb -->\n";
-  // echo "<!-- " . ($mark->split('end', 'start')). "ms -->\n";
   exit(0);
 }

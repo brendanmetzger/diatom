@@ -126,7 +126,7 @@ class Block {
   private $token = [], $trap, $precursor = null;
   private static $rgxp;
 
-  public function __construct(?Token $token = null, bool $trap = false)
+  public function __construct(?Token $token = null, $trap = null)
   {
     self::$rgxp ??= sprintf("/^\s*(?:%s)/i", implode('|', array_map(fn($x) => "($x)", Token::BLOCK['rgxp'])));
     $this->trap = $trap;
@@ -163,7 +163,6 @@ class Block {
       if ($this->trap && $this->precursor->name === 'CDATA') $this->push(new Token(['text' => $line]));
       return $this;
     }
-      
     
     if ($token->context || $this->trap)
       return $this->evaluate($token);
@@ -174,10 +173,10 @@ class Block {
   public function evaluate(Token $token)
   {
     
-    if ($this->trap) {
+    if ($this->trap || $token->name === 'CDATA') {
       
       if ($token->name === 'CDATA') {
-        if ($this->trap === false && $this->trap = $token->flag) {
+        if ($this->trap === null && $this->trap = $token->flag) {
           $token->text = "\n";
           return $this->push($token);
         }
@@ -187,8 +186,8 @@ class Block {
 
         $token->name = 'CDATA';
         
-      } elseif ($token->depth < $this->precursor->depth) {
-        return new self($token, $token->context);
+      } elseif ($this->trap === 'block' && $token->depth < $this->precursor->depth) {
+        return new self($token, $this->trap);
       }
       
 
@@ -196,7 +195,7 @@ class Block {
     }
       
     if ($token->name == 'blockquote' || $token->name == 'details') {
-      $this->trap = true;
+      $this->trap = 'block';
       
       if ($this->precursor) {
         return new self($token, $this->trap); 
@@ -217,6 +216,7 @@ class Block {
       }
       
       $delta   =  ($this->token[$idx-1] ?? (object)['depth' => 1])->depth - $token->depth;
+      
       $context = $this->append($context, $token, $delta);
     }
   }
@@ -234,9 +234,9 @@ class Block {
     }
     
     if ($token->element && $token->name != 'CDATA' && ($context->nodeName != $token->name || $delta != 0) && $context->nodeName != 'tbody') {
-      if ($delta > 0)
+      if ($delta > 0) {
         $context = $context->select(join('/', array_fill(0, $delta, '../..')));
-      else {
+      } else {
         if ($delta < 0 && $token->element != 'tr') {
           $context = $context->lastChild;
           $context->appendChild($context->ownerDocument->createElement('span')->adopt($context));
@@ -245,6 +245,7 @@ class Block {
       }
     }
     
+
     if ($context->nodeName == 'tbody' && $token->element != 'tr') {
       $context = $context->select('../..');
     }

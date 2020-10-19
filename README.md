@@ -79,7 +79,7 @@ Templating is a powerful feature, and it stems from a premise that all content a
 - **editable** marks embedded Documents with their original source, and maps nodepaths fore editable nodes against that nodepath
 
 
-:= Behavior
+: Behavior
 :: behavior finds all `<script>` elements and converts/encodes:
 :: `<script src="path"></script>`  to `<script>Kit.script(path);</script>`
 :: `<script>code</script>`  to `<script>Kit.script(data://uri,b64 code);</script>`
