@@ -19,11 +19,18 @@ main {max-width: 100ch;}
 h1   {font-size: 400%;line-height:1;padding-top:0.5em;}
 strong, dt, summary {font-weight: 800;}
 dd {border-left: 1px solid #000;margin: 0.25rem;padding: 0.25rem 0.5rem;}
-section, details {
+section {
   margin: 2rem -2rem;
   padding: 2rem;
   background-color: #FAFAFA;
 }
+
+details {padding: 0.25em;}
+details[open] > *:not(summary) {
+  padding: 1rem;
+  background-color: #fff;
+}
+
 ol {padding-left:3em;}
 li > ol {
   margin:0.25em 0;

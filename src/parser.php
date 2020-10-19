@@ -188,7 +188,7 @@ class Block {
         $token->name = 'CDATA';
         
       } elseif ($token->depth < $this->precursor->depth) {
-        return new self($token);
+        return new self($token, $token->context);
       }
       
 
@@ -197,11 +197,12 @@ class Block {
       
     if ($token->name == 'blockquote' || $token->name == 'details') {
       $this->trap = true;
+      
       if ($this->precursor) {
         return new self($token, $this->trap); 
       }
       
-    } else if ($this->precursor && $token->name != $this->precursor->name && $token->depth == $this->precursor->depth)
+    } else if ($this->precursor && $token->name != $this->precursor->name && $token->depth == $this->precursor->depth) 
       return new self($token);
 
     return $this->push($token);

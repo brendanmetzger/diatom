@@ -55,6 +55,7 @@ try {
       'list' => [['name' => "A", 'other' => 'goo'], ['name' => 'B', 'other' => 'yep'], ['name' => 'D', 'other' => 'tope tope']],
     ];
     
+
     $response = new Response($request, $data + CONFIG['data']);
     $output   = Route::delegate($response);
   }
@@ -74,7 +75,8 @@ try {
   $output = Request::GET('error', $data + CONFIG['data']);
   
 } finally {
-
+  
+  
   echo $output;
   
   echo "<!-- " . (memory_get_peak_usage() / 1000). "kb -->\n";

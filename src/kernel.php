@@ -176,7 +176,7 @@ class File
     return $instance->setBody($content);
   }
   
-  public function setBody(string $content): File {
+  public function setBody($content): File {
     $this->body = $content;
     $this->size = strlen($content);
     return $this;
@@ -193,7 +193,7 @@ class File
   }
   
   public function __toString() {
-    return $this->body;
+    return (string)$this->body;
   }
 }
 
@@ -229,7 +229,7 @@ class Request
       $this->data = file_get_contents('php://input');
   }
     
-  static public function GET($uri, array $data = [], array $headers = []): Document
+  static public function GET($uri, array $data = [], array $headers = []): Response
   {
     $response = new Response(new Request(array_merge($headers,[
       'REQUEST_URI'    => $uri,
@@ -440,7 +440,8 @@ class Template
     }
 
     foreach ($this->getStubs('insert') as [$cmd, $path, $xpath, $context]) {
-      $DOM = is_file($path) ? Document::open($path) : Request::GET($path, $data);
+      $DOM = is_file($path) ? Document::open($path) : Request::GET($path, $data)->body;
+      
       $ref = $context->parentNode;
       foreach ($DOM->find($xpath) as $node) {
         if (!$node instanceof Text)
@@ -634,7 +635,7 @@ class Document extends DOMDocument
 
 class Element extends DOMElement implements ArrayAccess {
   use DOMtextUtility;
-  
+  public $info = [];
   public function __construct($name, $value = null) {
     parent::__construct($name);
     if ($value) $this($value);
