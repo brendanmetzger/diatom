@@ -4,7 +4,7 @@
 
 # Quickstart \ Guide
 
-Open [this document](${wrapper}?url=${info.path.url}) to amend and edit project tasks
+Open **views/pages/checklist.md** to amend and edit this checklist
 
 ## Startup Tasks
 

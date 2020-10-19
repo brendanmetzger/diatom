@@ -247,7 +247,6 @@ class Request
 }
 
 
-
 /**
  * Response | finds correct template object, renders it, tracks headers...
 **/
