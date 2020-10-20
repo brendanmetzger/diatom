@@ -26,6 +26,7 @@ Route::promisy(function($message) {
 
 Route::example(function($greeting = 'world') {
   
+  
   $this->yield('sample', 'partials/table.md');
   
   $this->greeting = "hello {$greeting}";
@@ -66,6 +67,8 @@ try {
 
     $response = new Response($request, $data + CONFIG['data']);
     $output   = Route::delegate($response);
+    // throw new Exception("Error Processing Request", 1);
+    
   }
   
 } catch (Redirect $notice) {

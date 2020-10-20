@@ -309,12 +309,12 @@ class Response extends File implements routable
 
       // make sure we aren't putting the layout into itself
       if (! $default)
-        Template::set(Template::YIELD, $payload); 
+        Template::set($this->id, $payload); 
     }
     
     
     // render and transform the document layout
-    $output = $layout->render($this->data + $payload->info);
+    $output = $layout->render($this->data + $payload->info, $this->id);
     $output = Render::transform($output, $this->render);
     
     // convert if request type is not markup
@@ -426,13 +426,13 @@ class Template
   }
 
   
-  public function render($data = [], $parse = true): Document
+  public function render($data = [], ?string $ruid = null): Document
   {
     
     foreach ($this->getStubs('yield') as [$cmd, $prop, $exp, $ref]) {
-      if ($DOM = self::$yield[$prop ?? Template::YIELD] ?? null) {
+      if ($DOM = self::$yield[$prop ?? $ruid] ?? null) {
         $context = ($exp !== '/') ? $ref : $ref->nextSibling;
-        $node    = (new self($DOM))->render($data, false)->documentElement;
+        $node    = (new self($DOM))->render($data)->documentElement;
         $ref->parentNode->replaceChild($this->DOM->importNode($node, true), $context);
         if ($ref !== $context) $ref->parentNode->removeChild($ref);
       }
@@ -444,7 +444,7 @@ class Template
       $ref = $context->parentNode;
       foreach ($DOM->find($xpath) as $node) {
         if (!$node instanceof Text)
-          $node = (new self($node))->render($data, false)->documentElement;
+          $node = (new self($node))->render($data)->documentElement;
         
         $ref->insertBefore($this->DOM->importNode($node, true), $context);
       }
@@ -460,7 +460,7 @@ class Template
       $invert   = $exp !== '/';
       
       foreach (Data::fetch($key, $data) ?? [] as $datum) {
-        if ($import = $template->render($datum, true)->documentElement) {
+        if ($import = $template->render($datum, $ruid)->documentElement) {
           $node = $this->DOM->importNode($import, true);
           $slug = $context->parentNode->insertBefore($node, $invert ? $slug : $context);
           $template->reset();
@@ -471,7 +471,7 @@ class Template
       $ref->parentNode->removeChild($ref);
     }
     
-    if ($parse) $this->parse($data);
+    if ($ruid) $this->parse($data);
     
     return $this->DOM;
   }

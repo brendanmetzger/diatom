@@ -6,6 +6,8 @@
 
 Open **views/pages/checklist.md** to amend and edit this checklist
 
+// insert example
+
 ## Startup Tasks
 
 - [ ] specify a new port in `bin/server` if necessary

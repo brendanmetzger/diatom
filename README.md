@@ -2,7 +2,8 @@
 
 *This template framework is a quick starting point. The `src/kernel.php` file aims to be everything necessary to begin making a website. There are additional classes to ensure that most goals can be met when it comes to authoring a content-based site.*
 
-
+> This file is written in an extended markdown that includes definiton lists (`<dl>`), disclosure elements (`<details>`) as well as many other inline elments such as `<cite>`,  `<dfn>`, `<abbr>`, `<small>`, `<mark>` and `<q>`, `<input>` checklists and `<table>`. Raw HTML is never allowed, for reasons that become clearer with use.
+  
 ## Overview
 
 This framework is focused on creating reusable templates (HTML) and allowing them to be routed, reused and organized pretty well by default. If more control is desired, some light programming can facilitate that.
@@ -65,6 +66,17 @@ Templating is a powerful feature, and it stems from a premise that all content a
 - use [template literals](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals) to embed a variables (`${expression}`)
 - embed scripts directly into the template; to lazy load, add `<?render behavior?>` to your document (see list below) [autoload-js]
 - CSS, similar to javascript, can be written in a `<style>` element directly in any page or a stylesheet added with `<link/>`. 
+
+## Stubs
+
+:Insert
+:: An ~insert~ is a direct call to another piece of content that lives at the end of a path.
+:: `<!-- insert path/to/file.html-->` inserts a file directly
+:: `<!-- insert endpoint -->` inserts the result of a routed or dynamic url result
+
+: Yield
+:: A ~yield~ stub means some programatic  aspect has determined how and what Document or Element should be inserted. Either the route has yielded something into another layout, or a Router callback has determined the Document or Element to be inserted.
+
 
 ### Caveats
 

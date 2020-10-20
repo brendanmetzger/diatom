@@ -172,7 +172,7 @@ class Block {
   
   public function evaluate(Token $token)
   {
-    
+
     if ($this->trap || $token->name === 'CDATA') {
       
       if ($token->name === 'CDATA') {
@@ -186,14 +186,17 @@ class Block {
 
         $token->name = 'CDATA';
         
-      } elseif ($this->trap === 'block' && $token->depth < $this->precursor->depth) {
-        return new self($token, $this->trap);
+      } elseif ($this->trap === 'block' && ($token->context || $token->depth < $this->precursor->depth)) {
+        return new self($token, $token->context ? $this->trap : null);
+      } elseif ($this->precursor->element != $token->element) {
+        return new self($token);
       }
       
 
       return $this->push($token);
     }
       
+    
     if ($token->name == 'blockquote' || $token->name == 'details') {
       $this->trap = 'block';
       
@@ -215,8 +218,7 @@ class Block {
         continue;
       }
       
-      $delta   =  ($this->token[$idx-1] ?? (object)['depth' => 1])->depth - $token->depth;
-      
+      $delta   = ($this->token[$idx-1] ?? (object)['depth' => 1])->depth - $token->depth;
       $context = $this->append($context, $token, $delta);
     }
   }
@@ -244,7 +246,6 @@ class Block {
         $context = $context->appendChild(new Element($token->name));
       }
     }
-    
 
     if ($context->nodeName == 'tbody' && $token->element != 'tr') {
       $context = $context->select('../..');
@@ -464,7 +465,7 @@ class Plain {
   public function list(Element $context)
   {
     // move nest ol/ul's out of li's for proper parsing
-    foreach ($context->find('.//li/ul|.//li/ol') as $node)
+    foreach ($context->find('.//li/ul|.//li/ol|.//dd/dl') as $node)
       $node->parentNode->parentNode->insertBefore($node, $node->parentNode->nextSibling);
     
     
@@ -482,6 +483,9 @@ class Plain {
     foreach ($context->find('.//dt|.//dd') as $node) {
       $indent = $this->prefix($node, ['blockquote', 'details', 'dl'], 1);
       $key = $type[$node->nodeName];
+      /*
+        TODO nesteds
+      */
       $node->parentNode->replaceChild(new Text($indent . $key . $node->nodeValue), $node);
     }
     
