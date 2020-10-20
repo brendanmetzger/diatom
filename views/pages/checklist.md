@@ -6,7 +6,6 @@
 
 Open **views/pages/checklist.md** to amend and edit this checklist
 
-// insert example
 
 ## Startup Tasks
 

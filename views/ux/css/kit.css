@@ -25,6 +25,10 @@ section {
   background-color: #FAFAFA;
 }
 
+section section {
+  border-top: 1px solid rgb(0 0 0 / 0.1);
+}
+
 details {padding: 0.25em;}
 details[open] > *:not(summary) {
   padding: 1rem;

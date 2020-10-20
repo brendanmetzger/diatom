@@ -426,7 +426,6 @@ class Template
   
   public function render($data = [], ?string $ruid = null): Document
   {
-    
     foreach ($this->getStubs('yield') as [$cmd, $prop, $exp, $ref]) {
       if ($DOM = self::$yield[$prop ?? $ruid] ?? null) {
         $context = ($exp !== '/') ? $ref : $ref->nextSibling;
