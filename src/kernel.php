@@ -11,7 +11,7 @@ spl_autoload_register();
 interface routable
 {
   public function __invoke($template);
-  public function error($info):Exception;
+  public function reject(int $reason, $info):Exception;
   public function compose($payload, bool $default);
 }
 
@@ -28,7 +28,7 @@ class Route {
   static public function delegate(routable $response)
   {
     if (! $route = self::$paths[$response->action] ?? false)
-      throw $response->error(self::$paths);
+      throw $response->reject(404, self::$paths);
     
     return $response->compose($route->fulfill($response), $route->path == Route::INDEX);
   }
@@ -86,7 +86,7 @@ class Route {
   
   /**** Instance Properties and Methods **************************************/
   
-  private $handle = null, $template = null;
+  private $handle = null, $template = null, $exception = null;
 
   public $path, $publish, $info = [];
 
@@ -95,17 +95,31 @@ class Route {
     $this->publish = $publish;
   }
   
-  public function then(callable $handle) {
+  public function then(callable $handle): self {
     $this->handle[] = $handle;
+    return $this;
+  }
+  
+  public function catch(callable $handle)
+  {
+    $this->exception = $handle;
   }
   
   public function fulfill(routable $response, $out = null, int $i = 0) {
         
     if ($this->handle !== null) {
       $out = $response->params;
-      do
-       $out = $this->handle[$i++]->call($response, ...(is_array($out) ? $out : [$out]));
-      while (isset($this->handle[$i]) && ! $response->fulfilled);
+      try {
+        do
+          $out = $this->handle[$i++]->call($response, ...(is_array($out) ? $out : [$out]));
+        while (isset($this->handle[$i]) && ! $response->fulfilled);
+        
+      } catch (Status $e) {
+        if ($this->exception)
+          $out = call_user_func($this->exception, $e);
+        else
+          throw $e;
+      }
     }
     
     $response->fulfilled = true;
@@ -117,6 +131,15 @@ class Route {
   
 }
 
+/**
+* Description
+*/
+class Status extends Exception {
+  const REASON = [
+    401 => 'Unauthorized',
+    404 => 'Not Found',
+  ];
+}
 
 /**
  * File | Construct an object that represents something that can be openclose
@@ -278,8 +301,8 @@ class Response extends File implements routable
     return $path ? Document::open($path) : new Document("<p>\u{26A0} /{$this->action}</p>");
   }
   
-  public function error($info): Exception {
-    return new Exception("'{$this->action}' was not found\n", 404);
+  public function reject(int $reason, $info = null): Exception {
+    return new Status($this->action . ' ' . Status::REASON[$reason], $reason);
   }
   
   public function header($resource, $header)
@@ -289,8 +312,8 @@ class Response extends File implements routable
       $key   = $split ? strtolower(substr($header, 0, $split)) : 'status'; 
       $this->headers[$key] = trim($split ? substr($header, $split+1) : $header);
     }
-    // this is required by the cURL callback (see @HTTP class and cURL documentation)
-    return strlen($header);
+    
+    return strlen($header); // required by the cURL (see @HTTP class, cURL documentation)
   }
   
   public function compose($payload, bool $default)

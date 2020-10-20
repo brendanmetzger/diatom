@@ -7,25 +7,36 @@
 
 
 
-Route::promisy(function($message) {
-  // try visiting  /promisy/blorf to see how fullfilled might work
-  $this->message = strtoupper($message);
+Route::promisy(function($message = 'add a param to address') {
   
-  $this->fulfilled = ($this->message === 'BLORF'); 
+  $this->message = strtolower($message);
+
+  // visit  /promisy/blorf to see how fullfilled might work
+  $this->fulfilled = ($this->message === 'blorf'); 
   
-  return new Document('<main><h2>giving up quicker...${message}</h2></main>');
+  
+  
+  return new Document('<main><h2>${message}</h2></main>');
   
 })->then(function($payload){
-  // otherwise document is not fullfilled, so the return value of the previous method
-  // is an argument to this method. This is useful for caching or authentication I'd think
+  // otherwise document is not fullfilled, so the return value(s) of the previous method
+  // become arguments to this method. This is useful for caching or authentication...
   $payload->documentElement->appendChild(new Element('h1', 'cool?'));
+  
+  // to see the final catch, uncomment
+  // throw $this->reject(404);
+  
   return $payload;
+  
+})->catch(function(Status $exception) {
+  
+  return new Document('<p>this cannot happen</p>');
+  
 });
 
 
 
 Route::example(function($greeting = 'world') {
-  
   
   $this->yield('sample', 'partials/table.md');
   

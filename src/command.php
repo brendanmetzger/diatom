@@ -30,9 +30,9 @@ class Command implements routable
     return trim(fgets($this->input));
   }
   
-  public function error($info): Exception {
+  public function reject(int $reason, $info): Exception {
     $routes = join("\n > ", array_keys($info));
-    return new Exception("hmm, {$this->action}' not a thing..\n\n > {$routes}\n", 404);
+    return new Exception("hmm, {$this->action}' not a thing..\n\n > {$routes}\n", $reason);
   }
   
 
