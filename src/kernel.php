@@ -401,8 +401,6 @@ class Redirect extends Exception {
 
 class Template
 {
-  public const YIELD = '-default-view-object-';
-  
   private static $yield = [];
   # Note, this has a DOMNode as typecase, but should be Document|Element in 8.0
   static public function set(string $key, DOMNode $stub = null) {
