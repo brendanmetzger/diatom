@@ -83,7 +83,6 @@ class Request {
       this.xhr.addEventListener(action, callbacks[action].bind(this), false);
     }
     this.xhr.addEventListener('progress', evt => {
-      console.log(evt.loaded);
       if (evt.lengthComputable) {
         let complete = (evt.loaded / evt.total) * 100;
         console.log(evt, `${complete}% complete`);

@@ -337,7 +337,7 @@ class Response extends File implements routable
     
     
     // render and transform the document layout
-    $output = $layout->render($this->data + $payload->info, $this->id);
+    $output = $layout->render($this->data + $payload->info, $this->basic ? null : $this->id);
     $output = Render::transform($output, $this->render);
     
     // convert if request type is not markup
@@ -449,7 +449,10 @@ class Template
   
   public function render($data = [], ?string $ruid = null): Document
   {
-    Render::set('before', $this->DOM);
+    if ($ruid === null) {
+      Render::set('before', $this->DOM);
+    }
+    
         
     foreach ($this->getStubs('yield') as [$cmd, $prop, $exp, $ref]) {
       if ($DOM = self::$yield[$prop ?? $ruid] ?? null) {

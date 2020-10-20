@@ -6,7 +6,6 @@
 
 Open **views/pages/checklist.md** to amend and edit this checklist
 
-
 ## Startup Tasks
 
 - [ ] specify a new port in `bin/server` if necessary
@@ -26,43 +25,37 @@ Open **views/pages/checklist.md** to amend and edit this checklist
 This application is often used on the ^^AWS^^ Platform, particularly *lightsail* for the server host, and *S3* for object storage.
 
 - [ ] Set up `data/config.ini` file with keys
-- [ ] Configure ligtsail server (this is a large task)
-    - [ ] install php, with xml, curl, mbstring, gd
-    - [ ] install apache
-    - [ ] add group for web
+- Configure ligtsail server (this is a large task)
+  - [ ] install php, with xml, curl, mbstring, gd
+  - [ ] install apache
+  - [ ] add group for web
 - [ ] init a git repo and set up remote
 - [ ] review deployment strategy
 
 // insert ../README.md //style
 
-``` script
+```script
 
 document.querySelector('article[data-doc]').addEventListener('click', function(evt) {
   if (evt.target.nodeName == 'INPUT') {
-    evt.target.setAttribute('checked', 'true');
+    let flip = evt.target.hasAttribute('checked') ? 'removeAttribute' : 'setAttribute';
+    evt.target[flip]('checked', 'checked');
     Request.PUT('edit/update.xml', this).then( result => {
       this.innerHTML = result.documentElement.innerHTML;
     });
-    
   }
 });
-
-
 ```
 
-
-``` style
+```style
 
 section[id$=tasks] ul {
   list-style:none;
   padding: 0;
 }
-
 section[id$=tasks] li ul {
   border-left: 1px dashed rgb(0 0 0 / 0.25);
   padding-left: 1rem;
   margin:0.25rem 0.65rem;
 }
-
-
 ```
