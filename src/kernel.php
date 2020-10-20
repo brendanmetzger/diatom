@@ -449,6 +449,8 @@ class Template
   
   public function render($data = [], ?string $ruid = null): Document
   {
+    Render::set('before', $this->DOM);
+        
     foreach ($this->getStubs('yield') as [$cmd, $prop, $exp, $ref]) {
       if ($DOM = self::$yield[$prop ?? $ruid] ?? null) {
         $context = ($exp !== '/') ? $ref : $ref->nextSibling;
@@ -581,9 +583,6 @@ class Document extends DOMDocument
     $file = $path instanceof File ? $path : File::load($path);
 
     try {
-      if (! $file->local)
-        $file->body = preg_replace('/\sxmlns=(\"|\').*?(\1)/', '', $file->body);
-
       $DOM = (substr($file->mime, -2) == 'ml') ? new self($file->body, $opt) : Parser::load($file);
     } catch (ParseError $e) {
       $err = (object)libxml_get_errors()[0];
@@ -597,8 +596,6 @@ class Document extends DOMDocument
     $DOM->info['src']     = $path;
     $DOM->info['path']    = $file->info;
     $DOM->info['title'] ??= $DOM->info['path']['filename'];
-    
-    Render::set('before', $DOM);
     
     return self::$cache[$key] = $DOM;
   }
@@ -616,6 +613,7 @@ class Document extends DOMDocument
     foreach (( $props + $this->props ) as $p => $value) $this->{$p} = $value;
     foreach (['Element','Text','Attr'] as       $c    ) $this->registerNodeClass("DOM{$c}", $c);
     
+    $xml = preg_replace('/\sxmlns=(\"|\').*?(\1)/', '', $xml);
     if (! $this->loadXML($xml, LIBXML_COMPACT)) throw new ParseError('DOM Parse Error');
     
     $this->xpath = new DOMXpath($this);

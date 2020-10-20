@@ -98,6 +98,9 @@ class Request {
   }
   
   static PUT (url, data, headers = {}) {
+    if (data instanceof Element) {
+      data = new XMLSerializer().serializeToString(data);
+    }
     // headers["Content-Type"] = "application/x-www-form-urlencoded"
     return Request.make('PUT', url, data, headers);
   }

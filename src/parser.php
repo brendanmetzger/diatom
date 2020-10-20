@@ -271,7 +271,7 @@ class Block {
           $element->appendChild(new Element($context->nodeName == 'tbody' ? 'td' :'th', trim($cell)));
 
     } else {
-      $text = preg_replace(['/\\\([~*_`^|])/', '/(?<=\s)\'/u', '/(?<=\S)\'/u', '/\s?--\s?/u'], ['$1', '‘', '’', '—'], $token->value);
+      $text = preg_replace(['/\\\([~*_`^|])/', '/(?<=\s)\'/u', '/(?<=\S)\'/u'], ['$1', '‘', '’'], $token->value);
       $element($text);
     
       if (preg_match('/^[^!~*\[_`^|{<"\\\=]*+(.)/', $text, $offset, PREG_OFFSET_CAPTURE))
@@ -417,7 +417,7 @@ class Plain {
   static public function convert(DOMNode $node) {
     
     [$DOM, $context] = $node instanceof Document
-                     ? [$node, $node->documentElement]
+                     ? [$node, $node]
                      : [$node->ownerDocument, $node];
     
     $instance = new self($DOM);
@@ -447,14 +447,14 @@ class Plain {
     return "\n" . str_repeat(' ', max(0, $num * Block::INDENT - 2));
   }
   
-  public function paragraphs(Element $context) {
+  public function paragraphs(DOMNode $context) {
     foreach ($context->find('.//p|.//figure') as $node) {
       $indent = $this->prefix($node, ['blockquote', 'details']);
       $node->parentNode->replaceChild(new Text($indent.$this->inline($node) . "\n"), $node);
     }
   }
   
-  public function blocks(Element $context)
+  public function blocks(DOMNode $context)
   {
     $key = ['blockquote' => '>', 'details' => '+'];
     foreach ($context->find('.//blockquote|.//details') as $node) {
@@ -462,7 +462,7 @@ class Plain {
     }
   }
   
-  public function list(Element $context)
+  public function list(DOMNode $context)
   {
     // move nest ol/ul's out of li's for proper parsing
     foreach ($context->find('.//li/ul|.//li/ol|.//dd/dl') as $node)
@@ -494,7 +494,7 @@ class Plain {
     
   }
   
-  public function table(Element $context)
+  public function table(DOMNode $context)
   {
     foreach ($context->find('.//table') as $node) {
       $col = array_fill(0, $node->find('.//th')->length, 0);
@@ -520,7 +520,7 @@ class Plain {
     }
   }
   
-  public function headings(Element $context)
+  public function headings(DOMNode $context)
   {
     foreach ($context->find(".//*[substring-after(name(), 'h') > 0]") as $node)
       $node("\n".str_repeat('#', substr($node->nodeName, 1)) . ' ' . $this->inline($node) . "\n");
@@ -578,7 +578,7 @@ class Plain {
       $node("\n```{$flag}$node->nodeValue```\n");
     }
     
-    foreach ($context->find('./processing-instruction()|.//comment()') as $node) {
+    foreach ($context->find('/processing-instruction()|.//comment()') as $node) {
       if ($node->nodeName == '#comment')
         $node->parentNode->replaceChild(new Text("\n// {$node->data}\n"), $node);
       else

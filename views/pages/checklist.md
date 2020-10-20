@@ -37,9 +37,14 @@ This application is often used on the ^^AWS^^ Platform, particularly *lightsail*
 
 ``` script
 
-document.querySelector('article').addEventListener('click', evt => {
-  if (evt.target.nodeName == 'INPUT')
-    Request.GET('pages/checklist.md').then(alert);
+document.querySelector('article[data-doc]').addEventListener('click', function(evt) {
+  if (evt.target.nodeName == 'INPUT') {
+    evt.target.setAttribute('checked', 'true');
+    Request.PUT('edit/update.xml', this).then( result => {
+      this.innerHTML = result.documentElement.innerHTML;
+    });
+    
+  }
 });
 
 
@@ -53,7 +58,7 @@ section[id$=tasks] ul {
   padding: 0;
 }
 
-section[id$=tasks] li[data-nested] ul {
+section[id$=tasks] li ul {
   border-left: 1px dashed rgb(0 0 0 / 0.25);
   padding-left: 1rem;
   margin:0.25rem 0.65rem;

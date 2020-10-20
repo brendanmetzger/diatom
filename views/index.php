@@ -1,20 +1,23 @@
 <?php define('CONFIG', parse_ini_file('../data/config.ini', true));
       require_once '../src/kernel.php';
 
-      $mark = new util\bench;
+
 
 /**** ROUTING ****************************************************************/
 
+if (CONFIG['data']['mode'] ?? false) {
+
+Route::edit(new \Controller\Edit);
+
+}
 
 
 Route::promisy(function($message = 'add a param to address') {
   
   $this->message = strtolower($message);
-
+  
   // visit  /promisy/blorf to see how fullfilled might work
   $this->fulfilled = ($this->message === 'blorf'); 
-  
-  
   
   return new Document('<main><h2>${message}</h2></main>');
   
@@ -40,11 +43,10 @@ Route::example(function($greeting = 'world') {
   
   $this->yield('sample', 'partials/table.md');
   
-  $this->greeting = "hello {$greeting}";
-
-  $this->color   = join(array_map(fn($c) => sprintf('%02X',rand($c, 255)), [100,200,100]));
-
-  return new Document('<main><h2 style="color:#${color}">${greeting}</h2><!-- yield sample ! --></main>');
+  $this->greeting = $greeting;
+  $this->color    = join(array_map(fn($c) => sprintf('%02X',rand($c, 255)), [100,200,100]));
+  
+  return new Document('<main><h2 style="color:#${color}">hello ${greeting}</h2><!-- yield sample ! --></main>');
   
 }, ['publish' => 3, 'title' => 'Dynamic Route']);
 
@@ -54,8 +56,6 @@ Route::example(function($greeting = 'world') {
 
 
 try {
-  
-  if (CONFIG['dev'] ?? false) include 'edit.php';
   
   $request   = new Request($_SERVER);
   
@@ -75,23 +75,21 @@ try {
       'list' => [['name' => "A", 'other' => 'goo'], ['name' => 'B', 'other' => 'yep'], ['name' => 'D', 'other' => 'tope tope']],
     ];
     
-
     $response = new Response($request, $data + CONFIG['data']);
     $output   = Route::delegate($response);
-    // throw new Exception("Error Processing Request", 1);
     
   }
   
 } catch (Redirect $notice) {
   
   call_user_func($notice);
-
+  
   exit(0);
   
 } catch (Exception | Error $e) {
-
+  
   http_response_code($e->getCode() ?: 400);
-
+  
   $keys   = ['message', 'code', 'file', 'line', 'trace'];
   $data   = array_combine($keys, array_map(fn($m) => $e->{"get$m"}(), $keys));
   $output = Request::GET('error', $data + CONFIG['data']);
