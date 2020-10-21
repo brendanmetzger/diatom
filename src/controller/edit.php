@@ -30,6 +30,7 @@ class Edit extends \Controller {
   
   public function update()
   {
+    // TODO, parse request type so don't have to create document
     $updated  = new Document($this->request->data);
     $filepath = $updated->documentElement->getAttribute('data-doc');
     $original = Document::open($filepath);
@@ -41,6 +42,7 @@ class Edit extends \Controller {
       }
     }
     
+    // FIXME this should not default to md type
     file_put_contents($filepath, \Parser::check(new Document($original->saveXML()), 'md'));
     
     return $original;

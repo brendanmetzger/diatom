@@ -28,9 +28,9 @@ The bulk of authorship is __completely standard__ xHTML, CSS, JavaScript. Then t
 
 ### Basic
 
-Create new html files. Set processing instructions to deal with them. Append JS files wherever you want as script src='file.js', don't worry about lazy loading, domready or anything, it will just work. Same with CSS, just embed a style element or link wherever, and it will find its way to the right spot in the template. This is the coolest part of the entire thing.
+Create new html files. Set processing instructions to deal with them. Append JS files wherever you want as `<script src='file.js'>`, don't worry about lazy loading, domready or anything, it will just work. Same with CSS, just embed a style element or link wherever, and it will find its way to the right spot in the template.
 
-*note* There is a JavaScript autoload framework that provides functionality for loading scripts (see views/js/autoload.js)--but it is specifically designed to never be interacted with, or have to remember any of it's methodology to use--simply write JS, and embed in a `<script>` by reference or embedded directly.
+*note* There is a JavaScript autoload framework that provides functionality for loading scripts (see `views/js/autoload.js`)--but it is specifically designed to never be interacted with, or have to remember any of it's methodology to use--simply write JS, and embed in a `<script>` by reference or embedded directly.
 
 ### Some Programming
 
@@ -43,7 +43,7 @@ Routing is done with callbacks. In `index.php` file, set routes to enhance basic
 
 Create models, work with a database, connect to APIs for Oauth, etc.
 
-Almost any site could employ some feature of this framework methodology. At its very lightest, an application can be an easily editable boilerplate producer--incredibly convenient for sites that don't require user-generated content.. The next step up would be a framework that does employ some sort of database, but still has pretty standard layouts and several pages of bolerplate--this framework makes an excellent template preprocessor.
+Almost any site could employ some feature of this framework methodology. At its very lightest, an application can be an easily editable boilerplate producer--incredibly convenient for sites that don't require user-generated content. The next step up would be a framework that does employ some sort of database, but still has pretty standard layouts and several pages of boilerplate--this framework makes an excellent template preprocessor.
 
 An API could be facilitated with the routing paradigm, or a receiver of webhooks.
 
@@ -53,7 +53,7 @@ Templating is a powerful feature, and it stems from a premise that all content a
 
 - escaping: done by default
 - conditions unnecessary: set datapoint to null (or undefined) to remove node
-- yield, insert, and iterate components simpl
+- yield, insert, and iterate components simply
 - tested: templates can only be html, so, pretty safe when it comes to injection--they will never be exposed to a programming language.
 - author in markdown (slightly modified) or strict xHTML
 - use [template literals](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals) to embed a variables (`${expression}`)
