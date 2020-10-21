@@ -18,12 +18,13 @@ class Render
   static public function transform(Document $DOM, ?string $renders = null) {
     $instance = new self($DOM, $renders);
     
-    foreach($instance->renders as $callback => $args)
-      call_user_func_array([$instance, $callback], $args);
-    
     // run 'after' renders
     foreach (self::$queue['after'] as $callback)
       call_user_func($callback, $instance->document);
+    
+    foreach($instance->renders as $callback => $args)
+      call_user_func_array([$instance, $callback], $args);
+    
 
     return $instance->document;
   }
@@ -99,7 +100,7 @@ class Render
     }
   
     // find squashed siblings from markdown (preserveWhitespace )
-    foreach ($this->document->find('(//p|//li)/*[preceding-sibling::*]/following-sibling::*') as $node) {
+    foreach ($this->document->find('(//p|//li)/*[preceding-sibling::*[not(text())]]') as $node) {
       $node->parentNode->insertBefore(new Text(' '), $node);
     }
   }

@@ -483,10 +483,7 @@ class Plain {
     foreach ($context->find('.//dt|.//dd') as $node) {
       $indent = $this->prefix($node, ['blockquote', 'details', 'dl'], 1);
       $key = $type[$node->nodeName];
-      /*
-        TODO nesteds
-      */
-      $node->parentNode->replaceChild(new Text($indent . $key . $node->nodeValue), $node);
+      $node("{$indent}{$key} " . $this->inline($node));
     }
     
     foreach($context->find('.//ul|.//ol|.//dl') as $node)
@@ -551,7 +548,7 @@ class Plain {
   
   public function basic($context):void {
     foreach ($context->find($this->query) as $node) {
-      $flag = $this->basic[$node->nodeName];
+      $flag = trim($this->basic[$node->nodeName]);
       $context->replaceChild(new Text('%s%s%1$s', $flag, $this->inline($node)), $node);
     }
   }

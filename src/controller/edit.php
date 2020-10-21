@@ -7,11 +7,18 @@ class Edit extends \Controller {
   public function __construct($authorization = null)
   {
     Render::set('before', function($DOM) {
-      $DOM->documentElement->setAttribute('data-doc', base64_encode(realpath($DOM->info['src'])));
-      foreach ($DOM->find('//*[text() and not(ancestor::*/text())]') as $node) {
-        if (strpos('script style', $node->nodeName) === false) {
-          $node->setAttribute('data-path', $node->getNodePath());
+      if ($path = $DOM->info['src'] ?? false) {
+        $DOM->documentElement->setAttribute('data-doc', $path);
+        foreach ($DOM->find('//*[not(self::script or self::style) and text() and not(ancestor::*/text())]') as $node) {
+            $node->setAttribute('data-path', $node->getNodePath());
         }
+      }
+    });
+    
+    Render::set('after', function($DOM) {
+      if ($body = $DOM->select('//body')) {
+        $body->setAttribute('data-root', realpath('.'));
+        $body->appendChild(new Element('script'))->setAttribute('src', 'ux/js/edit.js');
       }
     });
   }
@@ -24,18 +31,18 @@ class Edit extends \Controller {
   public function update()
   {
     $updated  = new Document($this->request->data);
-    $filepath = base64_decode($updated->documentElement->getAttribute('data-doc'));
+    $filepath = $updated->documentElement->getAttribute('data-doc');
     $original = Document::open($filepath);
     
     foreach ($updated->find('//*[@data-path]') as $node) {
       if ($context = $original->select($node['@data-path'])) {
-        $node->removeAttribute('data-path');
+        array_map([$node, 'removeAttribute'], ['data-path', 'contenteditable', 'spellcheck']);
         $context->parentNode->replaceChild($original->importNode($node, true), $context);
       }
     }
     
     file_put_contents($filepath, \Parser::check(new Document($original->saveXML()), 'md'));
-
+    
     return $original;
   }
   

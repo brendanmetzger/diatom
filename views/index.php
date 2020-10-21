@@ -90,6 +90,7 @@ try {
   
   http_response_code($e->getCode() ?: 400);
   
+  print_r($e->getTrace());
   $keys   = ['message', 'code', 'file', 'line', 'trace'];
   $data   = array_combine($keys, array_map(fn($m) => $e->{"get$m"}(), $keys));
   $output = Request::GET('error', $data + CONFIG['data']);
