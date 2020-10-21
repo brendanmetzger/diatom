@@ -24,6 +24,7 @@ The bulk of authorship is __completely standard__ xHTML, CSS, JavaScript. Then t
 2. run `bin/server` from the application root directory
 3. Have at it
 
+
 ## Use Cases
 
 ### Basic
@@ -108,6 +109,7 @@ Templating is a powerful feature, and it stems from a premise that all content a
   :  pages/
   ::  html files are stored here
   ::  the assumed layout,  derived from `index.html` file is stored here
+
 :  src/
 ::  holds all php files
 :  data/

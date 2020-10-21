@@ -174,8 +174,9 @@ class Block {
   {
 
     if ($this->trap || $token->name === 'CDATA') {
-      
+
       if ($token->name === 'CDATA') {
+        
         if ($this->trap === null && $this->trap = $token->flag) {
           $token->text = "\n";
           return $this->push($token);
@@ -186,10 +187,9 @@ class Block {
 
         $token->name = 'CDATA';
         
-      } elseif ($this->trap === 'block' && ($token->context || $token->depth < $this->precursor->depth)) {
+      } elseif ($this->trap === 'block' && ($token->depth == 1 || $token->depth < $this->precursor->depth)) {
+        
         return new self($token, $token->context ? $this->trap : null);
-      } elseif ($this->precursor->element != $token->element) {
-        return new self($token);
       }
       
 
@@ -198,6 +198,7 @@ class Block {
       
     
     if ($token->name == 'blockquote' || $token->name == 'details') {
+      
       $this->trap = 'block';
       
       if ($this->precursor) {
@@ -237,9 +238,11 @@ class Block {
     
     if ($token->element && $token->name != 'CDATA' && ($context->nodeName != $token->name || $delta != 0) && $context->nodeName != 'tbody') {
       if ($delta > 0) {
+        // $delta += $this->trap ? 2 : 0;
         $context = $context->select(join('/', array_fill(0, $delta, '../..')));
       } else {
-        if ($delta < 0 && $token->element != 'tr') {
+        if ($delta < 0 && $token->element == 'li') {
+          // TODO, this gives problems with trapped elements like lists in details elems. rethink
           $context = $context->lastChild;
           $context->appendChild($context->ownerDocument->createElement('span')->adopt($context));
         }

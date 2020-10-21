@@ -1,7 +1,7 @@
 let stylesheet = document.head.appendChild(document.createElement('style'));
 
 stylesheet.textContent = `
-*[data-doc] {outline-offset: 0}
+*[data-doc]:hover {outline-offset: -1rem}
 body.editing main:focus-within { background-color:#EEE }
 body.inserting main:focus-within { background-color:yellow }
 *[contenteditable]:hover { outline: 1px dashed blue; }
