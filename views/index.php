@@ -72,7 +72,6 @@ try {
       'pages' => Route::gather(glob('pages/*.{html,xml,md}', GLOB_BRACE)), 
       'date'  => fn ($format, $time = 'now') => date($format, strtotime($time)),
       'model' => 'model::FACTORY',
-      'list' => [['name' => "A", 'other' => 'goo'], ['name' => 'B', 'other' => 'yep'], ['name' => 'D', 'other' => 'tope tope']],
     ];
     
     $response = new Response($request, $data + CONFIG['data']);
@@ -90,7 +89,6 @@ try {
   
   http_response_code($e->getCode() ?: 400);
   
-  print_r($e->getTrace());
   $keys   = ['message', 'code', 'file', 'line', 'trace'];
   $data   = array_combine($keys, array_map(fn($m) => $e->{"get$m"}(), $keys));
   $output = Request::GET('error', $data + CONFIG['data']);

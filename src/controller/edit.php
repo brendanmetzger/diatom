@@ -6,13 +6,14 @@ class Edit extends \Controller {
   
   public function __construct($authorization = null)
   {
+    Render::set('open', function($DOM) {
+      foreach ($DOM->find('//*[not(self::script or self::style or contains(., "${")) and text() and not(ancestor::*/text())]') as $node)
+          $node->setAttribute('data-path', $node->getNodePath());
+    });
+    
     Render::set('before', function($DOM) {
-      if ($path = $DOM->info['src'] ?? false) {
+      if ($path = $DOM->info['src'] ?? false)
         $DOM->documentElement->setAttribute('data-doc', $path);
-        foreach ($DOM->find('//*[not(self::script or self::style) and text() and not(ancestor::*/text())]') as $node) {
-            $node->setAttribute('data-path', $node->getNodePath());
-        }
-      }
     });
     
     Render::set('after', function($DOM) {
@@ -37,13 +38,17 @@ class Edit extends \Controller {
     
     foreach ($updated->find('//*[@data-path]') as $node) {
       if ($context = $original->select($node['@data-path'])) {
-        array_map([$node, 'removeAttribute'], ['data-path', 'contenteditable', 'spellcheck']);
         $context->parentNode->replaceChild($original->importNode($node, true), $context);
       }
     }
     
+    $copy = new Document($original->saveXML());
+
+    foreach($copy->find('//*[@data-path or @data-doc]') as $node);
+      array_map([$node, 'removeAttribute'], ['data-doc', 'data-path','contenteditable', 'spellcheck']);
+    
     // FIXME this should not default to md type
-    file_put_contents($filepath, \Parser::check(new Document($original->saveXML()), 'md'));
+    file_put_contents($filepath, \Parser::check($copy, 'md'));
     
     return $original;
   }

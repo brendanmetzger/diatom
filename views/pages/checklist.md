@@ -2,20 +2,21 @@
 ?publish 2
 ?render sections
 
-# Quickstart \ Guide
+# Quickstart \ Guides
 
 Open **views/pages/checklist.md** to amend and edit this checklist
 
+
 ## Startup Tasks
 
-- [ ] specify a new port in `bin/server` if necessary
-- [ ] run `bin/server` to start a localhost, opens site in chrome by default
-- [ ] edit `views/pages/index.php` to make changes (this readme is imported by default)
-- [ ] create a new page in pages, add processing instructions to make it visible in the nav
+- [x] specify a new port in `bin/server` if desired
+- [x] run `bin/server` to start a localhost, opens site in chrome by default
+- [x] edit `views/pages/index.php` to make changes (this readme is imported by default)
+- [x] create a new page in pages, add processing instructions to make it visible in the nav
 
 ## Explore Tasks
 
-- [ ] Change port in `bin/php`
+- [x] Change port in `bin/php`
 - [ ] Create a new file in `view/pages/`
 - [ ] make a syntax error in an ^^html^^ document
 - [ ] Checkout out `index.php`, note example route and play around
@@ -25,10 +26,11 @@ Open **views/pages/checklist.md** to amend and edit this checklist
 This application is often used on the ^^AWS^^ Platform, particularly *lightsail* for the server host, and *S3* for object storage.
 
 - [ ] Set up `data/config.ini` file with keys
-- Configure ligtsail server (this is a large task)
-  - [ ] install php, with xml, curl, mbstring, gd
-  - [ ] install apache
-  - [ ] add group for web
+- Configure ligtsail server (this is only an overview see bin/lightsail.sh for more detail)
+  - [ ] PHP + Apache
+  - [ ] HTTP/2
+  - [ ] Certbot Certificaties
+  - [ ] Users/Group for web authorship
 - [ ] init a git repo and set up remote
 - [ ] review deployment strategy
 
@@ -55,7 +57,7 @@ section[id$=tasks] ul {
 }
 section[id$=tasks] li ul {
   border-left: 1px dashed rgb(0 0 0 / 0.25);
-  padding-left: 1rem;
-  margin:0.25rem 0.65rem;
+  padding-left: 0.75rem;
+  margin:0.25rem 0.25rem;
 }
 ```

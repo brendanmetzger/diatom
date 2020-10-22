@@ -13,13 +13,17 @@
 a, summary {cursor: pointer;}
 
 body, h1,h2,h3,h4,h5, blockquote, div {margin: 0; padding: 0; line-height:1.625;}
-table, td {border: 1px solid #000; padding: 1rem;}
+table, td, th {border: 1px solid #AAA; padding: 0.25rem 1rem; border-collapse: collapse;}
+thead th {border-bottom-color: #333;}
+tbody tr:nth-of-type(odd) {
+  background-color: rgb(0 0 0 / 0.05);
+}
 blockquote { padding: 0.5rem 2rem; border-left: 0.25rem solid rgb(0 0 0 / 0.25);background-color: #fff;}
 main {max-width: 100ch;}
 h1   {font-size: 400%;line-height:1;padding-top:0.5em;}
 strong, dt, summary {font-weight: 800;}
-dt {margin:0.75rem 0 0;}
-dd {border-top: 1px dashed rgb(0 0 0 / 0.1);margin: 0.125rem;padding: 0.25rem 0.5rem;}
+dt {margin:0.75rem 0 0;padding:0.25rem;}
+dd {border-top: 1px dashed rgb(0 0 0 / 0.1);margin: 0.125rem;padding: 0.125rem 0.5rem;}
 dd::before { content: '· '; }
 section {
   margin: 2rem -2rem;
@@ -42,7 +46,7 @@ li > ol {
   margin:0.25em 0;
   border-left: 1px dashed rgba(0 0 0 / 0.1);
 }
-li > span {color: #000;}
+li > span::before {content:' ⇃';}
 ol       { list-style: lower-greek;}
 ol ol    { list-style: decimal;}
 ol ol ol { list-style: lower-alpha;}

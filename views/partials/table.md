@@ -1,12 +1,12 @@
-## Example Table
+## A Table
 
 This is an example table document
 
 
 | Quantity |            Type |
 |----------|-----------------|
-|      150 |             Ham |
+|      199 |             Ham |
 |       42 |          Hummus |
-|       18 |   Haricot Verts |
+|       22 |  Haricots Verts |
 |       50 |            Hare |
-|       10 | Bayou Water Hog |
+|       15 | Bayou Water Hog |

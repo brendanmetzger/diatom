@@ -24,7 +24,6 @@ The bulk of authorship is __completely standard__ xHTML, CSS, JavaScript. Then t
 2. run `bin/server` from the application root directory
 3. Have at it
 
-
 ## Use Cases
 
 ### Basic
@@ -97,8 +96,6 @@ Templating is a powerful feature, and it stems from a premise that all content a
 ::  behavior finds all `<script>` elements and converts/encodes:
 ::  `<script src="path"></script>`  to `<script>Kit.script(path);</script>`
 ::  `<script>code</script>`  to `<script>Kit.script(data://uri,b64 code);</script>`
-:  editable
-::  marks embedded Documents with their original source, and maps nodepaths fore editable nodes against that nodepath
 
 ## Application
 

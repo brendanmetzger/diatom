@@ -48,7 +48,6 @@ document.addEventListener('keydown', evt => {
       node[act]('spellcheck', true);
       node[evt]('blur', processElementChange, false);
       node[evt]('selectstart', showToolbar, false);
-      // node[evt]('focus', setHistory, false);
     });
   }
 });
@@ -60,14 +59,14 @@ function showToolbar(evt) {
 
 
 function processElementChange(evt) {
-  // if (this.history === this.innerHTML) return;
   
-  let context  = this.parentNode;
+  let context  = this;
   while (! context.dataset.doc) context = context.parentNode;
-
+  
   Request.PUT('edit/update.xml', context).then(result => {
     this.innerHTML = result.querySelector(`*[data-path='${this.dataset.path}']`).innerHTML;
   });
+  
 };
 
 function removeHighlight(evt) {

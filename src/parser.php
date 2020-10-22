@@ -84,14 +84,14 @@ class Token {
     '~'  => 'dfn',
     '**' => 'strong',
     '*'  => 'em',
+    '__' => 'b',
     '_'  => 'cite',
-    '__' => 'u',
     '``' => 'time',
     '`'  => 'code',
     '^^' => 'abbr',
     '^'  => 'small',
+    '||' => 'u',
     '|'  => 'mark',
-    '||' => 'b',
     '""' => 'q',
   ];
   
@@ -436,7 +436,7 @@ class Plain {
   private function __construct(Document $DOM) {
     $this->document = $DOM;
     $this->basic = array_flip(Token::INLINE);
-    $this->query = join('|', array_keys($this->basic));
+    $this->query = join('|', array_keys($this->basic)) . '|span';
   }
   
   public function __toString() {
@@ -551,7 +551,7 @@ class Plain {
   
   public function basic($context):void {
     foreach ($context->find($this->query) as $node) {
-      $flag = trim($this->basic[$node->nodeName]);
+      $flag = trim($this->basic[$node->nodeName] ?? '');
       $context->replaceChild(new Text('%s%s%1$s', $flag, $this->inline($node)), $node);
     }
   }

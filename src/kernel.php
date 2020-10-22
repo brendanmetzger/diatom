@@ -337,7 +337,7 @@ class Response extends File implements routable
     
     
     // render and transform the document layout
-    $output = $layout->render($this->data + $payload->info, $this->basic ? null : $this->id);
+    $output = $layout->render($this->data + $payload->info, $this->basic ? true : $this->id);
     $output = Render::transform($output, $this->render);
     
     // convert if request type is not markup
@@ -432,13 +432,13 @@ class Template
   
   private $DOM, $slugs = [], $cache = null;
   
-  public function __construct(DOMnode $input)
+  public function __construct(DOMnode $node)
   {
-    if ($input instanceof Element && $doc = $input->ownerDocument) {
-      $this->DOM = new Document($doc->saveXML($input));
+    if ($node instanceof Element && $doc = $node->ownerDocument) {
+      $this->DOM = new Document($doc->saveXML($node));
       $this->DOM->info = $doc->info ?? null;
     } else {
-      $this->DOM = $input;
+      $this->DOM = $node;
     }
   }
   
@@ -447,13 +447,11 @@ class Template
   }
 
   
-  public function render($data = [], ?string $ruid = null): Document
+  public function render($data = [], $ruid = null): Document
   {
-    if ($ruid === null) {
-      Render::set('before', $this->DOM);
-    }
     
-        
+    Render::set('before', $this->DOM);
+    
     foreach ($this->getStubs('yield') as [$cmd, $prop, $exp, $ref]) {
       if ($DOM = self::$yield[$prop ?? $ruid] ?? null) {
         $context = ($exp !== '/') ? $ref : $ref->nextSibling;
@@ -485,7 +483,7 @@ class Template
       $invert   = $exp !== '/';
       
       foreach (Data::fetch($key, $data) ?? [] as $datum) {
-        if ($import = $template->render($datum, $ruid)->documentElement) {
+        if ($import = $template->render($datum, $ruid ?? true)->documentElement) {
           $node = $this->DOM->importNode($import, true);
           $slug = $context->parentNode->insertBefore($node, $invert ? $slug : $context);
           $template->reset();
@@ -599,6 +597,8 @@ class Document extends DOMDocument
     $DOM->info['src']     = $path;
     $DOM->info['path']    = $file->info;
     $DOM->info['title'] ??= $DOM->info['path']['filename'];
+    
+    Render::set('open', $DOM);
     
     return self::$cache[$key] = $DOM;
   }
