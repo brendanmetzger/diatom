@@ -482,7 +482,7 @@ class Plain {
     }
     
     
-    $type = ['dt' => ': ', 'dd' => ':: '];
+    $type = ['dt' => ':', 'dd' => '::'];
     foreach ($context->find('.//dt|.//dd') as $node) {
       $indent = $this->prefix($node, ['blockquote', 'details', 'dl'], 1);
       $key = $type[$node->nodeName];

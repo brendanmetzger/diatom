@@ -6,17 +6,16 @@
 
 Open **views/pages/checklist.md** to amend and edit this checklist
 
-
 ## Startup Tasks
 
-- [x] specify a new port in `bin/server` if desired
-- [x] run `bin/server` to start a localhost, opens site in chrome by default
-- [x] edit `views/pages/index.php` to make changes (this readme is imported by default)
-- [x] create a new page in pages, add processing instructions to make it visible in the nav
+- [ ] specify a new port in `bin/server` if desired
+- [ ] run `bin/server` to start a localhost, opens site in chrome by default
+- [ ] edit `views/pages/index.php` to make changes (this readme is imported by default)
+- [ ] create a new page in pages, add processing instructions to make it visible in the nav
 
 ## Explore Tasks
 
-- [x] Change port in `bin/php`
+- [ ] Change port in `bin/php`
 - [ ] Create a new file in `view/pages/`
 - [ ] make a syntax error in an ^^html^^ document
 - [ ] Checkout out `index.php`, note example route and play around

@@ -62,19 +62,19 @@ Templating is a powerful feature, and it stems from a premise that all content a
 
 ## Stubs
 
-:  insert
-::  An ~insert~ is a direct call to another piece of content that lives at the end of a path.
-::  `<!-- insert path/to/file.html-->` inserts a file directly
-::  `<!-- insert endpoint -->` inserts the result of a routed or dynamic url result
-:  Yield
-::  A ~yield~ stub means some programatic  aspect has determined how and what Document or Element will be inserted.
-::  `<!-- yield -->` on its own will default to inserting the result of the `Route::delegate` operation, and it is scoped to the  response object. *It replaces it's next `Element` sibling.*
-::  `<!-- yield keyword -->` also replaces with keyword from dynamic route; `$this->yield('keyword', string path or <Document>)`
-::  `<!-- yield keyword -->` similar to above but performs an *insert* instead of  swapping next sibling
-::  yield stubs do nothing if the content they stub out is unspecified or does not exist
-:  iterate
-::  the ~iterate~ stub grabs the `nextSibling` and continuously inserts that Element over the iteration of some dataset
-::  this is (probably) most appropriate to use in conjunction with template variables.
+: insert
+:: An ~insert~ is a direct call to another piece of content that lives at the end of a path
+:: `<!-- insert path/to/file.html-->` inserts a file directly
+:: `<!-- insert endpoint -->` inserts the result of a routed or dynamic url result
+: Yield
+:: A ~yield~ stub means some programatic  aspect has determined how and what `Document` or `Element` will be inserted.
+:: `<!-- yield -->` on its own will default to inserting the result of the `Route::delegate` operation, and it is scoped to the  response object. *It replaces it's next `Element` sibling.*
+:: `<!-- yield keyword -->` also replaces with keyword from dynamic route; `$this->yield('keyword', string path or <Document>)`
+:: `<!-- yield keyword -->` similar to above but performs an *insert* instead of  swapping next sibling
+:: ~yield~ stubs do nothing if the content they stub out is unspecified or does not exist
+: iterate
+:: the ~iterate~ stub grabs the `nextSibling` and continuously inserts that Element over the iteration of some dataset
+:: this is (probably) most appropriate to use in conjunction with template variables.
 
 ### Caveats
 
@@ -88,29 +88,29 @@ Templating is a powerful feature, and it stems from a premise that all content a
 
 ### Renderers
 
-:  canonical
-::  reorders the document to place (and organize) `<style>`, `<link>`, `<meta>`  into the `<head>` of the Document
-:  sections
-::  recursively looks for heading elements and builds sections around them.
-:  behavior
-::  behavior finds all `<script>` elements and converts/encodes:
-::  `<script src="path"></script>`  to `<script>Kit.script(path);</script>`
-::  `<script>code</script>`  to `<script>Kit.script(data://uri,b64 code);</script>`
+: canonical
+:: reorders the document to place (and organize) `<style>`, `<link>`, `<meta>`  into the `<head>` of the Document
+: sections
+:: recursively looks for heading elements and builds sections around them.
+: behavior
+:: behavior finds all `<script>` elements and converts/encodes:
+:: `<script src="path"></script>`  to `<script>Kit.script(path);</script>`
+:: `<script>code</script>`  to `<script>Kit.script(data://uri,b64 code);</script>`
 
 ## Application
 
 ### Directory Layout
 
-:  view/
-::  contains template files, CSS, JavaScript, media--essentially the document root
-  :  pages/
-  ::  html files are stored here
-  ::  the assumed layout,  derived from `index.html` file is stored here
+: view/
+:: contains template files, CSS, JavaScript, media--essentially the document root
+  : pages/
+  :: html files are stored here
+  :: the assumed layout,  derived from `index.html` file is stored here
 
-:  src/
-::  holds all php files
-:  data/
-::  xml, json, configs--anything that doesn't want to be tracked in a main repo but is integral to site functionality
+: src/
+:: holds all php files
+: data/
+:: xml, json, configs--anything that doesn't want to be tracked in a main repo but is integral to site functionality
 
 ### Output Formats
 
