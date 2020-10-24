@@ -1,4 +1,4 @@
-#!/usr/bin/php
+#!/usr/bin/env php
 
 <?php chdir(dirname(__FILE__).'/..');
       define('CONF', parse_ini_file('data/config.ini', true));

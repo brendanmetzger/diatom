@@ -34,6 +34,7 @@ class Route {
   }
   
   static public function set($path, ?callable $callback = null, array $config = []) {
+    $path = strtolower(trim($path, '/'));
     $instance = self::$paths[$path] ??= new self($path, $config['publish'] ?? 0);
     $instance->info +=  $config;
     if ($callback === null) {
@@ -278,7 +279,7 @@ class Response extends File implements routable
 {
   use Registry;
   
-  public $action, $params, $request, $basic, $headers = [], $fulfilled = false, $layout = null, $render = null;
+  public $params, $request, $basic, $headers = [], $fulfilled = false, $layout = null, $render = null;
     
   public function __construct(Request $request, array $data = [])
   {
@@ -334,7 +335,6 @@ class Response extends File implements routable
       if (! $default)
         Template::set($this->id, $payload); 
     }
-    
     
     // render and transform the document layout
     $output = $layout->render($this->data + $payload->info, $this->basic ? true : $this->id);
@@ -434,12 +434,14 @@ class Template
   
   public function __construct(DOMnode $node)
   {
-    if ($node instanceof Element && $doc = $node->ownerDocument) {
+    Render::set('before', $node);
+    if ($node instanceof Element && $doc = $node->ownerDocument) {      
       $this->DOM = new Document($doc->saveXML($node));
       $this->DOM->info = $doc->info ?? null;
     } else {
-      $this->DOM = $node;
+      $this->DOM = $node;      
     }
+    
   }
   
   public function reset() {
@@ -449,9 +451,6 @@ class Template
   
   public function render($data = [], $ruid = null): Document
   {
-    
-    Render::set('before', $this->DOM);
-    
     foreach ($this->getStubs('yield') as [$cmd, $prop, $exp, $ref]) {
       if ($DOM = self::$yield[$prop ?? $ruid] ?? null) {
         $context = ($exp !== '/') ? $ref : $ref->nextSibling;
@@ -584,6 +583,9 @@ class Document extends DOMDocument
     $file = $path instanceof File ? $path : File::load($path);
 
     try {
+      if (! $file->local)
+        $file->body = preg_replace('/\sxmlns=[\"\'][^\"\']+[\"\'](*ACCEPT)/', '', $file->body);
+      
       $DOM = (substr($file->mime, -2) == 'ml') ? new self($file->body, $opt) : Parser::load($file);
     } catch (ParseError $e) {
       $err = (object)libxml_get_errors()[0];
@@ -597,9 +599,7 @@ class Document extends DOMDocument
     $DOM->info['src']     = $path;
     $DOM->info['path']    = $file->info;
     $DOM->info['title'] ??= $DOM->info['path']['filename'];
-    
-    Render::set('open', $DOM);
-    
+        
     return self::$cache[$key] = $DOM;
   }
   
@@ -616,7 +616,6 @@ class Document extends DOMDocument
     foreach (( $props + $this->props ) as $p => $value) $this->{$p} = $value;
     foreach (['Element','Text','Attr'] as       $c    ) $this->registerNodeClass("DOM{$c}", $c);
     
-    $xml = preg_replace('/\sxmlns=(\"|\').*?(\1)/', '', $xml);
     if (! $this->loadXML($xml, LIBXML_COMPACT)) throw new ParseError('DOM Parse Error');
     
     $this->xpath = new DOMXpath($this);

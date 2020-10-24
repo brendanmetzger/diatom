@@ -14,7 +14,7 @@ class Command implements routable
   public $script, $params, $action, $basic, $status = 0, $input;
     
   static public function __callStatic($key, $args) {
-    return Route::compose(new self([$key, ...$args]));
+    return Route::delegate(new self([$key, ...$args]));
   }
   
   public function __construct(array $params = [])

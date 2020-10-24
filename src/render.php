@@ -8,7 +8,7 @@ class Render
   ];
   
   static public function set(string $when, $object) {
-    if ($object instanceof Document)
+    if ($object instanceof DOMNode)
       foreach (self::$queue[$when] as $callback)
         call_user_func($callback, $object);
     else if (is_callable($object))

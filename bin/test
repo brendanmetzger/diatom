@@ -1,26 +1,36 @@
-#!/usr/bin/php
-<?php 
-      chdir(dirname(__FILE__).'/..');
-      define('CONF', parse_ini_file('data/config.ini'));
-      require 'src/kernel.php';
+#!/usr/bin/env php
+
+<?php chdir(dirname(__FILE__).'/..');
+
+$version = phpversion();
+if ($version < 7.4) {
+  echo "PHP version ({$version}) is too low. Testing halted.\n";
+  exit(1);
+}
+
+// Assuming php is correct, now we can load in framework
+define('CONF', parse_ini_file('data/config.ini'));
+require 'src/kernel.php';
 
 
-      ini_set('assert.exception', 1);
-      ini_set('zend.assertions',  1);
+
+ini_set('assert.exception', 1);
+ini_set('zend.assertions',  1);
 
 /**** TESTS ******************************************************************/
 
 try {
-  // Running Correct PHP Version
-  assert(phpversion() >= 7.4);
+  
   
   // Can Create Document
-  $test = new Document('<ok/>');
-  assert("<ok/>" === (string) $test);
+  $testA = new Document('<ok/>');
+  assert("<ok/>" === (string) $testA);
+
   
   // Can Render a Template 
-  $test = (new Template(new Document('<ok value="${msg}"/>')))->render(['msg' => 'ok']);
-  assert('<ok value="ok"/>' === (string) $test);
+  $testB = (new Template(new Document('<ok value="${msg}"/>')))->render(['msg' => 'ok'], true);
+  assert('<ok value="ok"/>' === (string) $testB);
+  
   
   // can convert markdown to html
   
@@ -37,10 +47,13 @@ try {
   // Can 'fulfill' request early
   
   
+} catch (Exception $e) {
+  
+  echo "Tests not run due to exception: {$e->getMessage()}\n";
+  
 } catch (AssertionError $e) {
   
-  echo "There was an assertion error, fix before continuing..\n\n";
-  echo "  " . $e->getMessage() . "\n";
+  echo "There was an assertion error:\n  {$e->getMessage()}\n";
   echo "  bin/test: line " . $e->getLine() . "\n\n";
 
   exit(1);
