@@ -172,6 +172,8 @@ class File
     'gz'   => 'application/x-gzip',
     'md'   => 'text/plain',
     'txt'  => 'text/plain',
+    'vtt'  => 'text/vtt',
+    'srt'  => 'text/srt',
   ];
     
   public $id, $uri, $url, $type, $info, $mime, $local = true, $size = 0, $body = '';
@@ -185,7 +187,7 @@ class File
     $this->info['scheme'] ??= ($this->type == 'gz' ? 'compress.zlib' : 'file');
     $this->local = substr($this->info['scheme'], 0, 4) != 'http';
     $this->url = $this->info['url'] = $this->local ? $this->info['scheme'].'://' . realpath($this->uri) : $this->uri;
-    $this->mime  = self::MIME[$this->type];
+    $this->mime  = self::MIME[$this->type] ?? 'text/plain';
     $this->id    = md5($this->url);
     if ($content) $this->setBody($content);
   }
@@ -279,8 +281,8 @@ class Response extends File implements routable
 {
   use Registry;
   
-  public $params, $request, $basic, $headers = [], $fulfilled = false, $layout = null, $render = null;
-    
+  public $params, $document, $request, $basic, $headers = [], $fulfilled = false, $layout = null, $render = null;
+  
   public function __construct(Request $request, array $data = [])
   {
     parent::__construct($request->uri);
@@ -292,13 +294,18 @@ class Response extends File implements routable
     $this->basic   = $request->headers['HTTP_YIELD'] ?? ($request->mime != 'text/html');
   }
   
+  public function setBody($content):File {
+    $this->document = $content;
+    return parent::setBody((string)$content);
+  }
+  
   // string|Document $template 
   public function yield(string $key, $source) {
     Template::set($key, $source instanceof Document ? $source : Document::open($source));
   }
   
   public function __invoke($path) {
-    // if we are here, there is no callback specified OR the callback did not return a value
+    // when here, either no callback specified OR the callback returned void
     return $path ? Document::open($path) : new Document("<p>\u{26A0} /{$this->action}</p>");
   }
   
@@ -319,8 +326,8 @@ class Response extends File implements routable
   
   public function compose($payload, bool $default)
   {
-    // if payload is not a DOM component, no processing to do
-    if (! $payload instanceof DOMNode) return $payload;
+    // if payload is not a DOM component or proper request, no processing to do
+    if (! $payload instanceof DOMNode || $this->id === null) return $this->setBody($payload);
     
     
     if ($this->basic) {
@@ -337,7 +344,7 @@ class Response extends File implements routable
     }
     
     // render and transform the document layout
-    $output = $layout->render($this->data + $payload->info, $this->basic ? true : $this->id);
+    $output = $layout->render($payload->info + $this->data, $this->basic ? true : $this->id);
     $output = Render::transform($output, $this->render);
     
     // convert if request type is not markup
@@ -435,11 +442,11 @@ class Template
   public function __construct(DOMnode $node)
   {
     Render::set('before', $node);
-    if ($node instanceof Element && $doc = $node->ownerDocument) {      
+    if ($node instanceof Element && $doc = $node->ownerDocument) {
       $this->DOM = new Document($doc->saveXML($node));
       $this->DOM->info = $doc->info ?? null;
     } else {
-      $this->DOM = $node;      
+      $this->DOM = $node;
     }
     
   }
@@ -461,7 +468,7 @@ class Template
     }
 
     foreach ($this->getStubs('insert') as [$cmd, $path, $xpath, $context]) {
-      $DOM = is_file($path) ? Document::open($path) : Request::GET($path, $data)->body;
+      $DOM = is_file($path) ? Document::open($path) : Request::GET($path, $data)->document;
       
       $ref = $context->parentNode;
       foreach ($DOM->find($xpath) as $node) {
@@ -598,7 +605,7 @@ class Document extends DOMDocument
     
     $DOM->info['src']     = $path;
     $DOM->info['path']    = $file->info;
-    $DOM->info['title'] ??= $DOM->info['path']['filename'];
+    $DOM->info['title'] ??= ucwords(str_replace('-', ' ', $DOM->info['path']['filename']));
         
     return self::$cache[$key] = $DOM;
   }
@@ -850,9 +857,10 @@ class Data extends ArrayIterator
 abstract class Model implements ArrayAccess {
   protected $context;
   
-  static public function FACTORY(...$args)
+  static public function FACTORY($model, $method, ...$args)
   {
-    return print_r($args);
+    $model = "\\model\\{$model}";
+    return $model::$method(...$args);
   }
 
   public function __construct(Element $context) { 

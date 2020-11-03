@@ -10,7 +10,7 @@ class Edit extends \Controller {
     Render::set('before', function($node) {
       [$doc, $context] = $node instanceof Document ? [$node, $node->documentElement] : [$node->ownerDocument, $node];
       
-      foreach ($context->find('.//*[not(@data-path or self::script or self::style or contains(., "${")) and text() and not(ancestor::*/text())]') as $node)
+      foreach ($context->find('.//*[not(@data-path or self::script or self::style) and text() and not(ancestor::*/text())]') as $node)
         $node->setAttribute('data-path', $node->getNodePath());
       
       if ($path = $doc->info['src'] ?? false)
@@ -37,15 +37,27 @@ class Edit extends \Controller {
     $filepath = $updated->documentElement->getAttribute('data-doc');
     $original = Document::open($filepath);
     
+    $xp = '//*[contains(.,"${") and not(*) and not(self::script or self::code)]|//*/@*[contains(.,"${")]';
+
+    $cache = [];
+    foreach ( $original->find($xp) as $template)
+      $cache[$template->getNodePath()] = $template->nodeValue;
+      
+    
     foreach ($updated->find('//*[@data-path]') as $node) {
       if ($context = $original->select($node['@data-path'])) {
+        // cache literals to swap back in ${}..
+        
         $context->parentNode->replaceChild($original->importNode($node, true), $context);
       }
     }
     
+    foreach ($cache as $path => $value)
+      $original->select($path)($value);
+    
     $copy = new Document($original->saveXML());
-
-    foreach($copy->find('//*[@data-path or @data-doc]') as $node);
+    
+    foreach($copy->find('//*[@data-path or @data-doc]') as $node)
       array_map([$node, 'removeAttribute'], ['data-doc', 'data-path', 'contenteditable', 'spellcheck']);
     
     if (file_put_contents($filepath, \Parser::check($copy, $original->info['path']['extension'])))
