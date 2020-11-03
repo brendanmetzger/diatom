@@ -190,7 +190,8 @@ class Block {
         
       } elseif (substr($this->trap, 0, 5) === 'block') {
         
-        if (! $token->context && substr($this->trap, 5) === 'dl') {
+
+        if (! $token->context && $token->depth > $this->precursor->depth && substr($this->trap, 5) === 'dl') {
           $token->name    = 'dl';
           $token->element = 'dd';
           $token->depth   = $this->precursor->depth;
@@ -256,7 +257,8 @@ class Block {
       if ($delta > 0) {
         $context = $context->select(join('/', array_fill(0, $delta, '../..')));
       } else {
-        if ($delta < 0 && $context->lastChild->nodeName == $token->element) {
+        $name = $context->lastChild->nodeName;
+        if ($delta < 0 && ($name == $token->element || ($token->name == 'dl' && $name == 'dd'))) {
           $context = $context->lastChild;
           $context->appendChild($context->ownerDocument->createElement('span')->adopt($context));
         }
@@ -293,7 +295,6 @@ class Block {
     
       if (preg_match('/^[^!~*\[_`^|{<"\\\=]*+(.)/', $text, $offset, PREG_OFFSET_CAPTURE))
         (new Inline($element))->parse(null, $offset[1][1]);
-      
     }
     return $context;
   }
