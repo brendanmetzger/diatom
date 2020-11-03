@@ -1,6 +1,6 @@
 # Diatom
 
-*This template framework is a quick starting point. The `src/kernel.php` file aims to be everything necessary to begin making a website. There are additional classes to ensure that most goals can be met when it comes to authoring a content-based site.*
+*This template framework is a quick starting point. This template framework is a quick starting point. Philosophically, it is not much for configuration or rules, but seeks to create patterns for creating and organizing well-structured documents.*
 
 
 > This file is written in an extended markdown that includes definition lists (`<dl>`), disclosure elements (`<details>`) as well as many other inline elements such as `<cite>`,  `<dfn>`, `<abbr>`, `<small>`, `<mark>` and `<q>`, `<input>` checklists and `<table>`. Raw HTML is never allowed, for reasons that become clearer with use.

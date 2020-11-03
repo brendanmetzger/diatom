@@ -94,11 +94,11 @@ class Token {
   ];
   
   const TRANSLATE = [
-    '%' => 'abbr',
-    ':' => 'span',
-    '=' => 'data',
-    '@' => 'time',
-    '#' => 'aria',
+    '%' => 'abbr[@title]',
+    ':' => 'span[@class]',
+    '=' => 'data[@value]',
+    '@' => 'time[@title]',
+    // '#' => '*[@aria-label]', // still working out aria roles
   ];
   
   public $flag, $trim, $depth, $text, $name, $value, $context = false, $element = null;
@@ -404,16 +404,18 @@ class Inline {
 
   private function clarify($line, $match, $tag, $symbol, $text)
   {
-    $node = call_user_func([$this, Token::TRANSLATE[$symbol[0]]], trim($tag[0]), $text[0]);
+    $label = strtok(Token::TRANSLATE[$symbol[0]], '[');
+    $node  = call_user_func([$this, $label], trim($tag[0]), $text[0]);
     return $this->offsets($line, $match, $node);
   }
 
-  private function time($format, $timestring)
+  private function time($timestring, $format)
   {
     $date = new DateTime($timestring);
     return $this->makeNode('time', $date->format($format), [
-      'datetime' => $date->format(DATE_ATOM),
-      'title' => $timestring,
+      'datetime'    => $date->format(DATE_ATOM),
+      'title'       => $timestring,
+      'data-format' => $format,
     ]);
   }
   
@@ -462,8 +464,15 @@ class Plain {
   
   private function __construct(Document $DOM) {
     $this->document = $DOM;
-    $this->basic = array_flip(Token::INLINE);
-    $this->query = join('|', array_keys($this->basic)) . '|span';
+    $this->tokens = [
+      'basic' => array_flip(Token::INLINE),
+      'attrs' => array_flip(array_map(fn($t) => strtok($t, '['), Token::TRANSLATE)),
+    ];
+
+    $this->query = [
+      'basic' => join('|', array_keys($this->tokens['basic'])) . '|span',
+      'attrs' => join('|', Token::TRANSLATE),
+    ];
   }
   
   public function __toString() {
@@ -498,7 +507,6 @@ class Plain {
     foreach ($context->find('.//li/ul|.//li/ol|.//dd/dl') as $node)
       $node->parentNode->parentNode->insertBefore($node, $node->parentNode->nextSibling);
     
-    
     foreach ($context->find(".//li") as $node) {
       $indent = $this->prefix($node, ['ul', 'ol', 'blockquote', 'details'], 1);
       
@@ -508,8 +516,7 @@ class Plain {
       $node("{$indent}{$prefix} " . $this->inline($node));
     }
     
-    
-    $type = ['dt' => ':', 'dd' => '::'];
+    $type = ['dt' => ':', 'dd' => ' '];
     foreach ($context->find('.//dt|.//dd') as $node) {
       $indent = $this->prefix($node, ['blockquote', 'details', 'dl'], 1);
       $key = $type[$node->nodeName];
@@ -518,7 +525,6 @@ class Plain {
     
     foreach($context->find('.//ul|.//ol|.//dl') as $node)
       $node->parentNode->replaceChild(new Text($node->nodeValue. "\n"), $node);
-    
   }
   
   public function table(DOMNode $context)
@@ -576,9 +582,22 @@ class Plain {
     }
   }
   
+  public function attrs($context):void
+  {
+    foreach ($context->find($this->query['attrs']) as $node) {
+      $name = $node->nodeName;
+      $flag = trim($this->tokens['attrs'][$name]);
+      $attr = substr(Token::TRANSLATE[$flag], strlen($name) + 2, -1);
+      $keys = [$node->getAttribute($attr), $flag]; 
+      $keys[] = $name == 'time' ? ($node->getAttribute('data-format') ?: 'c') : $this->inline($node);
+
+      $context->replaceChild(new Text('{%s %s %s}', ...$keys), $node);
+    }
+  }
+  
   public function basic($context):void {
-    foreach ($context->find($this->query) as $node) {
-      $flag = trim($this->basic[$node->nodeName] ?? '');
+    foreach ($context->find($this->query['basic']) as $node) {
+      $flag = trim($this->tokens['basic'][$node->nodeName] ?? '');
       $context->replaceChild(new Text('%s%s%1$s', $flag, $this->inline($node)), $node);
     }
   }
@@ -590,6 +609,7 @@ class Plain {
   
   public function inline(Element $node):string
   {
+    $this->attrs($node);
     $this->basic($node);
     $this->references($node, 'a', 'href', '');
     $this->references($node, 'img', 'src', '!');
