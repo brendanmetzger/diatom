@@ -1,14 +1,14 @@
-addEventListener('DOMContentLoaded', (function(s, js, cache) {
+addEventListener('DOMContentLoaded', ((d, js, $) => {
   self.KIT = Object.freeze({
-    script : (...a) => js.push(['src','async'].reduce((s,v,i) => {s[v]=a[i]; return s}, s.cloneNode())),
-    module : (k) => (k in cache) ? cache[k] : (cache[k.name] = new k),
-    remove : (k) => delete cache[k],
+    script : (src) => {
+      js.set(o = d.currentScript, n = d.createElement('script')); 
+      [{name:'src', value:src}, ...o.attributes].map(k => n.setAttribute(k.name, k.value));
+    },
+    module : (k) => (k in $) ? $[k] : ($[k.name] = new k),
+    remove : (k) => delete $[k],
   });
   return (evt) => {
-    document.documentElement.classList.add(['click','touch'][+(/mobile|iPhone/i).test(navigator.userAgent)]);
-    document.documentElement.classList.add('domready');
-    js.forEach(Node.prototype.appendChild.bind(document.head));
+    d.documentElement.classList.add(['click','touch'][+(/mobile|iPhone/i).test(navigator.userAgent)]);
+    js.forEach((n,o) => o.replaceWith(n));
   };
-})(document.createElement('script'), [], Object.create(null)));
-
-KIT.script('/ux/js/kit.js');
+})(document, new Map, Object.create(null)));

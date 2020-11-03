@@ -56,11 +56,11 @@ class Render
   private function sections(?Element $context = null, int $level = 2)
   {
 
-    if ($level > 4) return;
+    if ($level > 5) return;
     
     $context ??= $this->document->documentElement;
     $flag      = "h{$level}";
-    $name      = $level > 3 ? 'aside' : 'section';
+    $name      = $level > 4 ? 'aside' : 'section';
     $query     = ".//{$flag}[not(parent::{$name}) or count(parent::{$name}/{$flag}) > 1]";
     $sections  = $this->document->find($query, $context);
     
@@ -108,10 +108,19 @@ class Render
   private function canonical() {
     // move things that should be in the <head> and specify autolad.js
     if ($head = $this->document->select('/html/head')) {
-      $path = sprintf("data:application/javascript;base64,%s", base64_encode(File::load('ux/js/autoload.js')));
-      $head->appendChild(new Element('script'))('')->setAttribute('src', $path);
+      $path = sprintf("data:application/javascript;base64,%s", base64_encode(file_get_contents('ux/js/autoload.js')));
+      $head->insertBefore(new Element('script'), $head->firstChild)('')->setAttribute('src', $path);
       $this->document->documentElement->setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
       foreach ($this->document->find('.//style|.//meta|.//link', $head->nextSibling) as $node) $head->appendChild($node);
+      foreach ($this->document->find('.//title', $head->nextSibling) as $node) $head->replaceChild($node, $head->select('title'));
+      foreach ($this->document->find('.//summary[not(@role)]') as $node) {
+        $id = uniqid('DET_');
+        $node->setAttribute('role', 'button');
+        $node->setAttribute('aria-expanded', 'false');
+        $node->setAttribute('aria-controls', $id);
+        $node->parentNode->setAttribute('id', $id);
+        $node->parentNode->setAttribute('role', 'group');
+      }
     } 
   }
   

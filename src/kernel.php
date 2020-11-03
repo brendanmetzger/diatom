@@ -609,14 +609,14 @@ class Document extends DOMDocument
           $props = [ 'preserveWhiteSpace' => false, 'formatOutput' => true, 'encoding' => 'UTF-8'];
   
   
-  public function  __construct(string $xml, array $props = [])
+  public function  __construct(?string $xml = null, array $props = [])
   {
     parent::__construct('1.0', 'UTF-8');
 
     foreach (( $props + $this->props ) as $p => $value) $this->{$p} = $value;
     foreach (['Element','Text','Attr'] as       $c    ) $this->registerNodeClass("DOM{$c}", $c);
     
-    if (! $this->loadXML($xml, LIBXML_COMPACT)) throw new ParseError('DOM Parse Error');
+    if ($xml && ! $this->loadXML($xml, LIBXML_COMPACT)) throw new ParseError('DOM Parse Error');
     
     $this->xpath = new DOMXpath($this);
   }

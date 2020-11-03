@@ -1,29 +1,27 @@
 <?php
 
 class Parser {
+  const ROOT = 'article';
+  
+  public $document, $context;
+      
+  public function __construct(string $input, ?Element $context = null) {
+    $this->document = $context ? $context->ownerDocument : new Document;
+    $this->context  = $context ?? $this->document;
 
-  public $DOM, $context = null;
-      
-  public function __construct(string $input, $context = '<article/>', string $xpath = '/*') {
-    if ($context instanceof Element) {
-      $this->DOM     = $context->ownerDocument;
-      $this->context = $context;
-      
-    } else {
-      $this->DOM     = new Document($context);
-      $this->context = $this->DOM->select($xpath) ?? $this->DOM->documentElement;
-    }
-    
     $path  = substr($input, -3) == '.md' && strpos($input, "\n") === false;
     $input = $path ? new SplFileObject($input) : array_map(fn($line) => $line . "\n", preg_split('/\R/u', $input));
-    foreach ($this->scan($input) as $block) $block->process($this->context);
+    
+    foreach ($this->scan($input) as $block) {
+      $block->process($this);
+    }
   }
   
   static public function load(File $file) {
     $ext = ['css' => '<style/>', 'js' => '<script/>', 'txt' => '<pre/>'];
     
     if ($file->type == 'md')
-      return (new self($file->uri))->DOM;
+      return (new self($file->uri))->document;
     
     elseif ($tag = $ext[$file->type] ?? false) {
       $DOM = new Document($tag);
@@ -66,7 +64,7 @@ class Parser {
   }
     
   public function __toString() {
-    return $this->DOM->saveXML();
+    return $this->document->saveXML();
   }
   
 }
@@ -75,7 +73,7 @@ class Token {
   
   const BLOCK = [
     'name' => [  'p'  ,  'ol'   ,   'ul'  ,  'h%d' ,'CDATA', 'dl' , 'BLOCK' ,  'hr'  ,'comment', 'pi' ,     'table'      , 'p' ],
-    'rgxp' => ['[A-Z]', '\d+\. ', '[-*] ' ,'#{1,6}','`{3}' , '::?',  '[>+] ', '-{3,}',  '\/\/' , '\?' , '\|(?=.+\|.+\|$)', '\S'],
+    'rgxp' => ['[A-Z]', '\d+\. ', '[-*] ' ,'#{1,6}','`{3}' , ':'  ,  '[>+] ', '-{3,}',  '\/\/' , '\?' , '\|(?=.+\|.+\|$)', '\S'],
     'trap' => [ false ,  true   ,  true   ,  false , true  , true ,   true  ,  false , false   , false,     true         ,false],
   ];
   
@@ -86,13 +84,21 @@ class Token {
     '*'  => 'em',
     '__' => 'b',
     '_'  => 'cite',
-    '``' => 'time',
+    '``' => 'kbd',
     '`'  => 'code',
-    '^^' => 'abbr',
-    '^'  => 'small',
+    '^^' => 'small',
+    '^'  => 'sup',
     '||' => 'u',
     '|'  => 'mark',
     '""' => 'q',
+  ];
+  
+  const TRANSLATE = [
+    '%' => 'abbr',
+    ':' => 'span',
+    '=' => 'data',
+    '@' => 'time',
+    '#' => 'aria',
   ];
   
   public $flag, $trim, $depth, $text, $name, $value, $context = false, $element = null;
@@ -113,9 +119,8 @@ class Token {
         $this->name    = ['+' => 'details', '>' => 'blockquote'][trim($this->flag)];
         $this->element = ['details' => 'summary', 'blockquote' => 'p'][$this->name];
       }  else {
-        $this->element = [':'=>'dt', '::'=>'dd'][$this->flag] ?? 'li';
+        $this->element = $this->flag == ':' ? 'dt' : 'li';
       }
-        
     }
   }
 }
@@ -158,7 +163,6 @@ class Block {
   
   public function capture(string $line)
   {
-    // $line = str_replace(['&nbsp;', '&mdash;', '&ndash;', '”', '“'], [' ', '—', '–', '"', '"'], $line);
     if (! $token = $this->parse($line)) {
       if ($this->trap && $this->precursor->name === 'CDATA') $this->push(new Token(['text' => $line]));
       return $this;
@@ -172,7 +176,6 @@ class Block {
   
   public function evaluate(Token $token)
   {
-
     if ($this->trap || $token->name === 'CDATA') {
 
       if ($token->name === 'CDATA') {
@@ -180,39 +183,47 @@ class Block {
         if ($this->trap === null && $this->trap = $token->flag) {
           $token->text = "\n";
           return $this->push($token);
-        }
-
-        elseif ($this->trap == trim($token->text))
+        } elseif ($this->trap == trim($token->text))
           return new self;
-
+        
         $token->name = 'CDATA';
         
-      } elseif ($this->trap === 'block' && ($token->depth == 1 || $token->depth < $this->precursor->depth)) {
+      } elseif (substr($this->trap, 0, 5) === 'block') {
         
-        return new self($token, $token->context ? $this->trap : null);
+        if (! $token->context && substr($this->trap, 5) === 'dl') {
+          $token->name    = 'dl';
+          $token->element = 'dd';
+          $token->depth   = $this->precursor->depth;
+        } else if ($token->name != $this->precursor->name && ($token->depth == 1 || $token->depth < $this->precursor->depth)) {
+          return new self($token, $token->context ? substr($this->trap, 0, 5) . $token->name : null);
+        }
       }
-      
 
       return $this->push($token);
     }
       
     
-    if ($token->name == 'blockquote' || $token->name == 'details') {
+    if ($token->name == 'blockquote' || $token->name == 'details' || $token->name == 'dl') {
       
-      $this->trap = 'block';
+      $this->trap = 'block' . $token->name;
       
       if ($this->precursor) {
         return new self($token, $this->trap); 
       }
       
-    } else if ($this->precursor && $token->name != $this->precursor->name && $token->depth == $this->precursor->depth) 
+    } elseif ($this->precursor && $token->name != $this->precursor->name && $token->depth == $this->precursor->depth) {
       return new self($token);
+    }
+      
 
     return $this->push($token);
   }
    
-  public function process(DOMElement $context): void
+  public function process(Parser $parser): void
   {
+    $this->parser = $parser;
+    $context = $this->parser->context;
+    
     foreach($this->token as $idx => $token) {
       if ($context instanceof DOMText) {
         $context->appendData($token->text);
@@ -226,23 +237,26 @@ class Block {
   
   private function append(DOMNode $context, Token $token, int $delta)
   {
-    if ($token->name == 'comment') {
-      $context->appendChild(new DOMComment($token->value));
+    if ($token->name == 'pi') {
+      $context->appendChild(new DOMProcessingInstruction(...explode(' ', $token->value, 2)));
       return $context;
     }
-
-    if ($token->name == 'pi' && $doc = $context->ownerDocument) {
-      $doc->insertBefore(new DOMProcessingInstruction(...explode(' ', $token->value, 2)), $doc->firstChild);
+    
+    if ($context instanceof Document) {
+      $name =  $context->evaluate("/processing-instruction('root')") ?: Parser::ROOT;
+      $context = $this->parser->context = $context->appendChild(new Element($name));
+    }
+    
+    if ($token->name == 'comment') {
+      $context->appendChild(new DOMComment($token->value));
       return $context;
     }
     
     if ($token->element && $token->name != 'CDATA' && ($context->nodeName != $token->name || $delta != 0) && $context->nodeName != 'tbody') {
       if ($delta > 0) {
-        // $delta += $this->trap ? 2 : 0;
         $context = $context->select(join('/', array_fill(0, $delta, '../..')));
       } else {
-        if ($delta < 0 && $token->element == 'li') {
-          // TODO, this gives problems with trapped elements like lists in details elems. rethink
+        if ($delta < 0 && $context->lastChild->nodeName == $token->element) {
           $context = $context->lastChild;
           $context->appendChild($context->ownerDocument->createElement('span')->adopt($context));
         }
@@ -281,9 +295,6 @@ class Block {
         (new Inline($element))->parse(null, $offset[1][1]);
       
     }
-    
-    
-
     return $context;
   }
 }
@@ -293,7 +304,7 @@ class Inline {
   const  RGXP = [
     'link'     => '/(!?)\[([^\[\]]++|(?R))\]\((\S+?)\s*(?:\"(.*)\")?\)/u',
     'basic'    => '/(?<!\\\)([~*_`^|]+|"")((?:(?!\1).)+)\1/u',
-    'tag'      => '/\{([-\w]+)\: ?([^{}]++|(?R)*)\}/u',
+    'clarify'  => '/\{([-\w, .]+) ?([:%@#=]) ?([^{}]++|(?R)*)\}/u',
     'autolink' => '/<((?>https?:\/)?\/([^<>]+))>/',
     'breaks'   => '/ +(\\\) /',
   ];
@@ -317,7 +328,6 @@ class Inline {
 
     if ($node->nodeName == 'li')
       array_unshift($mark, ...$this->gather('/^\[([x\s])\](.*)$/u', $text, [$this, 'input'], $offset));
-
     
     usort($mark, fn($A, $B)=> $B[2] <=> $A[2]);
 
@@ -356,52 +366,68 @@ class Inline {
     $out = mb_strlen($match[0]);
     return [$in, $out, $in+$out, $node];
   }
-    
-  private function basic($line, $match, $symbol, $text) {
-    $mark = substr($symbol[0], 0, 2 - strlen($symbol[0]) % 2);
-    $node = new Element(Token::INLINE[$mark], htmlspecialchars(trim($text[0]), ENT_XHTML, 'UTF-8', false));
-    return $this->offsets($line, $match, $node);
+  
+  private function makeNode($name, $value, array $attrs = [])
+  {
+    $node = $this->DOM->createElement($name, $value);
+    if ($value) $node->nodeValue = htmlspecialchars(trim($value), ENT_XHTML, 'UTF-8', false);
+    foreach ($attrs as $attr => $value) $node->setAttribute($attr, $value);
+    return $node;
   }
   
-  private function breaks($line, $match, $text)
+    
+  private function basic($line, $match, $symbol, $text)
   {
+    $mark = substr($symbol[0], 0, 2 - strlen($symbol[0]) % 2);
+    return $this->offsets($line, $match, $this->makeNode(Token::INLINE[$mark], $text[0]));
+  }
+  
+  private function breaks($line, $match, $text) {
     return $this->offsets($line, $match, new Element('br'));
   }
   
-  private function tag($line, $match, $tag, $text)
-  {
-    $text  = trim($text[0]);
-    $clean = preg_replace('/(?:\s?\[([^\]]+)\]\s?)?/', '', $text); 
-    $node = $this->DOM->createElement('data', htmlspecialchars($clean, ENT_XHTML, 'UTF-8', false));
-    $title = str_replace(['[', ']'], '', $text);
-    $node->setAttribute('title', str_replace(['‘', '’', '—'], ["'", "'", '--'], $title));
-    $node->setAttribute('value', $tag[0]);
-    return $this->offsets($line, $match, $node);
-  }
-  
-  public function autolink($line, $match, $pathordomain, $url)
-  {
+  public function autolink($line, $match, $pathordomain, $url) {
     return $this->link($line, $match, [false], $url, $pathordomain);
   }
   
   private function link($line, $match, $flag, $text, $url, $caption = null)
   {
-    if ($flag[0]) {
-      $node = $this->DOM->createElement('img');
-      $node->setAttribute('src', $url[0]);
-      $node->setAttribute('alt',  $text[0]);
-    } else {
-      $node = $this->DOM->createElement('a', htmlspecialchars(trim($text[0]), ENT_XHTML, 'UTF-8', false));
-      $node->setAttribute('href', $url[0]);
-    }
+    $args = $flag[0] ? ['img', null,     ['src'  => $url[0], 'alt' => $text[0]]]
+                     : ['a'  , $text[0], ['href' => $url[0]                   ]];
+
+    if ($caption[0] ?? false) $args[2]['title'] = $caption[0];
     
-    if ($caption[0] ?? false) {
-      $node->setAttribute('title', $caption[0]);
-    }
-    
+    return $this->offsets($line, $match, $this->makeNode(...$args));
+  }
+
+
+  private function clarify($line, $match, $tag, $symbol, $text)
+  {
+    $node = call_user_func([$this, Token::TRANSLATE[$symbol[0]]], trim($tag[0]), $text[0]);
     return $this->offsets($line, $match, $node);
   }
 
+  private function time($format, $timestring)
+  {
+    $date = new DateTime($timestring);
+    return $this->makeNode('time', $date->format($format), [
+      'datetime' => $date->format(DATE_ATOM),
+      'title' => $timestring,
+    ]);
+  }
+  
+  private function abbr($title, $text) {
+    return $this->makeNode('abbr', $text, ['title' => $title]);
+  }
+  
+  public function span($name, $text) {
+    return $this->makeNode('span', $text, ['class' => $name]);
+  }
+  
+  public function data($value, $text) {
+    return $this->makeNode('data', $text, ['value' => $value]);
+  }
+  
   private function input($line, $match, $checked, $text)
   {
     $node = $this->DOM->createElement('label', $text[0]);

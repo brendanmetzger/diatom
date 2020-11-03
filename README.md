@@ -7,11 +7,11 @@
 
 ## Overviews
 
-This framework is focused on creating reusable templates (^^HTML^^) and allowing them to be routed, reused and organized pretty well by default. If more control is desired, some light programming can facilitate that.
+This framework is focused on creating reusable templates ({Hypertext Markup Language % HTML}) and allowing them to be routed, reused and organized pretty well by default. If more control is desired, some light programming can facilitate that.
 
 ### Requirements
 
-The bulk of authorship is __completely standard__ xHTML, CSS, JavaScript. Then to program things, use PHP and reference [php.net](http://php.net) for misc. documentation (there are no dependencies).
+The bulk of authorship is __completely standard__ xHTML, {Cascading Stylesheets  % CSS}, JavaScript. Then to program things, use PHP and reference [php.net](http://php.net) for misc. documentation (there are no dependencies).
 
 - Linux or Mac OS)
 - php 7.4+ - `brew install php`  to get that if needed

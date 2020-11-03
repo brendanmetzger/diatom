@@ -46,6 +46,7 @@ li > ol {
   margin:0.25em 0;
   border-left: 1px dashed rgba(0 0 0 / 0.1);
 }
+
 li > span::before {content:' ⇃';}
 ol       { list-style: lower-greek;}
 ol ol    { list-style: decimal;}
