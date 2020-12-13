@@ -35,11 +35,12 @@ class Render
   {
     $this->document = $document;
     
+    if ($renders)
+      $this->parseInstructions($renders);
+
     foreach($this->document->find("/processing-instruction('render')") as $pi)
       $this->parseInstructions($pi->data);
     
-    if ($renders)
-      $this->parseInstructions($renders);
 
   }
   
@@ -47,47 +48,95 @@ class Render
   
   public function parseInstructions($text)
   {
-    preg_match_all('/([a-z]+)(?:\:([^\s]+))?,?/i', $text, $match, PREG_SET_ORDER|PREG_UNMATCHED_AS_NULL);
+    /*
+      TODO this regex could be tuned to use a lookahead of `,(space)` instead of [^,]
+    */
+    preg_match_all('/([a-z]+)(?:\:([^,]+))?,?/i', $text, $match, PREG_SET_ORDER|PREG_UNMATCHED_AS_NULL);
     foreach ($match as [$full, $method, $args])
       $this->renders[$method] = empty($args) ? [] : explode('|', $args);
   }
   
+  public function headers(?Element $context = null)
+  {
+    $context ??= $this->document->documentElement;
+    
+    $halts = ['section' => false, 'article' => false, 'h1' => false, 'h2' => false];
+    
+    foreach ($context->find('.//article/h1') as $node) {
+      $header = new Element('header');
+      $header->appendChild($node->parentNode->replaceChild($header, $node));
+      $header->setAttribute('id', trim(preg_replace('/[^a-z]+/', '-', strtolower($node)), '-'));
+      
+      $sibling = $header->nextSibling;
+
+      while($sibling && ($halts[$sibling->nodeName] ?? true)) {
+        $next = $sibling->nextSibling;
+        $header->appendChild($sibling);
+        $sibling = $next;
+      }
+    }
+  }
   
   private function sections(?Element $context = null, int $level = 2)
   {
-
-    if ($level > 5) return;
+    if ($level > 5) {
+      $this->asides();
+      return;
+    }
     
     $context ??= $this->document->documentElement;
     $flag      = "h{$level}";
-    $name      = $level > 4 ? 'aside' : 'section';
-    $query     = ".//{$flag}[not(parent::{$name}) or count(parent::{$name}/{$flag}) > 1]";
+    $query     = ".//{$flag}[not(parent::section) or count(parent::section/{$flag}) > 1]";
     $sections  = $this->document->find($query, $context);
-    
+    $halts     = [$flag => false, 'section' => false, 'figure' => false];
     if ($sections->length > 0) {
 
       foreach ($sections as $node) {
-        $section = new Element($name);
+        $section = new Element('section');
         $section->appendChild($node->parentNode->replaceChild($section, $node));
-        $section->setAttribute('id', preg_replace('/[^a-z]+/', '', strtolower($node)));
+        $section->setAttribute('id', trim(preg_replace('/[^a-z]+/', '-', strtolower($node)), '-'));
         $sibling = $section->nextSibling;
-  
-        while($sibling && $sibling->nodeName != $flag && $sibling->nodeName != $name) {
+        
+        if ($sibling && $sibling->nodeName == 'hr') {
+          $section->setAttribute('aria-label', $node->nodeValue);
+          $sibling->remove();
+          $sibling = $section->nextSibling;
+        }
+        
+        while($sibling && ($halts[$sibling->nodeName] ?? true)) {
           $next = $sibling->nextSibling;
           $section->appendChild($sibling);
           $sibling = $next;
         }
-      
-        $this->sections($section, $level+1);
       }
-    } else {
-      $this->sections($context, $level+1);
+    }
+    
+    $this->sections($context, $level+1);
+  }
+  
+  private function asides()
+  {
+    foreach ($this->document->find('//hr[@title]') as $node) {
+      $section = new Element('aside');
+      $node->parentNode->replaceChild($section, $node);
+      $section->setAttribute('aria-label', $node->getAttribute('title'));
+      $section->setAttribute('role', 'note');
+      
+      $halts   = ['section' => false, 'hr' => false];
+      $sibling = $section->nextSibling;
+      
+      while($sibling && ($halts[$sibling->nodeName] ?? true)) {
+        $next = $sibling->nextSibling;
+        $section->appendChild($sibling);
+        $sibling = $next;
+      }
     }
   }
   
   private function behavior() {
     foreach ($this->document->find('//style') as $node) {
       $text  = $node->replaceChild(new Text("\n    /**/\n    "), $node->firstChild)->nodeValue;
+      $node->setAttribute('id', md5($text));
       $cb    = fn($matches) => join(array_map('trim', explode("\n", $matches[0])));
       $cdata = sprintf("*/\n    %s\n    /*", preg_replace_callback('/(\{[^{]+\})/', $cb, preg_replace('/\n\s*\n/', "\n    ", trim($text))));
       $node->insertBefore($this->document->createCDATASection($cdata), $node->firstChild->splitText(7));
@@ -113,8 +162,9 @@ class Render
       $this->document->documentElement->setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
       foreach ($this->document->find('.//style|.//meta|.//link', $head->nextSibling) as $node) $head->appendChild($node);
       foreach ($this->document->find('.//title', $head->nextSibling) as $node) $head->replaceChild($node, $head->select('title'));
+      
       foreach ($this->document->find('.//summary[not(@role)]') as $node) {
-        $id = uniqid('DET_');
+        $id = $node->parentNode->getAttribute('id') ?: uniqid('DET_');
         $node->setAttribute('role', 'button');
         $node->setAttribute('aria-expanded', 'false');
         $node->setAttribute('aria-controls', $id);
@@ -122,13 +172,6 @@ class Render
         $node->parentNode->setAttribute('role', 'group');
       }
     } 
-  }
-  
-  private function example($color = "red")
-  {
-    foreach ($this->document->find('//body//*') as $node) {
-      $node->setAttribute('style', 'background-color: '. $color);
-    }
   }
   
   public function markdown($exp)

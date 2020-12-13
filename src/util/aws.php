@@ -17,17 +17,17 @@ class AWS {
     $this->secret = array_reduce($this->scope, fn($k, $m) => hash_hmac('sha256', $m, $k, true), 'AWS4'.$secret);
   }
     
-  static public function Transcribe(array $configuration) {
+  static public function Transcribe(array $config) {
     // There is no http api reference, so this will need to be pieced together trial and error
-    return new self('transcribe', '2017-10-26', ...$configuration);
+    return new self('transcribe', '2017-10-26', $config['key'], $config['secret'], $config['region']);
   }
 
-  static public function Transcode(array $configuration) {
-    return new self('elastictranscoder', '2012-09-25', ...$configuration);
+  static public function Transcode(array $config) {
+    return new self('elastictranscoder', '2012-09-25', $config['key'], $config['secret'], $config['region']);
   }
   
-  static public function S3(array $configuration, $bucket = '') {
-    return new self('s3', $bucket, ...$configuration);
+  static public function S3(array $config) {
+    return new self('s3', $config['bucket'], $config['key'], $config['secret'], $config['region']);
   }
   
   private function authorize($url, array $headers, $body, $method = "POST")

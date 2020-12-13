@@ -1,7 +1,7 @@
 #!/usr/bin/env php
 
 <?php chdir(dirname(__FILE__).'/..');
-      define('CONF', parse_ini_file('data/config.ini', true));
+      define('CONF', parse_ini_file('data/config', true));
       require 'src/kernel.php';
 
 
@@ -48,12 +48,12 @@ Route::test(function() {
     //   fgetc($this->input);
     //   $key = ord(fgetc($this->input));
     // }
-    
-    
-    
+
+
+
     echo $key . "\n";
   }
-  
+
   // for ($i=0; $i < 10; $i++) {
   //   sleep(1);
   //   echo "\e[1D";
@@ -83,20 +83,18 @@ try {
 
   $command = new Command(array_slice($argv,1));
   $output  = Route::delegate($command);
-  
+
 } catch (Exception | Error $e) {
-  
+
   print_r($e->getTrace());
   $output  = sprintf("\n\033[0;31m%s\033[0m\n", $e->getMessage());
   $output .= sprintf("line %s in %s\n", $e->getLine(), $e->getFile());
-  
+
 } finally {
 
 
   echo $output;
   echo "\n- Finished {$command->action} -\n";
   exit($command->status);
-  
+
 }
-
-

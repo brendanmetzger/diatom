@@ -98,7 +98,6 @@ class Token {
     ':' => 'span[@class]',
     '=' => 'data[@value]',
     '@' => 'time[@title]',
-    // '#' => '*/@aria-label', // still working out aria roles
   ];
   
   
@@ -277,8 +276,15 @@ class Block {
     
     $element = $context->appendChild(new Element($token->element ?? $token->name));
     
-    if ($token->name === 'hr')
+    
+    if ($token->name === 'hr') {
+      
+      if ($token->value)
+        $element->setAttribute('title', trim($token->value, ' -'));
+      
       return $context;
+    }
+      
     
     if ($token->name === 'CDATA')
       return $element->appendChild(new DOMText($token->text));
@@ -301,6 +307,7 @@ class Block {
       if (preg_match('/^[^!~*\[_`^|{<"\\\=]*+(.)/', $text, $offset, PREG_OFFSET_CAPTURE))
         (new Inline($element))->parse(null, $offset[1][1]);
     }
+    
     return $context;
   }
 }
@@ -345,6 +352,7 @@ class Inline {
       }
 
       $textnode = $node->firstChild;
+      
       while ($textnode->nodeType !== XML_TEXT_NODE) $textnode = $textnode->nextSibling;
 
       if ($split = $textnode->splitText($in)->splitText($out))
@@ -426,7 +434,7 @@ class Inline {
       'data-format' => $format,
     ]);
   }
-  
+    
   private function abbr($title, $text) {
     return $this->makeNode('abbr', $text, ['title' => $title]);
   }
@@ -452,7 +460,7 @@ class Inline {
 
 class Plain {
   
-  const METHODS = ['paragraphs', 'rules', 'list', 'headings', 'table', 'CDATA', 'blocks'];
+  const METHODS = ['CDATA', 'paragraphs', 'rules', 'list', 'headings', 'table', 'blocks'];
   
   static public function convert(DOMNode $node) {
     
@@ -461,6 +469,17 @@ class Plain {
                      : [$node->ownerDocument, $node];
     
     $instance = new self($DOM);
+    
+    // undo anything clever that may have happened during a render
+    foreach($DOM->find('/processing-instruction("render")') as $node) {
+      preg_match_all('/([a-z]+)(?:\:([^\s]+))?,?/i', $node->data, $match, PREG_SET_ORDER|PREG_UNMATCHED_AS_NULL);
+      foreach ($match as [$full, $name, $args]) {
+        $method = [$instance, $name];
+        if (method_exists(...$method)) {
+          call_user_func($method);
+        }
+      }
+    }
     
     foreach (self::METHODS as $method)
       call_user_func([$instance, $method], $context);
@@ -487,6 +506,20 @@ class Plain {
   public function __toString() {
     if ($head = $this->document->select('head')) $head->remove();
     return html_entity_decode(str_replace(['‘', '’', '—'], ["'", "'", '--'], trim(strip_tags($this->document))));
+  }
+  
+  public function sections()
+  {
+    foreach ($this->document->find('//*[@aria-label]') as $node) {
+      if ($heading = $node->select("*[substring-after(name(), 'h') > 0]")) {
+        $node->insertBefore(new Element('hr'), $heading->nextSibling);
+      } else {
+        $node->appendChild(new Element('hr'))->setAttribute('title', $node['@aria-label']);
+      }
+    }
+    // find any nodes with an aria-label.
+    // If the node contains a child h#, embed a hr after that node
+    // if it does not, embed an hr with a title of the aria-label
   }
   
   public function prefix($context, array $ancestors = [], $offset = 0) {
@@ -569,8 +602,12 @@ class Plain {
   }
   
   public function rules($context) {
-    foreach ($context->find('.//hr|.//br') as $node)
-      $node($node->nodeName == 'hr' ? "\n\n----\n\n" : ' \ ');
+    foreach ($context->find('.//hr|.//br') as $node) {
+      
+      $copy = $node->getAttribute('title') ?: '';
+      $node($node->nodeName == 'hr' ? "\n---- {$copy}\n" : ' \ ');
+    }
+      
   }
   
   

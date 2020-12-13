@@ -1,7 +1,6 @@
 <?php
 
-
-set_include_path(dirname(__FILE__));
+set_include_path(__DIR__);
 libxml_use_internal_errors(true);
 spl_autoload_register();
 
@@ -27,16 +26,18 @@ class Route {
   
   static public function delegate(routable $response)
   {
-    if (! $route = self::$paths[$response->action] ?? false)
+    if (! $route = self::$paths[$response->route] ?? false) {
       throw $response->reject(404, self::$paths);
+    }
     
     return $response->compose($route->fulfill($response), $route->path == Route::INDEX);
   }
   
-  static public function set($path, ?callable $callback = null, array $config = []) {
-    $path = strtolower(trim($path, '/'));
+  static public function set($path, ?callable $callback = null, array $config = [])
+  {
+    $path     = strtolower(trim($path, '/'));
     $instance = self::$paths[$path] ??= new self($path, $config['publish'] ?? 0);
-    $instance->info +=  $config;
+    $instance->info += $config;
     if ($callback === null) {
       $instance->template = $config['src'];
     } else {
@@ -51,7 +52,8 @@ class Route {
 
   // Note: this is really an alias for the above, but I like for writing quick bin/task stuff.
   // Warning: __callStatic to set route can potentially collide with an existing Route method
-  static public function __callStatic($action, $arguments) {
+  static public function __callStatic($action, $arguments)
+  {
     return self::set($action, ...$arguments);
   }
   
@@ -65,13 +67,13 @@ class Route {
     if (file_exists($stash)) {
       $routes = json_decode(file_get_contents($stash), true);
       foreach ($routes as $path => $info)
-        if (isset($info['path']))
+        if (isset($info['file']))
           self::set($path, null, $info);
 
     } else {
       
       foreach(Data::apply($files, 'Document::open') as $DOM) {
-        $path = $DOM->info['route'] ??= $DOM->info['path']['filename'];
+        $path = $DOM->info['route'] ??= $DOM->info['file']['filename'];
         self::set($path, null, $DOM->info);
       }
       
@@ -126,7 +128,7 @@ class Route {
     $response->fulfilled = true;
     $response->layout  ??= $this->info['layout'] ?? self::$paths[self::INDEX]->template;
     $response->render  ??= $this->info['render'] ?? null;
-      
+    
     return $out ?? $response($this->template);
   }
   
@@ -186,18 +188,19 @@ class File
     $this->type  = strtolower($this->info['extension'] ?? 'html');
     $this->info['scheme'] ??= ($this->type == 'gz' ? 'compress.zlib' : 'file');
     $this->local = substr($this->info['scheme'], 0, 4) != 'http';
-    $this->url = $this->info['url'] = $this->local ? $this->info['scheme'].'://' . realpath($this->uri) : $this->uri;
+    $this->url   = $this->info['url'] = $this->local ? $this->info['scheme'].'://' . realpath($this->uri) : $this->uri;
     $this->mime  = self::MIME[$this->type] ?? 'text/plain';
     $this->id    = md5($this->url);
     if ($content) $this->setBody($content);
   }
   
+  
   static public function load($path)
   {
-    $instance = new static($path);
+
+    $instance = new static((strncmp($path, '.', 1) ? $path : __DIR__.'/'.$path));
     
-    // 8.0 $content = file_get_contents($instance->url) ?? throw new Error('Bad path');
-    if (! $content = file_get_contents($instance->url)) throw new Error('Bad path: ' . $path);
+    if (! $content = file_get_contents($instance->url)) throw new Error('Bad path: ' . print_r($instance->info, true));
 
     return $instance->setBody($content);
   }
@@ -231,7 +234,7 @@ class File
 
 class Request
 {
-  const REGEX = '/^((?>[^.]*).*?)(?:\.(\w{1,5}))?$/i';
+  const REGEX = '/^((?>[^.]*).*?)(?:\.([a-z]\w{1,4}))?$/i';
   const TYPE  = 'html';
   
   public $uri, $method, $data = '', $headers = [];
@@ -239,7 +242,6 @@ class Request
   public function __construct(array $headers)
   {
     $uri = parse_url(urldecode($headers['REQUEST_URI']));
-
     $this->method  = $headers['REQUEST_METHOD'] ?? 'GET';
     $this->headers = $headers;
 
@@ -281,7 +283,7 @@ class Response extends File implements routable
 {
   use Registry;
   
-  public $params, $document, $request, $basic, $headers = [], $fulfilled = false, $layout = null, $render = null;
+  public $route, $params, $document, $request, $basic, $headers = [], $fulfilled = false, $layout = null, $render = null;
   
   public function __construct(Request $request, array $data = [])
   {
@@ -289,7 +291,7 @@ class Response extends File implements routable
     $this->merge($data);
     $this->request = $request;
     $this->params  = explode('/', $request->route);
-    $this->action  = strtolower(array_shift($this->params));
+    $this->route   = strtolower(array_shift($this->params));
     $this->id      = md5(join($request->headers));
     $this->basic   = $request->headers['HTTP_YIELD'] ?? ($request->mime != 'text/html');
   }
@@ -308,11 +310,11 @@ class Response extends File implements routable
   
   public function __invoke($path) {
     // when here, either no callback specified OR the callback returned void
-    return $path ? Document::open($path) : new Document("<p>\u{26A0} /{$this->action}</p>");
+    return $path ? Document::open($path) : new Document("<p>\u{26A0} /{$this->route}</p>");
   }
   
   public function reject(int $reason, $info = null): Exception {
-    return new Status($this->action . ' ' . Status::REASON[$reason], $reason);
+    return new Status($this->route . ' ' . Status::REASON[$reason], $reason);
   }
   
   public function header($resource, $header)
@@ -326,7 +328,7 @@ class Response extends File implements routable
     return strlen($header); // required by the cURL (see @HTTP class, cURL documentation)
   }
   
-  public function compose($payload, bool $default)
+  public function compose($payload, bool $is_index)
   {
     // if payload is not a DOM component or proper request, no processing to do
     if (! $payload instanceof DOMNode || $this->id === null) return $this->setBody($payload);
@@ -341,12 +343,14 @@ class Response extends File implements routable
       $layout = new Template(Document::open($payload->info['layout'] ?? $this->layout));
 
       // make sure we aren't putting the layout into itself
-      if (! $default)
+      if (! $is_index) {
+        $this->render = $payload->info['render'] ?? $this->render;
         Template::set($this->id, $payload); 
+      }
     }
     
     // render and transform the document layout
-    $output = $layout->render($payload->info + $this->data, $this->basic ? true : $this->id);
+    $output = $layout->render(['route' => $this->route] + $payload->info + $this->data, $this->basic ? true : $this->id);
     $output = Render::transform($output, $this->render);
     
     // convert if request type is not markup
@@ -358,44 +362,83 @@ class Response extends File implements routable
 /**
  * Controller | Usually extended, but can be instantiatied @see Route class.
  * 
+ * The premise of a controller is to A. call a method corresponding to the first parameter
+ * or B) Load a file should a method not exist.
 **/
+
+interface Authorized {
+  static public function check(ReflectionMethod $credentials);
+}
 
 abstract class Controller
 {
-  abstract protected function initialize(routable $response);
-
-  protected $response;
-
-  public function __set($key, $value) {
-    return $this->response->{$key} = $value;
-  }
+  protected $response, $path, $name;
   
-  public function __get($key) {
-    return $this->response->{$key};
-  }
-
-  public function yield($key, $value) {
-    return $this->response->yield($key, $value);
-  }
-  
-  public function index() {
+  public function GETindex() {
     $this->response->basic = true;
     return call_user_func($this->response, $this->response->layout);
   }
   
-  public function call(routable $response, $action = 'index', ...$params)
-  {
-    $this->response = $response;
-    $this->action   =  strtolower($action);
-    $this->initialize($response);
-    return $this($response->request->method . $action, $params);
+  final public function __set($key, $value) {
+    return $this->response->{$key} = $value;
   }
   
-  public function __invoke($action, $params) {
-    if (! is_callable([$this, $action])) throw new Exception("'{$action}' not found", 404);
-    return call_user_func_array([$this, $action], $params);
+  final public function __get($key) {
+    return $this->response->{$key};
+  }
+
+  final public function yield($key, $value) {
+    return $this->response->yield($key, $value);
+  }
+    
+  public function call(routable $response, $action = 'index', ...$params)
+  {
+    $instance = $this instanceof Proxy ? new $this->proxy($response, ...$this->props) : $this;
+    $instance->response = $response;
+    $instance->action   = strtolower($action);
+    return $instance($response->request->method . str_replace('-','_',$instance->action), $params);
+  }
+  
+  protected function open(array $ns = []): Document
+  {
+    /*
+      TODO use $this->request->uri instead of all the joins and pointless constructor stuff;
+    */
+    $path = strtolower(join('/',[$this->path, $this->action, ...$ns]));
+    
+    if (! $file = (glob($path.'.*')[0] ?? false))
+      $file = $path . '/index.html';
+    
+    return Document::open($file);
+  }
+
+  
+  final public function __invoke($action, $params) {
+    
+    if (! method_exists($this, $action))
+      return $this->open($params);
+    
+    $method = new ReflectionMethod($this, $action);
+    
+    // authenticate user: if ok, override visibility in check
+    if ($method->isPrivate())
+      array_unshift($params, Model\Agency::check($method));
+    
+    return $method->invokeArgs($this, $params);
   }
 }
+
+Class Proxy Extends Controller {
+  protected $proxy, $props;
+  
+  public function __construct(string $proxy, array $props = [])
+  {
+    $this->proxy = $proxy;
+    $this->props = $props;
+  }
+}
+
+
 
 /**
  * Redirect | use as a controller, or throw anywhere to get a redirect going
@@ -404,6 +447,7 @@ abstract class Controller
 
 class Redirect extends Exception {
   const STATUS    = ['permanent' => 301, 'temporary' => 302, 'other' => 303];
+  public $location = null;
   public $headers = [
     ['Cache-Control: no-store, no-cache, must-revalidate, max-age=0'],
     ['Cache-Control: post-check=0, pre-check=0', false],
@@ -411,14 +455,16 @@ class Redirect extends Exception {
   ];
   
   public function __construct(string $location, $code = 'temporary') {
-    $this->headers[] = ["Location: {$location}", false, self::STATUS[$code]];
+    $this->headers['location'] = ["Location: {$location}", false, self::STATUS[$code]];
   }
   
-  public function call(routable $response) {
+  public function call(routable $response, ...$path)
+  {
+    $this->headers['location'][0] = sprintf($this->headers['location'][0], join('/', $path));
     throw $this;
   }
   
-  public function __invoke() {
+  public function __invoke(...$path) {
     foreach ($this->headers as $header) header(...$header);
   }
 }
@@ -434,29 +480,50 @@ class Redirect extends Exception {
 class Template
 {
   private static $yield = [];
+  
   # Note, this has a DOMNode as typecase, but should be Document|Element in 8.0
   static public function set(string $key, DOMNode $stub = null) {
     self::$yield[$key] = $stub;
   }
   
-  private $DOM, $slugs = [], $cache = null;
+  private $DOM, $slugs = [];
   
   public function __construct(DOMnode $node)
   {
     Render::set('before', $node);
+    
     if ($node instanceof Element && $doc = $node->ownerDocument) {
       $this->DOM = new Document($doc->saveXML($node));
       $this->DOM->info = $doc->info ?? null;
     } else {
       $this->DOM = $node;
     }
-    
   }
   
-  public function reset() {
-    $this->DOM->replaceChild($this->cache->cloneNode(true), $this->DOM->firstChild);
+  private function insert(iterable $stubs, $data, bool $cleanup = true)
+  {
+    foreach ($stubs as [$cmd, $path, $xpath, $context]) {
+      
+      if (strpos($path, '*') !== false) {
+        $this->insert(Data::apply(glob($path), fn($path) => [$cmd, $path, $xpath, $context]), $data, false);
+        continue;
+      }
+      
+      $DOM = is_file($path) ? Document::open($path)
+                            : Request::GET($path, $data)->document;
+      
+      $ref = $context->parentNode;
+      
+      foreach ($DOM->find($xpath) as $node) {
+        if (! $node instanceof Text)
+          $node = (new self($node))->render($data)->documentElement;
+        
+        $ref->insertBefore($this->DOM->importNode($node, true), $context);
+      }
+      
+      if ($cleanup) $ref->removeChild($context);
+    }
   }
-
   
   public function render($data = [], $ruid = null): Document
   {
@@ -469,36 +536,25 @@ class Template
       }
     }
 
-    foreach ($this->getStubs('insert') as [$cmd, $path, $xpath, $context]) {
-      $DOM = is_file($path) ? Document::open($path) : Request::GET($path, $data)->document;
-      
-      $ref = $context->parentNode;
-      foreach ($DOM->find($xpath) as $node) {
-        if (!$node instanceof Text)
-          $node = (new self($node))->render($data)->documentElement;
-        
-        $ref->insertBefore($this->DOM->importNode($node, true), $context);
-      }
-      $ref->removeChild($context);
-    }
-    
+    $this->insert($this->getStubs('insert'), $data);
 
     foreach ($this->getStubs('iterate') as [$cmd, $key, $exp, $ref]) {
-      $context  = $slug = $ref->nextSibling;
       
-      $template = new self($context);
-      $template->cache = $template->DOM->documentElement->cloneNode(true);
-      $invert   = $exp !== '/';
+      $template = new self($ref->nextSibling->remove());
+      $template->getSlugs("[not(ancestor-or-self::*/preceding-sibling::comment()[starts-with(normalize-space(.), 'iterate')])]");
       
+      $reset  = $template->DOM->documentElement->cloneNode(true);
+      $invert = $exp !== '/';
+      $slug   = $ref;
+
       foreach (Data::fetch($key, $data) ?? [] as $datum) {
         if ($import = $template->render($datum, $ruid ?? true)->documentElement) {
           $node = $this->DOM->importNode($import, true);
-          $slug = $context->parentNode->insertBefore($node, $invert ? $slug : $context);
-          $template->reset();
+          $slug = $ref->parentNode->insertBefore($node, $invert ? $slug : $ref);
+          $template->DOM->replaceChild($reset->cloneNode(true), $template->DOM->firstChild);
         }
       }
       
-      $context->remove();
       $ref->parentNode->removeChild($ref);
     }
     
@@ -509,63 +565,61 @@ class Template
   
   private function parse($data)
   {
+    $audit = [];
     foreach ($this->getSlugs() as $path => $slugs) {
       if ($node = $this->DOM->select($path)) {
-        $text = $node->nodeValue;
+
         foreach ($slugs as [$key, $offset]) {
           $replacement = Data::fetch($key, $data);
-          if ($replacement === null && $node->remove()) continue 2;
-          $text = substr_replace($text, $replacement, ...$offset);
+          if ($replacement === null && $audit[] = $node) continue 2;
+          $node->replace($replacement, ...$offset);
         }
-        $node($text);
-        // Parser::markdown($node($text)));
       }
     }
+    foreach ($audit as $node) $node->remove();
   }
   
+
   private function getStubs($key): iterable
   {
-    $exp = "comment()[starts-with(normalize-space(.), '{$key}')";
-    if ($key == 'iterate')
-      $exp .= " and not(ancestor::*/preceding-sibling::{$exp}])";
-      
-    return Data::apply($this->DOM->find("//{$exp}]"), function($node) {
-      $data = preg_split('/\s+/', ltrim(trim($node->data), '/'), 3);
-      return $data + [1 => null, 2 => '/', 3 => $node];
-    });
-  }
+    $x = "comment()[starts-with(normalize-space(.), '{$key}')]";
 
-  protected function getSlugs(): iterable
+    if ($key == 'iterate')
+      $x .= "[not(ancestor-or-self::*/preceding-sibling::{$x})]";
+      
+    return Data::apply($this->DOM->find("//{$x}"), fn($n) =>
+      preg_split('/\b\s+/', trim($n->data), 3) + [1 => null, 2 => '/', 3 => $n]
+    );
+  }
+  
+
+  protected function getSlugs($skip = ''): iterable
   {
-    /*
-      TODO mark nodes containing replacements as uneditable (remove @data-path attr prolly)
-    */
     if (empty($this->slugs)) {
-      $xp = "contains(.,'\${') and not(*)";
-      foreach ( $this->DOM->find("//*[{$xp} and not(self::script or self::code)]|//*/@*[{$xp}]") as $var ) {
-        $path  = $var->getNodePath();
+      
+      $xp = 'contains(.,"${")';
+
+      foreach ( $this->DOM->find("//*[not(self::script or self::code)]{$skip}/text()[{$xp}]|//*{$skip}/@*[{$xp}]") as $node ) {
+        $path = $node->getNodePath();
+        $text = $node->textContent;
+      
         $this->slugs[$path] ??= [];
         
-        preg_match_all('/\$\{[^}]+\}+/i', $var, $match, PREG_OFFSET_CAPTURE);
+        preg_match_all('/\$\{[^}]+\}+/i', $text, $match, PREG_OFFSET_CAPTURE);
         
         foreach (array_reverse($match[0]) as [$k, $i]) {
 
-          $split = [mb_strlen(substr($var, 0, $i)), mb_strlen($k)];
-          $node  = $var->firstChild->splitText($split[0])->splitText($split[1])->previousSibling;
-          $key   = substr($node->nodeValue, 2, -1);
+          $split = [mb_strlen(substr($text, 0, $i)), mb_strlen($k)];
+          $key   = substr($text, $split[0]+2, $split[1] - 3);
           
+          // Scope change, ie, ${${key}}. Skip and adjust offset starts of already-set slugs
           if ($key[0] == '$') {
             foreach($this->slugs[$path] as &$item) $item[1][0] -= 3;
-            if ($this->cache instanceof Element)
-              $this->cache->nodeValue = str_replace($key, substr($key, 2, -1), $this->cache);
-            
-            $node($key);
+            $node->replace($key, ...$split);
             continue;
           }
-          
           $this->slugs[$path][] = [$key, $split];
         }
-        
       }
     }
     return $this->slugs;
@@ -583,7 +637,7 @@ class Document extends DOMDocument
 {
   static private $cache = [];
   // accepts string|File
-  static public function open($path, $opt = [])
+  static public function open($path, array $opt = [])
   {
     $key = is_string($path) ? $path : $path->id;
     
@@ -606,9 +660,9 @@ class Document extends DOMDocument
       $DOM->info[$pi->target] = trim($pi->data);
     
     $DOM->info['src']     = $path;
-    $DOM->info['path']    = $file->info;
-    $DOM->info['title'] ??= ucwords(str_replace('-', ' ', $DOM->info['path']['filename']));
-        
+    $DOM->info['file']    = $file->info;
+    $DOM->info['title'] ??= ucwords(str_replace('-', ' ', $DOM->info['file']['filename']));
+    $DOM->info['size']    = $file->size;
     return self::$cache[$key] = $DOM;
   }
   
@@ -655,8 +709,13 @@ class Document extends DOMDocument
     return Data::apply($this->find($exp, $context), $callback);
   }
   
-  public function save($path) {
-    return file_put_contents($path, $this->saveXML(), LOCK_EX);
+  public function save($path = null, $validate = false) {
+    if ($validate && ! $this->validate()) {
+      // todo develop routine for validation problems
+      print_r(libxml_get_errors());
+    }
+    
+    return file_put_contents($path ?? $this->info['src'], $this->saveXML(), LOCK_EX);
   }
 }
 
@@ -690,6 +749,10 @@ class Element extends DOMElement implements ArrayAccess {
     return $this;
   }
   
+  public function rename(Element $node)
+  {
+    return $node->adopt($this->parentNode->replaceChild($node, $this));
+  }
 
   public function offsetExists($key) {
     return $this->find($key)->length > 0;
@@ -732,12 +795,35 @@ class Element extends DOMElement implements ArrayAccess {
 
 class Text extends DOMText {
   use DOMtextUtility; 
+  
   public function __construct(string $input, ...$args) {
     parent::__construct($args ? vsprintf($input, $args) : $input);
+  }
+  
+  public function remove() {
+    return ($parent = $this->parentNode) ? $parent->remove() : null;
+  }
+  
+  public function replace($data, int $start, int $length)
+  {
+    if ($data instanceof DOMNode) {
+      $stub = $this->splitText($start)->splitText($length)->previousSibling;
+      $this->parentNode->replaceChild($this->ownerDocument->importNode($data, true), $stub);
+    } else {
+      $this->replaceData($start, $length, $data);
+    }
+      
+      
   }
 }
 class Attr extends DOMAttr {
   use DOMtextUtility;
+  
+  public function replace(string $data, int $start, int $length)
+  {
+    $this(substr_replace($this->value, $data, $start, $length));
+  }
+  
   public function remove() {
     return ($elem = $this->ownerElement) ? $elem->removeAttribute($this->nodeName) : null;
   }
@@ -758,10 +844,7 @@ trait DOMtextUtility
   }
 }
 
-/**
- * Data stuff
- *
-**/
+
 
 trait Registry {
   public $data = [];
@@ -776,6 +859,8 @@ trait Registry {
   }
 }
 
+
+
 class Data extends ArrayIterator
 {
   public $length = 0;
@@ -785,15 +870,13 @@ class Data extends ArrayIterator
   {
     if (is_array($namespace)) {
       while ($key = array_shift($namespace)) {
-        $data = $data[$key] ?? null;
+        $data = $data[$key] ?? $data->key ?? null;
         if (is_callable($data) && ! $data instanceof Element) {
           return $data(...$namespace);
         }
-
       }
       return $data;
     }
-    
     return $data[$namespace] ?? self::fetch(explode($wedge, $namespace), $data);
   }
     
@@ -838,9 +921,9 @@ class Data extends ArrayIterator
     return new CallbackFilterIterator($this, $callback);
   }
 
-  public function limit($start, $length = -1) {
+  public function limit(int $start, int $length = -1) {
     $start-= 1;
-    $start = ($length > 0 ? $start * $length : $start);
+    $start = $length > 0 ? $start * $length : $start;
     $limit = new LimitIterator($this, $start, $length);
     $limit->length = $this->length;
     return $limit;
@@ -856,42 +939,79 @@ class Data extends ArrayIterator
  *
 **/
 
-abstract class Model implements ArrayAccess {
-  protected $context;
+abstract class Model implements ArrayAccess
+{
+  public const SOURCE = null;
+  public const ID     = '//*[@id="%s"]';
+  public $context, $initialized;
+  
+  protected function initialize($context):bool
+  {
+    return true;
+  }
+  
+  /**
+   * Factory method that returs a modeled collection from a query
+   *
+   * @param string $model 
+   * @param string $query 
+   * @return void
+   * @author Brendan Metzger
+   */
+  static public function __callStatic(string $model, $query)
+  {
+    $model = "Model\\{$model}";
+    return Document::open($model::SOURCE)->map(join('|', $query), fn($node) => new $model($node));
+  }
+  
   
   static public function FACTORY($model, $method, ...$args)
   {
     $model = "\\model\\{$model}";
     return $model::$method(...$args);
   }
+  
+  /**
+   * Create an instance by id
+   *
+   * This has some magic so it can be directly used from a template w/
+   * Modelname::ID.2343.whatevermethod.whatevermethod
+   *
+   */
+  static public function ID($id, ...$params) {
+    if (static::SOURCE === null) {
+      throw new Error("Model has not specified a data source", 500);
+    }
+    
+    $context = Document::open(static::SOURCE)->select(sprintf(static::ID, $id));
+    return array_reduce($params, fn($c, $k) => $c[$k], new static($context));
+  }
 
-  public function __construct(Element $context) { 
+  final public function __construct($context) { 
     $this->context = $context;
   }
-  
-  public function collect(string $expression) {
-    return Data::apply($this->context->find($expression), fn($item) => new static($item));
-  }
-      
+        
   public function offsetExists($key) {
+    
     return isset($this->context[$key]) || method_exists($this, "get{$key}");
   }
 
   public function offsetGet($key)
   {
     if (property_exists($this, $key)) return $this->{$key};
-
+    
+    $initialized ??= $this->initialize($this->context);
+    
     $method  = "get{$key}";
     return method_exists($this, $method) ? $this->{$method}($this->context) : $this->context[$key];
   }
-
+  
   public function offSetSet($key, $value) {
     return $this->context[$key] = $value;
   }
 
   public function offsetUnset($key) {
     unset($this->context[$key]);
-    return true;
   }
   
   final public function __toString() {

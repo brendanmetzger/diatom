@@ -103,7 +103,7 @@ class Sprite extends \File
   }
   
   
-  static public function update(int $cellsize, array $boardsize, \Data $images)
+  static public function update($key, int $cellsize, array $boardsize, \Data $images)
   {
     $log  = new Bench('start', $images->length);
     $area = array_product($boardsize);
@@ -111,8 +111,8 @@ class Sprite extends \File
     // TODO deal with path config here
 
     foreach ($images as $counter => $image) {
-      $path = sprintf('media/sprites/origin/%s.%s.%s.jpg', ceil($image['idx'] / $area) - 1, $cellsize, $area);
-      self::instance($path)->set($image['idx'], new Image($image['blob']));
+      $path = sprintf('media/sprites/%s/%s.%s.%s.jpg', $key, ceil($image['idx'] / $area) - 1, $cellsize, $area);
+      self::instance($path)->set($image['idx'], new Image(new \File($image['idx'], $image['blob'])));
       echo $log->progress($counter, "processing {$counter}");
     }
     

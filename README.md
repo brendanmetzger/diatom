@@ -84,25 +84,15 @@ Templating is a powerful feature, and it stems from a premise that all content a
   An ~insert~ is a direct call to another piece of content that lives at the end of a path
   `<!-- insert path/to/file.html-->` inserts a file directly
   `<!-- insert endpoint -->` inserts the result of a routed or dynamic url result
-: Yield
+: yield
   A ~yield~ stub means some programatic  aspect has determined how and what `Document` or `Element` will be inserted.
   `<!-- yield -->` on its own will default to inserting the result of the `Route::delegate` operation, and it is scoped to the  response object. *It replaces it's next `Element` sibling.*
-  `<!-- yield keyword -->` also replaces with keyword from dynamic route; `$this->yield('keyword', string path or <Document>)`
-  `<!-- yield keyword ! -->` similar to above but performs an *insert* instead of  swapping next sibling
+  `<!-- yield keyword -->` also replaces with keyword from dynamic route; Tell the response what to do with `$this->yield('keyword', string path or <Document>)`
+  `<!-- yield keyword -->` similar to above but performs an *insert* instead of  swapping next sibling
   ~yield~ stubs do nothing if the content they stub out is unspecified or does not exist
 : iterate
-  The ~iterate~ stub grabs the `nextSibling` and continuously inserts that Element over the iteration of some dataset
-  This is (probably) most appropriate to use in conjunction with template variables.
-
-### Caveats
-
-#### variables cannot mix contexts:
-
-`<li>${A} ${B}</li>` is Ok, A and B share the same context
-
-`<li>${A} <span>${B}</span></li>` is **not** ok:  B is in an `Element` adjacent to a `Text` node (which contains A). The variable parser will ignore these conditions.  (TODO;  reconsider this, if it can be done elegantly)
-
-`<li><span>${A}</span> <span>${B}</span></li>` is OK as both variables have a single nodetype (`Text`) as a context
+  ~iterate~ stub grabs the `nextSibling` node, reinserting it against an enumerable dataset
+  Template Variables are scoped to the node getting iteraterated. If you need to access a variable outside of the scope, wrap the variable: `${${parent.scope}} vs. ${data.block.scope}`
 
 ### Renderers
 
@@ -130,6 +120,7 @@ the assumed layout,  derived from `index.html` file is stored here
 : src/
 
 holds all php files
+
 serves as the application root, which means when a file is explicitely declareded as relative (ie, `./file` or `../file`) then the reference point is this directory. This may not seem intuitive, but it is a hard rule, and easy to remember, which is especially useful when the context of a file is murky, such as deeply namespace files n such
 
 : data/

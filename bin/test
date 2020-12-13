@@ -9,7 +9,7 @@ if ($version < 7.4) {
 }
 
 // Assuming php is correct, now we can load in framework
-define('CONF', parse_ini_file('data/config.ini'));
+define('CONF', parse_ini_file('data/config'));
 require 'src/kernel.php';
 
 
@@ -20,47 +20,41 @@ ini_set('zend.assertions',  1);
 /**** TESTS ******************************************************************/
 
 try {
-  
-  
+
+
   // Can Create Document
   $testA = new Document('<ok/>');
   assert("<ok/>" === (string) $testA);
 
-  
-  // Can Render a Template 
+
+  // Can Render a Template
   $testB = (new Template(new Document('<ok value="${msg}"/>')))->render(['msg' => 'ok'], true);
   assert('<ok value="ok"/>' === (string) $testB);
-  
-  
+
+
   // can convert markdown to html
-  
+
   // can convert html to markdown
-  
+
   // can load a static route
-  
+
   // can load a dynamic route
-  
+
   // Can Make a Request
-  
+
   // Can chain requests
-  
+
   // Can 'fulfill' request early
-  
-  
+
+
 } catch (Exception $e) {
-  
+
   echo "Tests not run due to exception: {$e->getMessage()}\n";
-  
+
 } catch (AssertionError $e) {
-  
+
   echo "There was an assertion error:\n  {$e->getMessage()}\n";
   echo "  bin/test: line " . $e->getLine() . "\n\n";
 
   exit(1);
 }
-
-
-
-
-
-

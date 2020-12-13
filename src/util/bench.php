@@ -21,12 +21,12 @@ class Bench {
   
   public function split($key, $split = false) {
     $this->mark[$key] = hrtime(true);
-    if ($split) $this->split[$key] = ($this->mark[$key] - $this->mark[$split]) / 1e+9;
+    if ($split) $this->split[$key] = ($this->mark[$key] - $this->mark[$split]) / 1e+6;
     return $split ? $this->split[$key] : $this->mark[$key];
   }
   
   // use task count to draw a progress bar, useful for slower processes with lots of stuff to do
-  public function progress($index, $msg = '', $total = 50):string  {
+  public function progress($index = 1, $msg = '', $total = 50):string  {
     $prog = $index / $this->counter;
     $crlf = ($prog === 1) ? "\n" : "\r";
     return sprintf("% 5.1f%% [%-{$total}s] %s %s", $prog * 100, str_repeat('#', round($total * $prog)), $msg, $crlf);
