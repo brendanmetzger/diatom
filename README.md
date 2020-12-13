@@ -87,6 +87,7 @@ Templating is a powerful feature, and it stems from a premise that all content a
 : yield
   A ~yield~ stub means some programatic  aspect has determined how and what `Document` or `Element` will be inserted.
   `<!-- yield -->` on its own will default to inserting the result of the `Route::delegate` operation, and it is scoped to the  response object. *It replaces it's next `Element` sibling.*
+  `<!-- yield keyword ! -->` similar to above but performs an *insert* instead of  swapping next sibling
   `<!-- yield keyword -->` also replaces with keyword from dynamic route; Tell the response what to do with `$this->yield('keyword', string path or <Document>)`
   `<!-- yield keyword -->` similar to above but performs an *insert* instead of  swapping next sibling
   ~yield~ stubs do nothing if the content they stub out is unspecified or does not exist

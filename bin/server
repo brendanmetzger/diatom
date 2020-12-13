@@ -3,17 +3,13 @@
 
 if (php_sapi_name() == 'cli') {
 
-  // run tests before starting
-  system('../bin/test', $status);
-
-  if ($status > 0) exit(1);
-
-  $host = "127.0.0.1:8888";
-  $log  = 'app.log';
+  $host  = "127.0.0.1:8888";
+  $log   = 'app.log';
+  $input = fopen('php://stdin', 'r');
 
   if ($running = shell_exec(sprintf('ps -x | grep "[p]hp -S %s"', $host))) {
 
-    $input = fopen('php://stdin', 'r');
+
     $info  = preg_split('/\s+/', trim($running));
 
     exec('stty cbreak -echo');
@@ -21,6 +17,7 @@ if (php_sapi_name() == 'cli') {
 
     if (ord(fgetc($input)) == 10) {
       unlink($log);
+      unlink('../data/config');
       shell_exec("kill -2 {$info[0]}");
       echo "cleared logs, server off.\n";
     }
@@ -29,6 +26,29 @@ if (php_sapi_name() == 'cli') {
     exit;
 
   }
+
+  echo "\nSPECIFY CONFIGURATION\n";
+  $configs = glob('../data/*.ini');
+
+  foreach ($configs as $idx => &$file) {
+    $file = pathinfo(realpath($file));
+    echo $file['filename'] . ' [' . ($idx + 1) . "]\n" ;
+
+  }
+  echo "\n\nChoice: ";
+
+
+
+  $config = $configs[fgetc($input) - 1];
+  $target = $config['dirname'] . '/' .  $config['basename'];
+
+  symlink($target, '../data/config');
+
+
+  // run tests before starting
+  system('../bin/test', $status);
+
+  if ($status > 0) exit(1);
 
   echo "Starting localhost server on port 8888 (modify port if necessary and/or delete message)\n";
   touch('pages/index.html');

@@ -8,4 +8,4 @@
 .Trashes
 
 views/**/_*
-data/*
+data/config
