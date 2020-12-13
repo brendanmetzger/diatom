@@ -1,9 +1,27 @@
 # Diatom
 
-*This template framework is a quick starting point. This template framework is a quick starting point. Philosophically, it is not much for configuration or rules, but seeks to create patterns for creating and organizing well-structured documents.*
+*Philosophically this framework is a pattern-making aid for creating and organizing well-structured documents. There are few configuration rules, and no rigid structure to start things off.*
 
 
 > This file is written in an extended markdown that includes definition lists (`<dl>`), disclosure elements (`<details>`) as well as many other inline elements such as `<time>`, `<data>`, `<cite>`,  `<dfn>`, `<abbr>`, `<small>`, `<mark>` and `<q>`, `<input>` checklists and `<table>`. Raw HTML is never allowed, for reasons that become clearer with use.
+
+## Definitions
+
+: Document
+  A Document refers to either a *structurally valid* {eXtensible markup language % XML} or {hypertext markup language % HTML} text file rendering a Document Object Model
+  Assume any grammer or variables mentioning 'document' or 'dom' are structured markup  *Documents* unless otherwise specified, ie., "a {javascript object notation % json} document"
+  Documents are modeled information, and care should be taken when interacting as one would on a database. Ie., `$node->nodeValue = "<em>neat</em>"` is incorrect in contrast to `$node->appendChild(new Element('em', 'neat'));` This is not a visual task, but creating a context that could be visualized, queried, reformatted, etc.
+: Template
+  A Document that has been loaded to be parsed and Rendered
+  Parsing a Document involves embedding other Documents and variables via ~yield~, ~insert~ and ~iterate~ and looking for template variables to be swapped out with mapped items from a data set
+: Render
+  A function or method that modifies a Document's structure
+  Templates carryout the rendering process
+  Renders can be specified to be performed in numerous ways: within a Document via processing instructions,specified in a dynamic route's configuration argument, or defined statically as before/after methods during Template parsing, ie., `Render::set('before', fn($dom) => // modify $dom);`
+: Route
+  An endpoint that can be specified to return data corresponding to a user's request
+  Data can be any format, but usually (and defaults to) a Document (that can be ~Rendered~)
+  Routes can defualt to actual html files in a directory, or can be specifed in `index.html`
 
 ## Overviews
 
@@ -11,7 +29,7 @@ This framework is focused on creating reusable templates ({Hypertext Markup Lang
 
 ### Requirements
 
-The bulk of authorship is __completely standard__ xHTML, {Cascading Stylesheets  % CSS}, JavaScript. Then to program things, use PHP and reference [php.net](http://php.net) for misc. documentation (there are no dependencies).
+The bulk of authorship is __completely standard__ xHTML, {Cascading Stylesheets % CSS}, JavaScript. Then to program things, use PHP and reference [php.net](http://php.net) for misc. documentation (there are no dependencies).
 
 - Linux or Mac OS)
 - php 7.4+ - `brew install php`  to get that if needed
@@ -66,12 +84,11 @@ Templating is a powerful feature, and it stems from a premise that all content a
   An ~insert~ is a direct call to another piece of content that lives at the end of a path
   `<!-- insert path/to/file.html-->` inserts a file directly
   `<!-- insert endpoint -->` inserts the result of a routed or dynamic url result
-
 : Yield
   A ~yield~ stub means some programatic  aspect has determined how and what `Document` or `Element` will be inserted.
   `<!-- yield -->` on its own will default to inserting the result of the `Route::delegate` operation, and it is scoped to the  response object. *It replaces it's next `Element` sibling.*
   `<!-- yield keyword -->` also replaces with keyword from dynamic route; `$this->yield('keyword', string path or <Document>)`
-  `<!-- yield keyword -->` similar to above but performs an *insert* instead of  swapping next sibling
+  `<!-- yield keyword ! -->` similar to above but performs an *insert* instead of  swapping next sibling
   ~yield~ stubs do nothing if the content they stub out is unspecified or does not exist
 : iterate
   The ~iterate~ stub grabs the `nextSibling` and continuously inserts that Element over the iteration of some dataset
@@ -105,12 +122,19 @@ Templating is a powerful feature, and it stems from a premise that all content a
 : view/
   contains template files, CSS, JavaScript, media--essentially the document root
   : pages/
-      html files are stored here
-      the assumed layout,  derived from `index.html` file is stored here
-  : src/
-      holds all php files
-  : data/
-      xml, json, configs--anything that doesn't want to be tracked in a main repo but is integral to site functionality
+
+html files are stored here
+
+the assumed layout,  derived from `index.html` file is stored here
+
+: src/
+
+holds all php files
+serves as the application root, which means when a file is explicitely declareded as relative (ie, `./file` or `../file`) then the reference point is this directory. This may not seem intuitive, but it is a hard rule, and easy to remember, which is especially useful when the context of a file is murky, such as deeply namespace files n such
+
+: data/
+
+xml, json, configs--anything that doesn't want to be tracked in a main repo but is integral to site functionality
 
 ### Output Formats
 
@@ -121,7 +145,7 @@ The response type will honor the extension of the 'file' requested, and default 
 
 ### Routing
 
-TODO
+Routes are declared in `view/pages/` or `view/index.php`; **always** look there at the first argument in the url to find where the actual page might be called.
 
 ### Models
 

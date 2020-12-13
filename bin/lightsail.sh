@@ -3,7 +3,7 @@
 # Web Server Ready
 sudo apt-get update
 sudo apt-get install -y apache2
-sudo apt-get install -y php7.4 php-fpm php-cli php-xml php-mbstring php-gd php-curl php-zip
+sudo apt-get install -y php7.4 php-fpm php-cli php-xml php-mbstring php-gd php-curl php-zip php-gmp
 
 # Http 2
 
@@ -22,3 +22,15 @@ sudo ln -s /snap/bin/certbot /usr/bin/certbot
 # still need to run > `sudo certbot --apache` once site is configured
 
 # Configure Webserver
+
+#TODO
+
+sudo addgroup web
+sudo adduser ubuntu web
+sudo adduser www-data web
+
+# see that everything looks good
+getent group web
+
+sudo chgrp -R web ..whatever/needs/changin
+sudo chmod -R g+rwx ..whatever/needs/changin

@@ -295,7 +295,9 @@ class Response extends File implements routable
   }
   
   public function setBody($content):File {
-    $this->document = $content;
+    $this->document = $content instanceof Element
+                    ? new Document($content->ownerDocument->saveXML($content))
+                    : $content;
     return parent::setBody((string)$content);
   }
   
@@ -384,14 +386,14 @@ abstract class Controller
   public function call(routable $response, $action = 'index', ...$params)
   {
     $this->response = $response;
-    $this->action   = strtolower($action);
+    $this->action   =  strtolower($action);
     $this->initialize($response);
-    return $this($action, $params);
+    return $this($response->request->method . $action, $params);
   }
   
   public function __invoke($action, $params) {
-    if (! is_callable([$this, $this->action])) throw new Exception("'{$action}' not found", 404);
-    return call_user_func_array([$this, $this->action], $params);
+    if (! is_callable([$this, $action])) throw new Exception("'{$action}' not found", 404);
+    return call_user_func_array([$this, $action], $params);
   }
 }
 
@@ -528,7 +530,7 @@ class Template
       $exp .= " and not(ancestor::*/preceding-sibling::{$exp}])";
       
     return Data::apply($this->DOM->find("//{$exp}]"), function($node) {
-      $data = preg_split('/\s+/', trim($node->data), 3);
+      $data = preg_split('/\s+/', ltrim(trim($node->data), '/'), 3);
       return $data + [1 => null, 2 => '/', 3 => $node];
     });
   }
@@ -618,7 +620,7 @@ class Document extends DOMDocument
   
   public function  __construct(?string $xml = null, array $props = [])
   {
-    parent::__construct('1.0', 'UTF-8');
+    parent::__construct('1.0', 'utf-8');
 
     foreach (( $props + $this->props ) as $p => $value) $this->{$p} = $value;
     foreach (['Element','Text','Attr'] as       $c    ) $this->registerNodeClass("DOM{$c}", $c);

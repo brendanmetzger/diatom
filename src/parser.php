@@ -98,8 +98,9 @@ class Token {
     ':' => 'span[@class]',
     '=' => 'data[@value]',
     '@' => 'time[@title]',
-    // '#' => '*[@aria-label]', // still working out aria roles
+    // '#' => '*/@aria-label', // still working out aria roles
   ];
+  
   
   public $flag, $trim, $depth, $text, $name, $value, $context = false, $element = null;
   
@@ -245,7 +246,12 @@ class Block {
     
     if ($context instanceof Document) {
       $name =  $context->evaluate("/processing-instruction('root')") ?: Parser::ROOT;
-      $context = $this->parser->context = $context->appendChild(new Element($name));
+      preg_match('/^([a-z]+)(?:([#.][\w ]+)((?2))?)?/i', $name, $match);
+      $context = $this->parser->context = $context->appendChild(new Element($match[1]));
+      foreach (array_slice($match, 2) as $flag) {
+        $context->setAttribute(['#' => 'id', '.' => 'class'][$flag[0]], substr($flag, 1));
+      }
+      
     }
     
     if ($token->name == 'comment') {
@@ -257,8 +263,7 @@ class Block {
       if ($delta > 0) {
         $context = $context->select(join('/', array_fill(0, $delta, '../..')));
       } else {
-        $name = $context->lastChild->nodeName;
-        if ($delta < 0 && ($name == $token->element || ($token->name == 'dl' && $name == 'dd'))) {
+        if ($delta < 0 && ($context->lastChild->nodeName == $token->element || ($token->name == 'dl' && $context->lastChild->nodeName == 'dd'))) {
           $context = $context->lastChild;
           $context->appendChild($context->ownerDocument->createElement('span')->adopt($context));
         }
@@ -304,8 +309,8 @@ class Block {
 class Inline {
   const  RGXP = [
     'link'     => '/(!?)\[([^\[\]]++|(?R))\]\((\S+?)\s*(?:\"(.*)\")?\)/u',
-    'basic'    => '/(?<!\\\)([~*_`^|]+|"")((?:(?!\1).)+)\1/u',
-    'clarify'  => '/\{([-\w, .]+) ?([:%@#=]) ?([^{}]++|(?R)*)\}/u',
+    'basic'    => '/(?<!\\\)(([~*_`^|])\2*|"")((?:(?!\1).)+)\1/u',
+    'clarify'  => '/\{([-\w, .\/]+) ?([:%@#=]) ?([^{}]++|(?R)*)\}/u',
     'autolink' => '/<((?>https?:\/)?\/([^<>]+))>/',
     'breaks'   => '/ +(\\\) /',
   ];
@@ -370,17 +375,20 @@ class Inline {
   
   private function makeNode($name, $value, array $attrs = [])
   {
-    $node = $this->DOM->createElement($name, $value);
+    $node = $this->DOM->createElement($name);
     if ($value) $node->nodeValue = htmlspecialchars(trim($value), ENT_XHTML, 'UTF-8', false);
     foreach ($attrs as $attr => $value) $node->setAttribute($attr, $value);
     return $node;
   }
   
     
-  private function basic($line, $match, $symbol, $text)
+  private function basic($line, $match, $symbol, $single, $text)
   {
     $mark = substr($symbol[0], 0, 2 - strlen($symbol[0]) % 2);
-    return $this->offsets($line, $match, $this->makeNode(Token::INLINE[$mark], $text[0]));
+    if (! $tag = Token::INLINE[$mark] ?? false) {
+      throw new Exception('Pattern could not be matched in "' . $line . '"');
+    }
+    return $this->offsets($line, $match, $this->makeNode($tag, $text[0]));
   }
   
   private function breaks($line, $match, $text) {
@@ -464,6 +472,7 @@ class Plain {
   
   private function __construct(Document $DOM) {
     $this->document = $DOM;
+    
     $this->tokens = [
       'basic' => array_flip(Token::INLINE),
       'attrs' => array_flip(array_map(fn($t) => strtok($t, '['), Token::TRANSLATE)),

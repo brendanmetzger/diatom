@@ -30,7 +30,7 @@ class Edit extends \Controller {
 
   }
   
-  public function update()
+  public function PUTupdate()
   {
     // TODO, parse request type so don't have to create document, and this would strip out xmlns perhaps
     $updated  = new Document(preg_replace('/\sxmlns=[\"\'][^\"\']+[\"\'](*ACCEPT)/', '', $this->request->data));
