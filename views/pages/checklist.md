@@ -1,6 +1,6 @@
-?render sections
-?publish 2
 ?title Getting Started
+?publish 2
+?render sections
 
 # Quickstart \ Guides
 
@@ -8,7 +8,7 @@ Open **views/pages/checklist.md** to amend and edit this checklist
 
 ## Startup Tasks
 
-- [x] specify a new port in `bin/server` if desired
+- [ ] specify a new port in `bin/server` if desired
 - [ ] run `bin/server` to start a localhost, opens site in chrome by default
 - [ ] edit `views/pages/index.html` to make changes (this readme is imported by default)
 - [ ] create a new page in pages, add processing instructions to make it visible in the nav

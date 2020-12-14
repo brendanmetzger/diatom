@@ -11,7 +11,7 @@
         padding: 10rem;
         background-color: #EEE;
       }
-      
+
       pre {white-space:pre-wrap;}
       a {color: #FF0010;}
     </style>
@@ -20,15 +20,17 @@
     <!-- yield -->
     <section>
       <h1>${code} Error</h1>
-      <p style="font-size:200%">${message}</p>
-      <p><a href="${mode}?url=file://${file}&amp;line=${line}">Open at line ${line}</a></p>
+      <p>${message}</p>
+      <p><a href="${mode}?file://${error.file}&amp;line=${error.line}">Go to ${error.line} ${error.file}</a></p>
       <hr/>
       <h4>Trace</h4>
       <ul data-protocol="${mode}">
-        <!-- iterate trace -->
-        <li title="${file}"><strong>${class}::${function}</strong><span>line ${line}</span></li>
+        <!-- iterate error.trace -->
+        <li title="${file}">
+          <strong>${class}::${function}</strong>
+          <a href="${${mode}}?file://${file}&amp;line=${line}">${file}</a>
+        </li>
       </ul>
     </section>
-    
   </body>
 </html>

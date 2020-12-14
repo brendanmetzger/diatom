@@ -1,34 +1,42 @@
 #!/usr/bin/env php
 <?php chdir(dirname(__FILE__).'/../views');
 
+define('CPATH', '../data/config');
+
 if (php_sapi_name() == 'cli') {
 
-  $host  = "127.0.0.1:8888";
-  $log   = 'app.log';
   $input = fopen('php://stdin', 'r');
 
-  if ($running = shell_exec(sprintf('ps -x | grep "[p]hp -S %s"', $host))) {
+  if (is_link(CPATH)) {
 
+    $config = parse_ini_file(CPATH, true);
 
-    $info  = preg_split('/\s+/', trim($running));
+    if ($running = shell_exec(sprintf('ps -x | grep "[p]hp -S %s"', $config['data']['host']))) {
 
-    exec('stty cbreak -echo');
-    echo sprintf("Server active: \033[1;1;32m[enter]\033[0m to kill (pid %s) \033[1;31m[any key]\033[m to abort\n", $info[0]);
+      $info  = preg_split('/\s+/', trim($running));
 
-    if (ord(fgetc($input)) == 10) {
-      unlink($log);
-      unlink('../data/config');
-      shell_exec("kill -2 {$info[0]}");
-      echo "cleared logs, server off.\n";
+      exec('stty cbreak -echo');
+      echo sprintf("Server active: \033[1;1;32m[enter]\033[0m to kill (pid %s) \033[1;31m[any key]\033[m to abort\n", $info[0]);
+
+      if (ord(fgetc($input)) == 10) {
+        unlink($config['dev']['log']);
+        unlink(CPATH);
+        shell_exec("kill -2 {$info[0]}");
+        echo "cleared logs, server off.\n";
+      }
+
+      exec('stty sane');
+      exit;
+
+    } else {
+      echo "Config file found, but no server running. Clearing that up.. please try again.\n";
+      unlink(CPATH);
     }
-
-    exec('stty sane');
-    exit;
-
   }
 
   echo "\nSPECIFY CONFIGURATION\n";
-  $configs = glob('../data/*.ini');
+
+  $configs = glob('../data/configs/*.ini');
 
   foreach ($configs as $idx => &$file) {
     $file = pathinfo(realpath($file));
@@ -42,18 +50,20 @@ if (php_sapi_name() == 'cli') {
   $config = $configs[fgetc($input) - 1];
   $target = $config['dirname'] . '/' .  $config['basename'];
 
-  symlink($target, '../data/config');
-
+  symlink($target, CPATH);
 
   // run tests before starting
   system('../bin/test', $status);
 
   if ($status > 0) exit(1);
 
+  $config = parse_ini_file(CPATH, true);
+  $host   = $config['data']['host'];
+
   echo "Starting localhost server on port 8888 (modify port if necessary and/or delete message)\n";
   touch('pages/index.html');
-  exec(sprintf('php -S %s %s > %s 2>&1 &', $host, 'index.php', $log));
-  exec(sprintf('open -a "Google Chrome" http://%s/', $host));
+  exec(sprintf('php -S %s %s > %s 2>&1 &', $host, 'index.php', $config['dev']['log']));
+  exec(sprintf('open -a "%s" http://%s/', $config['dev']['browser'], $host));
   echo "run `bin/server` stop this server.\n" ;
 
 }

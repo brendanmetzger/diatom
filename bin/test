@@ -9,7 +9,7 @@ if ($version < 7.4) {
 }
 
 // Assuming php is correct, now we can load in framework
-define('CONF', parse_ini_file('data/config'));
+define('CONFIG', parse_ini_file('data/config'));
 require 'src/kernel.php';
 
 

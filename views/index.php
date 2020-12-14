@@ -88,6 +88,7 @@ try {
 
 } catch (Exception | Error $e) {
 
+
   http_response_code($e->getCode() ?: 400);
 
   $keys   = ['message', 'code', 'file', 'line', 'trace'];

@@ -5,6 +5,7 @@
 
 > This file is written in an extended markdown that includes definition lists (`<dl>`), disclosure elements (`<details>`) as well as many other inline elements such as `<time>`, `<data>`, `<cite>`,  `<dfn>`, `<abbr>`, `<small>`, `<mark>` and `<q>`, `<input>` checklists and `<table>`. Raw HTML is never allowed, for reasons that become clearer with use.
 
+
 ## Definitions
 
 : Document
@@ -65,80 +66,6 @@ Almost any site could employ some feature of this framework methodology. At its 
 
 An API could be facilitated with the routing paradigm, or a receiver of webhooks.
 
-## Templating
 
-Templating is a powerful feature, and it stems from a premise that all content authored is a [Document](https://en.wikipedia.org/wiki/Document_Object_Model), and thus, can be sliced apart an queried. Any template can insert other documents, or parts of other documents as desired. Any markdown document is automatically parsed into a valid Document, and thus, adheres to the same principles.
 
-- escaping: done by default
-- conditions unnecessary: set datapoint to null (or undefined) to remove node
-- yield, insert, and iterate components simply
-- tested: templates can only be html, so, pretty safe when it comes to injection--they will never be exposed to a programming language.
-- author in markdown (slightly modified) or strict xHTML
-- use [template literals](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Template_literals) to embed a variables (`${expression}`)
-- embed scripts directly into the template; to lazy load, add `<?render behavior?>` to your document (see list below) [autoload-js]
-- CSS, similar to javascript, can be written in a `<style>` element directly in any page or a stylesheet added with `<link/>`.
-
-## Stubs
-
-: insert
-  An ~insert~ is a direct call to another piece of content that lives at the end of a path
-  `<!-- insert path/to/file.html-->` inserts a file directly
-  `<!-- insert endpoint -->` inserts the result of a routed or dynamic url result
-: yield
-  A ~yield~ stub means some programatic  aspect has determined how and what `Document` or `Element` will be inserted.
-  `<!-- yield -->` on its own will default to inserting the result of the `Route::delegate` operation, and it is scoped to the  response object. *It replaces it's next `Element` sibling.*
-  `<!-- yield keyword ! -->` similar to above but performs an *insert* instead of  swapping next sibling
-  `<!-- yield keyword -->` also replaces with keyword from dynamic route; Tell the response what to do with `$this->yield('keyword', string path or <Document>)`
-  `<!-- yield keyword -->` similar to above but performs an *insert* instead of  swapping next sibling
-  ~yield~ stubs do nothing if the content they stub out is unspecified or does not exist
-: iterate
-  ~iterate~ stub grabs the `nextSibling` node, reinserting it against an enumerable dataset
-  Template Variables are scoped to the node getting iteraterated. If you need to access a variable outside of the scope, wrap the variable: `${${parent.scope}} vs. ${data.block.scope}`
-
-### Renderers
-
-: canonical
-  reorders the document to place (and organize) `<style>`, `<link>`, `<meta>`  into the `<head>` of the Document
-: sections
-  recursively looks for heading elements and builds sections around them.
-: behavior
-  behavior finds all `<script>` elements and converts/encodes:
-  `<script src="path"></script>`  to `<script>Kit.script(path);</script>`
-  `<script>code</script>`  to `<script>Kit.script(data://uri,b64 code);</script>`
-
-## Application
-
-### Directory Layout
-
-: view/
-  contains template files, CSS, JavaScript, media--essentially the document root
-  : pages/
-
-html files are stored here
-
-the assumed layout,  derived from `index.html` file is stored here
-
-: src/
-
-holds all php files
-
-serves as the application root, which means when a file is explicitely declareded as relative (ie, `./file` or `../file`) then the reference point is this directory. This may not seem intuitive, but it is a hard rule, and easy to remember, which is especially useful when the context of a file is murky, such as deeply namespace files n such
-
-: data/
-
-xml, json, configs--anything that doesn't want to be tracked in a main repo but is integral to site functionality
-
-### Output Formats
-
-The response type will honor the extension of the 'file' requested, and default to html if no extension is  provided. The differentitation between dynamic routes and actual file endpoints is invisible. Thus, `random.jpg` could be a file, a template, a route callback, or a controller and the server response would be pretty much the same.
-
-- content-type is assumed return text/html (.html) if unspecified
-- the extension determines the content-type (simply)
-
-### Routing
-
-Routes are declared in `view/pages/` or `view/index.php`; **always** look there at the first argument in the url to find where the actual page might be called.
-
-### Models
-
-TODO
+// insert ../docs/*.md

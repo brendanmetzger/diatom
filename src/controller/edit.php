@@ -35,7 +35,7 @@ class Edit extends \Controller {
     return \Parser::check(Document::open(base64_decode($file)), $this->type);
   }
 
-  private function PUTupdate(\Authorized $user)
+  public function PUTupdate()
   {
     // TODO, parse request type so don't have to create document, and this would strip out xmlns perhaps
     $updated  = new Document(preg_replace('/\sxmlns=[\"\'][^\"\']+[\"\'](*ACCEPT)/', '', $this->request->data));
