@@ -1,7 +1,6 @@
 #!/usr/bin/env php
 
 <?php chdir(dirname(__FILE__).'/..');
-      define('CONF', parse_ini_file('data/config', true));
       require 'src/kernel.php';
 
 
@@ -59,6 +58,54 @@ Route::test(function() {
   //   echo "\e[1D";
   // }
   // $this->prompt("where is cursor\e[s\e[2DFF\e[u");
+});
+
+Route::socket(function() {
+  // $sock = socket_create_listen(0);
+  $sock = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
+  // socket_getsockname($sock, $address, $port);
+  $address = '127.0.0.1';
+  $port    = 80100;
+  socket_bind ($sock, $address, $port);
+
+  echo "bin/task swrite {$address}:{$port} [query]\n";
+
+  socket_listen($sock, 1);
+  // socket_set_nonblock($sock);
+  while (true) {
+    $c = socket_accept($sock);
+    socket_getpeername($c, $remote_address, $remote_port);
+    echo $remote_address . "\n";
+    socket_write($c, "listening to " . $remote_address);
+    // socket_write($c, "query:\n");
+
+    if ($query = socket_read($c, 1024, PHP_NORMAL_READ)) {
+      echo "Run query; {$query}\n";
+      socket_write($c, $query);
+
+    } else {
+      echo "Nothing happened\n";
+      socket_write("nothing happende \n");
+    }
+
+    socket_close($c);
+  }
+
+  socket_close($sock);
+});
+
+Route::swrite(function ($domain, $query = '') {
+  [$host, $port] = explode(':', $domain);
+
+  echo $host  . "\n" . $port . "\n";
+  $fp = fsockopen($host, $port, $errno, $errstr, 1);
+
+  fwrite($fp, $query);
+  while (!feof($fp)) {
+    echo fgets($fp);
+  }
+
+  fclose($fp);
 });
 
 

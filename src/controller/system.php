@@ -1,14 +1,20 @@
 <?php namespace Controller;
 
-use Document, Element;
+use Document, Model, Auth, HTTP;
 
-class Edit extends \Controller {
+class System extends \Controller
+{
+  static private $authorization;
+
+  static public function load($allowed) {
+    if ($allowed) return false;
+    \Route::set('system', new \Proxy('Controller\System'));
+  }
 
   public function __construct($authorization = null)
   {
 
     \Render::set('before', function($node) {
-
       [$doc, $context] = $node instanceof Document ? [$node, $node->documentElement] : [$node->ownerDocument, $node];
 
       foreach ($context->find('.//*[not(@data-path or self::script or self::style) and text() and not(ancestor::*/text())]') as $node)
@@ -23,11 +29,36 @@ class Edit extends \Controller {
       if ($body = $context->select('//body')) {
         $body->setAttribute('data-prompt', CONFIG['data']['mode']);
         $body->setAttribute('data-root', realpath('.'));
-        $body->appendChild(new Element('script'))->setAttribute('src', '/ux/js/edit.js');
+        $body->appendChild(new \Element('script'))->setAttribute('src', '/ux/js/edit.js');
       }
     });
   }
 
+  public function GETauth()
+  {
+    // these variables are the ones we get from the oAuth requst
+    $_GET += ['code' => '', 'state' => ''];
+    // the verified token contains the original request uri
+    if ($verified = Auth\Token::verify($_GET['state'])) {
+
+      $token = Auth\Token::generate($_GET['code']);
+      $keys  = HTTP::GET('https://api.github.com/user/emails', $token->headers('json'));
+      $value = join(array_column($keys->data, 'email'));
+
+      if ($user = Model\User::ID($value)) {
+        $token->save($user);
+        throw new \Redirect($verified);
+      }
+      throw $this->response->reject(401);
+    }
+
+    // Logout I s'pose
+    if ($this->response->request->authorization(Auth\Token::NAME)) {
+      Auth\Token::invalidate();
+      throw new \Redirect('/');
+    }
+    throw $this->response->reject(404);
+  }
 
 
   public function GETraw($file)

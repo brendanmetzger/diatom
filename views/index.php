@@ -1,13 +1,12 @@
-<?php define('CONFIG', parse_ini_file('../data/config', true));
-      require_once '../src/kernel.php';
+<?php require_once '../src/kernel.php';
 
-ini_set('xdebug.mode', 'coverage');
+
 
 /**** ROUTING ****************************************************************/
 
 if (CONFIG['data']['mode'] ?? false) {
 
-Route::edit(new \Controller\Edit);
+  Route::system(new Controller\System);
 
 }
 
@@ -54,29 +53,29 @@ Route::example(function($greeting = 'world') {
 
 
 
+
 /**** IMPLEMENTATION **********************************************************/
 
 try {
 
-  $request = new Request($_SERVER);
+  $request = new Request(host: CONFIG['data']['host'], headers: $_SERVER, root: realpath('.'));
 
-  header("Content-Type: {$request->mime}");
-
-  // php dev server handles static files too; prod could use this for cache
-  if (is_file($request->uri)) {
-    $output = Response::load($request);
-    header('Content-Length: '. strlen($output));
+  if ($request->body) {
+    $response = new Response($request);
   } else {
 
     // Set Application data
     $data = [
-      'pages' => Route::gather(glob('pages/*.{html,xml,md}', GLOB_BRACE)),
+      'pages' => Route::gather(glob('pages/*.{html,md}', GLOB_BRACE)),
       'date'  => fn ($format, $time = 'now') => date($format, strtotime($time)),
       'model' => 'model::FACTORY',
     ];
 
-    $response = new Response($request, $data + CONFIG['data']);
-    $output   = Route::delegate($response);
+    // WIP These are some interesting methods that allow templates to do more than they prob should.
+    // 'instance' => fn($name, $id, ...$params) => "Model\\$name"::ID($id, ...$params),
+    // 'factory'  => fn($name, $query) => Model::$name(urldecode($query)),
+
+    $response = Route::delegate(new Response($request, $data + CONFIG['data']));
 
   }
 
@@ -89,16 +88,16 @@ try {
 } catch (Exception | Error $e) {
 
 
-  http_response_code($e->getCode() ?: 400);
-
   $keys   = ['message', 'code', 'file', 'line', 'trace'];
   $data   = ['error' => array_combine($keys, array_map(fn($m) => $e->{"get$m"}(), $keys))];
-  $output = Request::GET('error', $data + CONFIG['data']);
+  $response = Request::GET('system/error', $data + CONFIG['data'], yield: false);
+  $response->status = $e->getCode() ?: 400;
 
 } finally {
 
+  echo $response;
 
-  echo $output;
+  // TODO: flush everything, run cleanups
 
   exit;
 }

@@ -1,17 +1,16 @@
 <?php
 
+define('CONFIG', parse_ini_file('../data/config', true));
 set_include_path(__DIR__);
 libxml_use_internal_errors(true);
 spl_autoload_register();
 
 
-
-
 interface routable
 {
-  public function __invoke($template);
-  public function reject(int $reason, $info):Exception;
-  public function compose($payload, bool $default);
+  public function __invoke($template): stringable | string;
+  public function reject(int $reason, $info): Exception;
+  public function compose($payload, bool $default): self;
 }
 
 /**
@@ -19,21 +18,23 @@ interface routable
  *
 **/
 
-class Route {
-
+class Route
+{
   const INDEX = 'index';
   static private $paths = [];
 
-  static public function delegate(routable $response)
+  static public function delegate(routable $router): routable
   {
-    if (! $route = self::$paths[$response->route] ?? false) {
-      throw $response->reject(404, self::$paths);
-    }
+    $paths   = self::$paths;
+    $payload = $router->fulfilled
+             ? $router($router->request)
+             : $paths[$router->route]?->fulfill($router) ?? throw $router->reject(404, $paths);
 
-    return $response->compose($route->fulfill($response), $route->path == Route::INDEX);
+    // TODO: $router->route is not a good solution.
+    return $router->compose($payload, $router->route == Route::INDEX);
   }
 
-  static public function set($path, ?callable $callback = null, array $config = [])
+  static public function set($path, ?callable $callback = null, array $config = []): Route
   {
     $path     = strtolower(trim($path, '/'));
     $instance = self::$paths[$path] ??= new self($path, $config['publish'] ?? 0);
@@ -52,17 +53,26 @@ class Route {
 
   // Note: this is really an alias for the above, but I like for writing quick bin/task stuff.
   // Warning: __callStatic to set route can potentially collide with an existing Route method
-  static public function __callStatic($action, $arguments)
+  static public function __callStatic($action, $arguments): Route
   {
     return self::set($action, ...$arguments);
   }
 
-  static public function gather(array $files)
+  static public function gather(array $files): iterable
   {
     // this could be tallied on `set` so that it doesn't have to be mapped
     $dynamic = array_map(fn($obj) => join($obj->info) . $obj->path, self::$paths);
     $static  = array_map('filemtime', $files);
     $stash   = sys_get_temp_dir() . '/' . md5(join($dynamic+$static));
+
+    $glob = 'pages/';
+    $trim = strlen($glob);
+
+    foreach (glob($glob.'*', GLOB_ONLYDIR) as $path) {
+      $name = substr($path, $trim);
+      $ctrl = sprintf('controller\%s', is_file("../src/controller/{$name}.php") ? $name : 'Page');
+      self::set($name, new \Proxy($ctrl, [$name, $path]));
+    }
 
     if (file_exists($stash)) {
       $routes = json_decode(file_get_contents($stash), true);
@@ -91,37 +101,32 @@ class Route {
 
   private $handle = null, $template = null, $exception = null;
 
-  public $path, $publish, $info = [];
+  public $info = [];
 
-  private function __construct(string $path, int $publish = 0) {
-    $this->path    = $path;
-    $this->publish = $publish;
-  }
+  private function __construct(public string $path, public int $publish = 0) { }
 
   public function then(callable $handle): self {
     $this->handle[] = $handle;
     return $this;
   }
 
-  public function catch(callable $handle)
+  public function catch(callable $handle): void
   {
     $this->exception = $handle;
   }
 
-  public function fulfill(routable $response, $out = null, int $i = 0) {
-
-    if ($this->handle !== null) {
+  public function fulfill(routable $response, $out = null, int $i = 0)
+  {
+  if ($this->handle !== null) {
       $out = $response->params;
       try {
         do
           $out = $this->handle[$i++]->call($response, ...(is_array($out) ? $out : [$out]));
+
         while (isset($this->handle[$i]) && ! $response->fulfilled);
 
       } catch (Status $e) {
-        if ($this->exception)
-          $out = call_user_func($this->exception, $e);
-        else
-          throw $e;
+        $out = $test->exception?->call($response, $e) ?? throw $e;
       }
     }
 
@@ -131,7 +136,6 @@ class Route {
 
     return $out ?? $response($this->template);
   }
-
 }
 
 /**
@@ -141,6 +145,7 @@ class Status extends Exception {
   const REASON = [
     401 => 'Unauthorized',
     404 => 'Not Found',
+    500 => 'Internal Server Error',
   ];
 }
 
@@ -178,163 +183,162 @@ class File
     'srt'  => 'text/srt',
   ];
 
-  public $id, $uri, $url, $type, $info, $mime, $local = true, $size = 0, $body = '';
+  public $uri, $url, $type, $info, $mime, $local = true, $size = 0, $body = null;
 
-  public function __construct(string $identifier, ?string $content = null)
+  public function __construct(string $url, $type = 'txt')
   {
-    $this->uri   = $identifier;
-    $identifier  = parse_url($identifier);
-    $this->info  = $identifier + pathinfo($identifier['path'] ?? '/');
-    $this->type  = strtolower($this->info['extension'] ?? 'html');
-    $this->info['scheme'] ??= ($this->type == 'gz' ? 'compress.zlib' : 'file');
-    $this->local = substr($this->info['scheme'], 0, 4) != 'http';
-    $this->url   = $this->info['url'] = $this->local ? $this->info['scheme'].'://' . realpath($this->uri) : $this->uri;
+    $this->info  = parse_url($url);
+    $this->uri   = $this->info['path'] ?? '/';
+    $this->info += pathinfo($this->uri);
+    $this->type  = strtolower($this->info['extension'] ??= substr($this->uri .= '.' . $type, 1+~strlen($type)));
+    $this->info['scheme'] ??= str_ends_with($this->type, 'gz') ? 'compress.zlib' : 'file';
+    $this->local = ! str_contains($this->info['scheme'], 'http');
+    $this->url   = $this->local ? $this->info['scheme'].'://' . ($this->uri[0] == '/' ? $this->uri : realpath($this->uri)) : $url;
     $this->mime  = self::MIME[$this->type] ?? 'text/plain';
-    $this->id    = md5($this->url);
-    if ($content) $this->setBody($content);
   }
 
-
-  static public function load($path)
+  // TODO: get rid of this eventually
+  static public function load($path): File
   {
-
-    $instance = new static((strncmp($path, '.', 1) ? $path : __DIR__.'/'.$path));
-
-    if (! $content = file_get_contents($instance->url)) throw new Error('Bad path: ' . print_r($instance->info, true));
-
+    $instance = new self((strncmp($path, '.', 1) ? $path : __DIR__.'/'.$path));
+    $content  = file_get_contents($instance->url) ?: throw new Error('Bad path: ' . print_r($instance->info, true));
     return $instance->setBody($content);
   }
 
-  public function setBody($content): File {
+  public function setBody($content): File
+  {
     $this->body = $content;
     $this->size = strlen($content);
     return $this;
   }
 
-  public function save(bool $overwrite = false) {
+  public function save(bool $overwrite = false): bool
+  {
     if (! $overwrite && is_file($this->uri))
       throw new Error("File cannot be written", 1);
     return file_put_contents($this->uri, $this->body, LOCK_EX);
   }
 
-  public function verify(string $hash, string $algo = 'md5') {
+  public function verify(string $hash, string $algo = 'md5'): bool
+  {
     return hash($algo, $this->body) === trim($hash, '"');
   }
 
-  public function __toString() {
-    return (string)$this->body;
+  public function __toString()
+  {
+    return (string) $this->body;
   }
 }
 
 
 /**
  * Request | This is used to configure an variable request (like a web server) via the constructor
- *
 **/
 
-class Request
+class Request extends File
 {
-  const REGEX = '/^((?>[^.]*).*?)(?:\.([a-z]\w{1,4}))?$/i';
-  const TYPE  = 'html';
+  public $origin, $method;
 
-  public $uri, $method, $data = '', $headers = [];
-
-  public function __construct(array $headers)
+  public function __construct(string $host, public array $headers, public $root = '')
   {
-    $uri = parse_url(urldecode($headers['REQUEST_URI']));
-    $this->method  = $headers['REQUEST_METHOD'] ?? 'GET';
-    $this->headers = $headers;
+    $this->method = $headers['REQUEST_METHOD'] ?? 'GET';
+    $this->origin = rtrim($headers['REQUEST_URI'], '/') ?: '/' . Route::INDEX;
 
-    preg_match(self::REGEX, trim($uri['path'], '/ .'), $match, PREG_UNMATCHED_AS_NULL);
+    parent::__construct($host . $this->origin, type: 'html');
 
-    $this->uri   = $match[0] ?: $headers['REQUEST_URI'];
-    $this->route = $match[1] ?: Route::INDEX;
-    $this->type  = $match[2] ?: self::TYPE;
-    $this->mime  = $headers['CONTENT_TYPE'] ?? File::MIME[$this->type] ?? File::MIME[self::TYPE];
-
-    // can be POST, PUT or PATCH, which all contain a body
-    if ($this->method[0] === 'P' && ($headers['CONTENT_LENGTH'] ?? 0) > 0)
-      $this->data = file_get_contents('php://input');
+    if (is_file($root . $this->uri)) {
+      $this->setBody(file_get_contents($root.$this->uri));
+    } else if ($this->method[0] === 'P' && ($headers['CONTENT_LENGTH'] ?? 0) > 0) {
+      $this->setBody(file_get_contents('php://input'));
+    }
   }
 
-  static public function GET($uri, array $data = [], array $headers = []): Response
+  static public function GET($uri, array $data = [], array $headers = [], $yield = true): Response
   {
-    $response = new Response(new Request(array_merge($headers,[
+    $request = new Request('/', array_merge($headers, [
       'REQUEST_URI'    => $uri,
       'REQUEST_METHOD' => 'GET',
       'CONTENT_TYPE'   => $headers['content-type'] ?? null,
-      'HTTP_YIELD'     => true,
-    ])), $data);
+      'HTTP_YIELD'     => $yield,
+    ]), realpath('.'));
 
-    return Route::delegate($response);
+    return Route::delegate(new Response($request, $data));
   }
 
-  public function __toString() {
-    return $this->uri;
+  public function authorization($key): string
+  {
+    return $_COOKIE[$key] ?? $this->headers['Authorization'] ?? '';
   }
 }
 
 
 /**
  * Response | finds correct template object, renders it, tracks headers...
+ *
 **/
-
-class Response extends File implements routable
+class Response implements routable
 {
   use Registry;
 
-  public $route, $params, $document, $request, $basic, $headers = [], $fulfilled = false, $layout = null, $render = null;
+  public $status = 200, $route, $id, $params, $document, $basic, $headers = [], $fulfilled = false, $layout = null, $render = null;
 
-  public function __construct(Request $request, array $data = [])
+  public function __construct(public Request $request, array $data = [])
   {
-    parent::__construct($request->uri);
     $this->merge($data);
-    $this->request = $request;
-    $this->params  = explode('/', $request->route);
-    $this->route   = strtolower(array_shift($this->params));
-    $this->id      = md5(join($request->headers));
-    $this->basic   = $request->headers['HTTP_YIELD'] ?? ($request->mime != 'text/html');
+    $this->header('Content-Type', $this->request->mime);
+    $this->fulfilled = ! is_null($request->body);
+    $this->params    = explode('/', substr($request->uri, 1, ~strlen($request->type)));
+    $this->route     = strtolower(array_shift($this->params));
+    $this->id        = md5(join($request->headers));
+    $this->basic     = $request->headers['HTTP_YIELD'] ?? ($request->type != 'html');
   }
 
-  public function setBody($content):File {
-    $this->document = $content instanceof Element
-                    ? new Document($content->ownerDocument->saveXML($content))
-                    : $content;
-    return parent::setBody((string)$content);
-  }
-
-  // string|Document $template
-  public function yield(string $key, $source) {
-    Template::set($key, $source instanceof Document ? $source : Document::open($source));
-  }
-
-  public function __invoke($path) {
+  public function __invoke($path): stringable | string
+  {
     // when here, either no callback specified OR the callback returned void
     return $path ? Document::open($path) : new Document("<p>\u{26A0} /{$this->route}</p>");
   }
 
-  public function reject(int $reason, $info = null): Exception {
+  public function setBody($content): Response {
+    $this->document = $content instanceof Element
+                    ? new Document($content->ownerDocument->saveXML($content))
+                    : $content;
+
+    $this->request->setBody((string) $content);
+    $this->header('Content-Length', $this->request->size);
+    return $this;
+  }
+
+  public function yield(string $key, string|Document $source): void
+  {
+    Template::set($key, $source instanceof Document ? $source : Document::open($source));
+  }
+
+  public function reject(int $reason, $info = null): Exception
+  {
     return new Status($this->route . ' ' . Status::REASON[$reason], $reason);
   }
 
-  public function header($resource, $header)
+  public function header($key, $header): int
   {
-    if (! empty(trim($header))) {
-      $split = strpos($header, ':') ?: 0;
-      $key   = $split ? strtolower(substr($header, 0, $split)) : 'status';
-      $this->headers[$key] = trim($split ? substr($header, $split+1) : $header);
+    if ($key instanceof CurlHandle && ! empty(trim($header))) {
+      [$key, $value] = preg_split('/:? /', $header, 2);
+      $this->headers[strtolower($key)] = trim($value);
+    } else {
+      $this->headers[$key] = $header;
     }
 
-    return strlen($header); // required by the cURL (see @HTTP class, cURL documentation)
+    return strlen($header); // required by the cURL (see @HTTP class + cURL documentation)
   }
 
-  public function compose($payload, bool $is_index)
+  public function compose($payload, bool $is_index): self
   {
     // if payload is not a DOM component or proper request, no processing to do
+    // TODO: becomes $this->request->setBody($payload);
     if (! $payload instanceof DOMNode || $this->id === null) return $this->setBody($payload);
 
-
     if ($this->basic) {
+
        //no layout needed, just use payload document
       $layout = new Template($payload);
     } else {
@@ -342,41 +346,64 @@ class Response extends File implements routable
 
       $layout = new Template(Document::open($payload->info['layout'] ?? $this->layout));
 
+
       // make sure we aren't putting the layout into itself
       if (! $is_index) {
+
         $this->render = $payload->info['render'] ?? $this->render;
         Template::set($this->id, $payload);
       }
     }
 
+
     // render and transform the document layout
     $output = $layout->render(['route' => $this->route] + $payload->info + $this->data, $this->basic ? true : $this->id);
     $output = Render::transform($output, $this->render);
 
+
     // convert if request type is not markup
     return $this->setBody(Parser::check($output, $this->request->type));
+  }
+
+  public function __toString() {
+    // write headers
+    http_response_code($this->status);
+    foreach ($this->headers as $key => $value)
+      header("{$key}: {$value}");
+    return (string) $this->request->body;
   }
 }
 
 
 /**
- * Controller | Usually extended, but can be instantiatied @see Route class.
+ * Controller
  *
  * The premise of a controller is to A. call a method corresponding to the first parameter
  * or B) Load a file should a method not exist.
 **/
 
-interface Authorized {
-  static public function check(ReflectionMethod $credentials);
-}
-
 abstract class Controller
 {
   protected $response, $path, $name;
 
-  public function GETindex() {
-    $this->response->basic = true;
-    return call_user_func($this->response, $this->response->layout);
+  final public function __invoke($action, $params) {
+
+    if (! method_exists($this, $action))
+      return $this->open($params);
+
+    $method = new ReflectionMethod($this, $action);
+
+    // authenticate user: if ok, override visibility in check
+    if ($method->isProtected()) {
+      // A token is found + verified, or the Authorization process will be thrown
+      $digest = $this->request->authorization(Auth\Token::NAME);
+      $token  = Auth\Token::verify($digest) ?? Auth\Token::authorize($this->request);
+
+      $method->setAccessible(true);
+      array_unshift($params, Model\User::ID($token));
+    }
+
+    return $method->invokeArgs($this, $params);
   }
 
   final public function __set($key, $value) {
@@ -393,16 +420,24 @@ abstract class Controller
 
   public function call(routable $response, $action = 'index', ...$params)
   {
-    $instance = $this instanceof Proxy ? new $this->proxy($response, ...$this->props) : $this;
+    $instance = $this instanceof Proxy
+              ? new $this->proxy($response, ...$this->props)
+              : $this;
+
     $instance->response = $response;
     $instance->action   = strtolower($action);
     return $instance($response->request->method . str_replace('-','_',$instance->action), $params);
   }
 
+  public function GETindex() {
+    $this->response->basic = true;
+    return call_user_func($this->response, $this->response->layout);
+  }
+
   protected function open(array $ns = []): Document
   {
     /*
-      TODO use $this->request->uri instead of all the joins and pointless constructor stuff;
+      TODO use $this->request->origin instead of all the joins and pointless constructor stuff;
     */
     $path = strtolower(join('/',[$this->path, $this->action, ...$ns]));
 
@@ -411,31 +446,10 @@ abstract class Controller
 
     return Document::open($file);
   }
-
-
-  final public function __invoke($action, $params) {
-
-    if (! method_exists($this, $action))
-      return $this->open($params);
-
-    $method = new ReflectionMethod($this, $action);
-
-    // authenticate user: if ok, override visibility in check
-    if ($method->isPrivate())
-      array_unshift($params, Model\Agency::check($method));
-
-    return $method->invokeArgs($this, $params);
-  }
 }
 
-Class Proxy Extends Controller {
-  protected $proxy, $props;
-
-  public function __construct(string $proxy, array $props = [])
-  {
-    $this->proxy = $proxy;
-    $this->props = $props;
-  }
+Class Proxy extends Controller {
+  public function __construct(protected string $proxy, protected array $props = []) { }
 }
 
 
@@ -447,15 +461,19 @@ Class Proxy Extends Controller {
 
 class Redirect extends Exception {
   const STATUS    = ['permanent' => 301, 'temporary' => 302, 'other' => 303];
-  public $location = null;
   public $headers = [
     ['Cache-Control: no-store, no-cache, must-revalidate, max-age=0'],
     ['Cache-Control: post-check=0, pre-check=0', false],
     ['Pragma: no-cache'],
   ];
 
-  public function __construct(string $location, $code = 'temporary') {
+  public function __construct(public string $location, $code = 'temporary')
+  {
     $this->headers['location'] = ["Location: {$location}", false, self::STATUS[$code]];
+  }
+
+  public function __invoke(...$path) {
+    foreach ($this->headers as $header) header(...$header);
   }
 
   public function call(routable $response, ...$path)
@@ -464,9 +482,6 @@ class Redirect extends Exception {
     throw $this;
   }
 
-  public function __invoke(...$path) {
-    foreach ($this->headers as $header) header(...$header);
-  }
 }
 
 
@@ -479,16 +494,16 @@ class Redirect extends Exception {
 
 class Template
 {
-  private static $yield = [];
-
-  # Note, this has a DOMNode as typecase, but should be Document|Element in 8.0
-  static public function set(string $key, DOMNode $stub = null) {
+  static private $yield = [];
+  static public function set(string $key, Document|Element $stub): void
+  {
     self::$yield[$key] = $stub;
   }
 
+
   private $DOM, $slugs = [];
 
-  public function __construct(DOMnode $node)
+  public function __construct(Document|Element $node)
   {
     Render::set('before', $node);
 
@@ -500,18 +515,16 @@ class Template
     }
   }
 
-  private function insert(iterable $stubs, $data, bool $cleanup = true)
+  private function insert(iterable $stubs, $data, bool $cleanup = true): void
   {
     foreach ($stubs as [$cmd, $path, $xpath, $context]) {
 
-      if (strpos($path, '*') !== false) {
+      if (str_contains($path, '*')) {
         $this->insert(Data::apply(glob($path), fn($path) => [$cmd, $path, $xpath, $context]), $data, false);
         continue;
       }
 
-      $DOM = is_file($path) ? Document::open($path)
-                            : Request::GET($path, $data)->document;
-
+      $DOM = is_file($path) ? Document::open($path) : Request::GET($path, $data)->document;
       $ref = $context->parentNode;
 
       foreach ($DOM->find($xpath) as $node) {
@@ -540,7 +553,7 @@ class Template
 
     foreach ($this->getStubs('iterate') as [$cmd, $key, $exp, $ref]) {
 
-      $template = new self($ref->nextSibling->remove());
+      $template = new self($ref->nextSibling->parentNode->removeChild($ref->nextSibling));
       $template->getSlugs("[not(ancestor-or-self::*/preceding-sibling::comment()[starts-with(normalize-space(.), 'iterate')])]");
 
       $reset  = $template->DOM->documentElement->cloneNode(true);
@@ -554,7 +567,6 @@ class Template
           $template->DOM->replaceChild($reset->cloneNode(true), $template->DOM->firstChild);
         }
       }
-
       $ref->parentNode->removeChild($ref);
     }
 
@@ -563,7 +575,7 @@ class Template
     return $this->DOM;
   }
 
-  private function parse($data)
+  private function parse($data): void
   {
     $audit = [];
     foreach ($this->getSlugs() as $path => $slugs) {
@@ -636,17 +648,17 @@ class Template
 class Document extends DOMDocument
 {
   static private $cache = [];
-  // accepts string|File
-  static public function open($path, array $opt = [])
+
+  static public function open(string|File $path, array $opt = []): Document
   {
-    $key = is_string($path) ? $path : $path->id;
+    $key = is_string($path) ? $path : $path->url;
 
     if (self::$cache[$key] ?? false) return self::$cache[$key];
 
     $file = $path instanceof File ? $path : File::load($path);
 
     try {
-      if (! $file->local)
+      if (str_starts_with($file->url, 'http'))
         $file->body = preg_replace('/\sxmlns=[\"\'][^\"\']+[\"\'](*ACCEPT)/', '', $file->body);
 
       $DOM = (substr($file->mime, -2) == 'ml') ? new self($file->body, $opt) : Parser::load($file);
@@ -659,7 +671,7 @@ class Document extends DOMDocument
     foreach ($DOM->find("/processing-instruction()") as $pi)
       $DOM->info[$pi->target] = trim($pi->data);
 
-    $DOM->info['src']     = $path;
+    $DOM->info['src']     = $file->uri;
     $DOM->info['file']    = $file->info;
     $DOM->info['title'] ??= ucwords(str_replace('-', ' ', $DOM->info['file']['filename']));
     $DOM->info['size']    = $file->size;
@@ -670,7 +682,6 @@ class Document extends DOMDocument
   public  $info  = [];
   private $xpath = null,
           $props = [ 'preserveWhiteSpace' => false, 'formatOutput' => true, 'encoding' => 'UTF-8'];
-
 
   public function  __construct(?string $xml = null, array $props = [])
   {
@@ -691,17 +702,16 @@ class Document extends DOMDocument
 
   public function find($exp, ?DOMNode $context = null): DOMNodelist
   {
-    if (! $result = $this->xpath->query($exp, $context))
-      throw new Exception("Malformed predicate: {$exp}", 500);
-
-    return $result;
+    return $this->xpath->query($exp, $context) ?: throw new Exception("Malformed predicate: {$exp}", 500);
   }
 
-  public function select($exp, ?DOMNode $context = null) {
+  public function select($exp, ?DOMNode $context = null): ?DOMNode
+  {
     return $this->find($exp, $context)[0] ?? null;
   }
 
-  public function evaluate(string $exp, ?DOMNode $context = null) {
+  public function evaluate(string $exp, ?DOMNode $context = null): string
+  {
     return $this->xpath->evaluate("string({$exp})", $context);
   }
 
@@ -709,34 +719,58 @@ class Document extends DOMDocument
     return Data::apply($this->find($exp, $context), $callback);
   }
 
-  public function save($path = null, $validate = false) {
+  public function save($path = null, $validate = false): bool
+  {
     if ($validate && ! $this->validate()) {
       // todo develop routine for validation problems
-      print_r(libxml_get_errors());
+      throw new Exception(print_r(libxml_get_errors(), true));
     }
 
     return file_put_contents($path ?? $this->info['src'], $this->saveXML(), LOCK_EX);
   }
 }
 
+trait DOMtextUtility
+{
+  public function __invoke($input): self
+  {
+    $this->nodeValue = '';
+    if ($input instanceof DOMNode) $this->appendChild($input);
+    else $this->nodeValue = htmlspecialchars($input, ENT_XHTML, 'UTF-8', false);
+    return $this;
+  }
 
-class Element extends DOMElement implements ArrayAccess {
+  public function __toString(): string {
+    return $this->nodeValue;
+  }
+}
+
+
+
+class Element extends DOMElement implements ArrayAccess
+{
   use DOMtextUtility;
+
   public $info = [];
-  public function __construct($name, $value = null) {
+
+  public function __construct($name, $value = null)
+  {
     parent::__construct($name);
     if ($value) $this($value);
   }
 
-  public function find(string $path) {
+  public function find(string $path)
+  {
     return $this->ownerDocument->find($path, $this);
   }
 
-  public function select(string $path) {
+  public function select(string $path)
+  {
     return $this->ownerDocument->select($path, $this);
   }
 
-  public function map(string $exp, callable $callback) {
+  public function map(string $exp, callable $callback)
+  {
     return $this->ownerDocument->map($exp, $callback, $this);
   }
 
@@ -776,10 +810,6 @@ class Element extends DOMElement implements ArrayAccess {
     foreach ($this[$key] as $node) $node->remove();
   }
 
-  public function remove() {
-    return ($parent = $this->parentNode) ? $parent->removeChild($this) : null;
-  }
-
   public function __call($key, $args): DOMNode {
     return $this->offsetSet($key, ...$args);
   }
@@ -793,15 +823,18 @@ class Element extends DOMElement implements ArrayAccess {
 
 
 
-class Text extends DOMText {
+class Text extends DOMText
+{
   use DOMtextUtility;
 
-  public function __construct(string $input, ...$args) {
+  public function __construct(string $input, ...$args)
+  {
     parent::__construct($args ? vsprintf($input, $args) : $input);
   }
 
-  public function remove() {
-    return ($parent = $this->parentNode) ? $parent->remove() : null;
+  public function remove(): void
+  {
+    $this->parentNode->remove();
   }
 
   public function replace($data, int $start, int $length)
@@ -812,11 +845,11 @@ class Text extends DOMText {
     } else {
       $this->replaceData($start, $length, $data);
     }
-
-
   }
 }
-class Attr extends DOMAttr {
+
+class Attr extends DOMAttr
+{
   use DOMtextUtility;
 
   public function replace(string $data, int $start, int $length)
@@ -824,36 +857,27 @@ class Attr extends DOMAttr {
     $this(substr_replace($this->value, $data, $start, $length));
   }
 
-  public function remove() {
+  public function remove()
+  {
     return ($elem = $this->ownerElement) ? $elem->removeAttribute($this->nodeName) : null;
   }
 }
 
-trait DOMtextUtility
+
+
+
+trait Registry
 {
-  public function __invoke($input): self
-  {
-    $this->nodeValue = '';
-    if ($input instanceof DOMNode) $this->appendChild($input);
-    else $this->nodeValue = htmlspecialchars($input, ENT_XHTML, 'UTF-8', false);
-    return $this;
-  }
-
-  public function __toString(): string {
-    return $this->nodeValue;
-  }
-}
-
-
-
-trait Registry {
   public $data = [];
+
   public function __set($key, $value) {
     $this->data[$key] = $value;
   }
+
   public function __get($key) {
     return $this->data[$key] ?? null;
   }
+
   public function merge(array $data) {
     return $this->data = array_merge($this->data, $data);
   }
@@ -880,7 +904,6 @@ class Data extends ArrayIterator
     return $data[$namespace] ?? self::fetch(explode($wedge, $namespace), $data);
   }
 
-
   static public function apply(iterable $data, callable $callback): self {
     return (new self($data))->map($callback);
   }
@@ -890,6 +913,10 @@ class Data extends ArrayIterator
       $data = iterator_to_array($data);
     parent::__construct($data);
     $this->length = count($data);
+  }
+
+  public function __toString() {
+    return (string) $this->current();
   }
 
   public function join(string $glue = '') {
@@ -917,11 +944,13 @@ class Data extends ArrayIterator
     return $this;
   }
 
-  public function filter(callable $callback) {
+  public function filter(callable $callback)
+  {
     return new CallbackFilterIterator($this, $callback);
   }
 
-  public function limit(int $start, int $length = -1) {
+  public function limit(int $start, int $length = -1)
+  {
     $start-= 1;
     $start = $length > 0 ? $start * $length : $start;
     $limit = new LimitIterator($this, $start, $length);
@@ -929,9 +958,6 @@ class Data extends ArrayIterator
     return $limit;
   }
 
-  public function __toString() {
-    return (string) $this->current();
-  }
 }
 
 /**
@@ -941,23 +967,17 @@ class Data extends ArrayIterator
 
 abstract class Model implements ArrayAccess
 {
-  public const SOURCE = null;
-  public const ID     = '//*[@id="%s"]';
-  public $context, $initialized;
+  const SOURCE = null;
+  const IDPATH = '//*[@id="%s"]';
+  const ID     = 'id';
 
-  protected function initialize($context):bool
+  public $initialized;
+
+  protected function initialize($context): bool
   {
     return true;
   }
 
-  /**
-   * Factory method that returs a modeled collection from a query
-   *
-   * @param string $model
-   * @param string $query
-   * @return void
-   * @author Brendan Metzger
-   */
   static public function __callStatic(string $model, $query)
   {
     $model = "Model\\{$model}";
@@ -975,24 +995,20 @@ abstract class Model implements ArrayAccess
    * Create an instance by id
    *
    * This has some magic so it can be directly used from a template w/
-   * Modelname::ID.2343.whatevermethod.whatevermethod
+   * Model.name.2343.whatevermethod.whatevermethod
    *
    */
-  static public function ID($id, ...$params) {
-    if (static::SOURCE === null) {
-      throw new Error("Model has not specified a data source", 500);
-    }
-
-    $context = Document::open(static::SOURCE)->select(sprintf(static::ID, $id));
+  static public function ID($id, ...$params)
+  {
+    $filepath = static::SOURCE ?? throw new Error("No specified source for model data", 500);
+    $context  = Document::open($filepath)->select(sprintf(static::IDPATH, $id));
     return array_reduce($params, fn($c, $k) => $c[$k], new static($context));
   }
 
-  final public function __construct($context) {
-    $this->context = $context;
-  }
+  public function __construct(public DOMNode $context) {}
 
-  public function offsetExists($key) {
-
+  public function offsetExists($key)
+  {
     return isset($this->context[$key]) || method_exists($this, "get{$key}");
   }
 
@@ -1003,18 +1019,22 @@ abstract class Model implements ArrayAccess
     $initialized ??= $this->initialize($this->context);
 
     $method  = "get{$key}";
+
     return method_exists($this, $method) ? $this->{$method}($this->context) : $this->context[$key];
   }
 
-  public function offSetSet($key, $value) {
+  public function offSetSet($key, $value)
+  {
     return $this->context[$key] = $value;
   }
 
-  public function offsetUnset($key) {
+  public function offsetUnset($key)
+  {
     unset($this->context[$key]);
   }
 
-  final public function __toString() {
-    return $this->context['@id'];
+  final public function __toString()
+  {
+    return $this->context->getAttribute(static::ID);
   }
 }

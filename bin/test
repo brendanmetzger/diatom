@@ -1,17 +1,15 @@
 #!/usr/bin/env php
 
-<?php chdir(dirname(__FILE__).'/..');
+<?php chdir(__DIR__.'/..');
 
 $version = phpversion();
-if ($version < 7.4) {
+if ($version < 8.0) {
   echo "PHP version ({$version}) is too low. Testing halted.\n";
   exit(1);
 }
 
 // Assuming php is correct, now we can load in framework
-define('CONFIG', parse_ini_file('data/config'));
 require 'src/kernel.php';
-
 
 
 ini_set('assert.exception', 1);

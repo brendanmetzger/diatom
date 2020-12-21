@@ -1,0 +1,15 @@
+<?layout system/index.html?>
+<main>
+  <h1>${error.code} Error</h1>
+  <p>${error.message}</p>
+  <p><a href="${mode}?url=file://${error.file}&amp;line=${error.line}">Go to ${error.line} ${error.file}</a></p>
+  <hr/>
+  <h4>Trace</h4>
+  <ul data-protocol="${mode}">
+    <!-- iterate error.trace -->
+    <li title="${file}">
+      <strong>${class}::${function}</strong>
+      <a href="${${mode}}?url=file://${file}&amp;line=${line}">${file}</a>
+    </li>
+  </ul>
+</main>

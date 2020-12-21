@@ -11,36 +11,47 @@
 class Command implements routable
 {
   use Registry;
-  public $script, $params, $action, $basic, $status = 0, $input;
-    
+  public $script, $params, $route, $basic, $status = 0, $input, $request, $payload;
+
   static public function __callStatic($key, $args) {
-    return Route::delegate(new self([$key, ...$args]));
+    return Route::compose(new self([$key, ...$args]));
   }
-  
+
   public function __construct(array $params = [])
   {
     $this->params = $params;
-    $this->action = array_shift($this->params) ?: 'index';
+    $this->request = (object) ['method' => ''];
+    $this->route = array_shift($this->params) ?: 'index';
     $this->input  = STDIN;
   }
-  
+
   public function prompt($message)
   {
     echo $message . ": ";
     return trim(fgets($this->input));
   }
-  
-  public function reject(int $reason, $info): Exception {
-    $routes = join("\n > ", array_keys($info));
-    return new Exception("hmm, {$this->action}' not a thing..\n\n > {$routes}\n", $reason);
-  }
-  
 
-  public function __invoke($template) {
-    return $template;
+  public function reject(int $reason, $message): Exception {
+    if (is_array($message)) {
+      $message = "hmm, {$this->route}' not a thing..\n\n >";
+      $message .= join("\n > ", array_keys($message));
+    }
+
+    return new Exception($message, $reason);
   }
-  
-  public function compose($payload, bool $default) {
-    return $payload;
+
+
+  public function __invoke($message, ...$data):stringable|string {
+    return vsprintf($message . "\n", $data);
+  }
+
+  public function __toString()
+  {
+    return $this->payload;
+  }
+
+  public function compose($payload, bool $default):self {
+    $this->payload = $payload;
+    return $this;
   }
 }
