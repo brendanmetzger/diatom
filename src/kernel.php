@@ -259,7 +259,7 @@ class Request extends File
   public function __construct(?string $host = null, public array $headers, public $root = '')
   {
     $this->method = $headers['REQUEST_METHOD'] ?? 'GET';
-    $this->origin = rtrim($headers['REQUEST_URI'], '/') ?: '/' . Route::INDEX;
+    $this->origin = rtrim($headers['REQUEST_URI'], '/') ?: '/' . Route::config('default');
 
     parent::__construct(($host ?? self::config('host')) . $this->origin, type: 'html');
 
