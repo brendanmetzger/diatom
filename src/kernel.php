@@ -35,8 +35,7 @@ interface routable
 class Route
 {
   use Configured;
-  static private $paths = [];
-
+  static private $paths = [], $id = 0;
   static public function delegate(routable $router): routable
   {
     $paths   = self::$paths;
@@ -56,9 +55,11 @@ class Route
     if ($callback === null) {
       $instance->template = $config['src'];
     } else {
+      // fuzzy checksum to aid caching
+      self::$id ^= crc32($path . join($config));
+
       $instance->info['route']   = $instance->path;
       $instance->info['title'] ??= $instance->path;
-
       $instance->then($callback);
     }
 
@@ -78,11 +79,12 @@ class Route
     // print_r(glob($root, GLOB_MARK|GLOB_NOSORT));
 
     $root    = self::config('directory') . '/*';
-
     $files   = glob("{$root}.{{$types}}", GLOB_BRACE);
-    $dynamic = array_map(fn($obj) => join($obj->info) . $obj->path, self::$paths);
-    $static  = array_map('filemtime', $files);
-    $stash   = sys_get_temp_dir() . '/' . md5(join($dynamic+$static));
+
+    $dir   = self::config('directory');
+    $scan  = scandir($dir, SCANDIR_SORT_NONE);
+    $key   = array_reduce($scan, fn($c,$i) => $c^filemtime($dir.'/'.$i), self::$id);
+    $stash = sprintf('%s/%X.json', sys_get_temp_dir(), $key);
 
     foreach (glob($root, GLOB_ONLYDIR) as $path) {
       [$dir, $name] = explode('/', $path);
@@ -90,7 +92,7 @@ class Route
       self::set($name, new Proxy($ctrl));
     }
 
-    if (file_exists($stash)) {
+    if (is_file($stash)) {
       $routes = json_decode(file_get_contents($stash), true);
       foreach ($routes as $path => $info)
         if (isset($info['file']))

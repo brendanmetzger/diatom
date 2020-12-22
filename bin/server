@@ -6,12 +6,13 @@ define('CPATH', '../data/config');
 if (php_sapi_name() == 'cli') {
 
   $input = fopen('php://stdin', 'r');
-
+  
   if (is_link(CPATH)) {
 
     $config = parse_ini_file(CPATH, true);
+    $host   = preg_replace('/https?:\/\//', '', $config['request']['host']);
 
-    if ($running = shell_exec(sprintf('ps -x | grep "[p]hp -S %s"', $config['data']['host']))) {
+    if ($running = shell_exec(sprintf('ps -x | grep "[p]hp -S %s"', $host))) {
 
       $info  = preg_split('/\s+/', trim($running));
 
@@ -58,12 +59,12 @@ if (php_sapi_name() == 'cli') {
   if ($status > 0) exit(1);
 
   $config = parse_ini_file(CPATH, true);
-  $host   = $config['request']['host'];
+  $host   = preg_replace('/https?:\/\//', '', $config['request']['host']);
 
   echo "Starting localhost at {$host} (modify that in config if wanting different)\n";
-  touch($config['route']['directory'] . '/' . $config['route']['index'] .'.html');
+  touch($config['route']['directory'] . '/' . $config['route']['default'] .'.html');
   exec(sprintf('php -S %s %s > %s 2>&1 &', $host, 'index.php', $config['controller\system']['log']));
-  exec(sprintf('open -a "%s" http://%s/', $config['controller\system']['browser'], $host));
+  exec(sprintf('open -a "%s" http://%s', $config['controller\system']['browser'], $host));
   echo "run `bin/server` stop this server.\n" ;
 
 }

@@ -4,7 +4,7 @@
 
 # Quickstart \ Guides
 
-Open **views/pages/checklist.md** to amend and edit this checklist
+Open **views/pages/checklist.md** to ammend and edit this checklist
 
 ## Startup Tasks
 
@@ -59,4 +59,5 @@ section[id$=tasks] li ul {
   padding-left: 0.75rem;
   margin:0.25rem 0.25rem;
 }
+
 ```
