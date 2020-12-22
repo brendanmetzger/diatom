@@ -4,34 +4,35 @@ use Document, Model, Auth, HTTP;
 
 class System extends \Controller
 {
-  static private $authorization;
+  use \Configured;
 
-  static public function load($allowed) {
-    if ($allowed) return false;
-    \Route::set('system', new \Proxy('Controller\System'));
+  final static public function load($flag) {
+    if (self::config($flag)) {
+      \Route::system(new \Proxy('Controller\System'));
+
+      \Render::set('before', function($node) {
+        [$doc, $context] = $node instanceof Document ? [$node, $node->documentElement] : [$node->ownerDocument, $node];
+
+        foreach ($context->find('.//*[not(@data-path or self::script or self::style) and text() and not(ancestor::*/text())]') as $node)
+          $node->setAttribute('data-path', $node->getNodePath());
+
+        if ($path = $doc->info['src'] ?? false)
+          $context->setAttribute('data-doc', $path);
+
+      });
+
+      \Render::set('after', function($context) {
+        if ($body = $context->select('//body')) {
+          $body->setAttribute('data-prompt', \Request::config('mode'));
+          $body->setAttribute('data-root', realpath('.'));
+          $body->appendChild(new \Element('script'))->setAttribute('src', '/ux/js/edit.js');
+        }
+      });
+    }
   }
 
-  public function __construct($authorization = null)
+  public function __construct($request)
   {
-
-    \Render::set('before', function($node) {
-      [$doc, $context] = $node instanceof Document ? [$node, $node->documentElement] : [$node->ownerDocument, $node];
-
-      foreach ($context->find('.//*[not(@data-path or self::script or self::style) and text() and not(ancestor::*/text())]') as $node)
-        $node->setAttribute('data-path', $node->getNodePath());
-
-      if ($path = $doc->info['src'] ?? false)
-        $context->setAttribute('data-doc', $path);
-
-    });
-
-    \Render::set('after', function($context) {
-      if ($body = $context->select('//body')) {
-        $body->setAttribute('data-prompt', CONFIG['data']['mode']);
-        $body->setAttribute('data-root', realpath('.'));
-        $body->appendChild(new \Element('script'))->setAttribute('src', '/ux/js/edit.js');
-      }
-    });
   }
 
   public function GETauth()

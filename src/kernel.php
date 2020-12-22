@@ -5,6 +5,20 @@ set_include_path(__DIR__);
 libxml_use_internal_errors(true);
 spl_autoload_register();
 
+trait Configured
+{
+  static public $ini;
+  static private $config;
+
+  static public function config($key = null)
+  {
+    self::$ini ??= parse_ini_file('../data/config', true);
+    self::$config ??= self::$ini[strtolower(self::class)] ?? [];
+    return self::$config[$key] ?? self::$config;
+  }
+}
+
+
 
 interface routable
 {
@@ -20,7 +34,7 @@ interface routable
 
 class Route
 {
-  const INDEX = 'index';
+  use Configured;
   static private $paths = [];
 
   static public function delegate(routable $router): routable
@@ -31,7 +45,7 @@ class Route
              : $paths[$router->route]?->fulfill($router) ?? throw $router->reject(404, $paths);
 
     // TODO: $router->route is not a good solution.
-    return $router->compose($payload, $router->route == Route::INDEX);
+    return $router->compose($payload, $router->route == self::config('default'));
   }
 
   static public function set($path, ?callable $callback = null, array $config = []): Route
@@ -58,20 +72,22 @@ class Route
     return self::set($action, ...$arguments);
   }
 
-  static public function gather(array $files): iterable
+  static public function gather($types): iterable
   {
-    // this could be tallied on `set` so that it doesn't have to be mapped
+    // TODO: check and see if one glob can do the trick
+    // print_r(glob($root, GLOB_MARK|GLOB_NOSORT));
+
+    $root    = self::config('directory') . '/*';
+
+    $files   = glob("{$root}.{{$types}}", GLOB_BRACE);
     $dynamic = array_map(fn($obj) => join($obj->info) . $obj->path, self::$paths);
     $static  = array_map('filemtime', $files);
     $stash   = sys_get_temp_dir() . '/' . md5(join($dynamic+$static));
 
-    $glob = 'pages/';
-    $trim = strlen($glob);
-
-    foreach (glob($glob.'*', GLOB_ONLYDIR) as $path) {
-      $name = substr($path, $trim);
+    foreach (glob($root, GLOB_ONLYDIR) as $path) {
+      [$dir, $name] = explode('/', $path);
       $ctrl = sprintf('controller\%s', is_file("../src/controller/{$name}.php") ? $name : 'Page');
-      self::set($name, new \Proxy($ctrl, [$name, $path]));
+      self::set($name, new Proxy($ctrl));
     }
 
     if (file_exists($stash)) {
@@ -131,7 +147,7 @@ class Route
     }
 
     $response->fulfilled = true;
-    $response->layout  ??= $this->info['layout'] ?? self::$paths[self::INDEX]->template;
+    $response->layout  ??= $this->info['layout'] ?? self::$paths[self::config('default')]->template;
     $response->render  ??= $this->info['render'] ?? null;
 
     return $out ?? $response($this->template);
@@ -237,14 +253,15 @@ class File
 
 class Request extends File
 {
+  use Configured;
   public $origin, $method;
 
-  public function __construct(string $host, public array $headers, public $root = '')
+  public function __construct(?string $host = null, public array $headers, public $root = '')
   {
     $this->method = $headers['REQUEST_METHOD'] ?? 'GET';
     $this->origin = rtrim($headers['REQUEST_URI'], '/') ?: '/' . Route::INDEX;
 
-    parent::__construct($host . $this->origin, type: 'html');
+    parent::__construct(($host ?? self::config('host')) . $this->origin, type: 'html');
 
     if (is_file($root . $this->uri)) {
       $this->setBody(file_get_contents($root.$this->uri));
@@ -305,7 +322,8 @@ class Response implements routable
                     : $content;
 
     $this->request->setBody((string) $content);
-    $this->header('Content-Length', $this->request->size);
+
+    // $this->header('Content-Length', $this->request->size);
     return $this;
   }
 
@@ -346,7 +364,6 @@ class Response implements routable
 
       $layout = new Template(Document::open($payload->info['layout'] ?? $this->layout));
 
-
       // make sure we aren't putting the layout into itself
       if (! $is_index) {
 
@@ -354,12 +371,9 @@ class Response implements routable
         Template::set($this->id, $payload);
       }
     }
-
-
     // render and transform the document layout
-    $output = $layout->render(['route' => $this->route] + $payload->info + $this->data, $this->basic ? true : $this->id);
-    $output = Render::transform($output, $this->render);
-
+    $data   = ['route' => $this->route] + $payload->info + $this->data + Request::config();
+    $output = Render::transform($layout->render($data, $this->basic ? true : $this->id), $this->render);
 
     // convert if request type is not markup
     return $this->setBody(Parser::check($output, $this->request->type));
@@ -384,7 +398,7 @@ class Response implements routable
 
 abstract class Controller
 {
-  protected $response, $path, $name;
+  protected $response;
 
   final public function __invoke($action, $params) {
 
@@ -436,10 +450,7 @@ abstract class Controller
 
   protected function open(array $ns = []): Document
   {
-    /*
-      TODO use $this->request->origin instead of all the joins and pointless constructor stuff;
-    */
-    $path = strtolower(join('/',[$this->path, $this->action, ...$ns]));
+    $path = Route::config('directory') . $this->request->origin;
 
     if (! $file = (glob($path.'.*')[0] ?? false))
       $file = $path . '/index.html';

@@ -4,11 +4,7 @@ use Document;
 
 class Page extends \Controller
 {
-  public function __construct(\Response $response, string $name = null, string $path = null) {
-    $this->name = $name;
-    $this->path = $path;
-    $response->endpoint = $response->request->origin;
-  }
+  public function __construct(\Response $response, protected ?string $path = null) {}
 
   public function GETindex()
   {

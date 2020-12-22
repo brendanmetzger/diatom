@@ -4,11 +4,9 @@
 
 /**** ROUTING ****************************************************************/
 
-if (CONFIG['data']['mode'] ?? false) {
 
-  Route::system(new Controller\System);
 
-}
+Controller\System::load('enabled');
 
 
 Route::promisy(function($message = 'add a param to address') {
@@ -58,7 +56,7 @@ Route::example(function($greeting = 'world') {
 
 try {
 
-  $request = new Request(host: CONFIG['data']['host'], headers: $_SERVER, root: realpath('.'));
+  $request = new Request(headers: $_SERVER, root: realpath('.'));
 
   if ($request->body) {
     $response = new Response($request);
@@ -66,7 +64,7 @@ try {
 
     // Set Application data
     $data = [
-      'pages' => Route::gather(glob('pages/*.{html,md}', GLOB_BRACE)),
+      'pages' => Route::gather('html,md'),
       'date'  => fn ($format, $time = 'now') => date($format, strtotime($time)),
       'model' => 'model::FACTORY',
     ];
@@ -75,7 +73,7 @@ try {
     // 'instance' => fn($name, $id, ...$params) => "Model\\$name"::ID($id, ...$params),
     // 'factory'  => fn($name, $query) => Model::$name(urldecode($query)),
 
-    $response = Route::delegate(new Response($request, $data + CONFIG['data']));
+    $response = Route::delegate(new Response($request, $data));
 
   }
 
@@ -90,7 +88,7 @@ try {
 
   $keys   = ['message', 'code', 'file', 'line', 'trace'];
   $data   = ['error' => array_combine($keys, array_map(fn($m) => $e->{"get$m"}(), $keys))];
-  $response = Request::GET('system/error', $data + CONFIG['data'], yield: false);
+  $response = Request::GET('system/error', $data, yield: false);
   $response->status = $e->getCode() ?: 400;
 
 } finally {
