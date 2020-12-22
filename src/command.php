@@ -41,8 +41,8 @@ class Command implements routable
   }
 
 
-  public function __invoke($message, ...$data):stringable|string {
-    return vsprintf($message . "\n", $data);
+  public function record($instruction = null, ...$data): stringable | string {
+    return vsprintf($instruction . "\n", $data);
   }
 
   public function __toString()
@@ -50,7 +50,7 @@ class Command implements routable
     return $this->payload;
   }
 
-  public function compose($payload, bool $default):self {
+  public function compose($payload, bool $default): self {
     $this->payload = $payload;
     return $this;
   }

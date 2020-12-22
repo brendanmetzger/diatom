@@ -22,8 +22,8 @@ trait Configured
 
 interface routable
 {
-  public function __invoke($template): stringable | string;
-  public function reject(int $reason, $info): Exception;
+  public function record($instruction = null)     : stringable | string;
+  public function reject(int $reason, $info)      : Exception;
   public function compose($payload, bool $default): self;
 }
 
@@ -35,33 +35,28 @@ interface routable
 class Route
 {
   use Configured;
-  static private $paths = [], $id = 0;
+  static private $paths = [], $id = 0, $prepared = false;
   static public function delegate(routable $router): routable
   {
-    $paths   = self::$paths;
+    $paths   = self::prepare($router);
     $payload = $router->fulfilled
-             ? $router($router->request)
+             ? $router->record($router->request)
              : $paths[$router->route]?->fulfill($router) ?? throw $router->reject(404, $paths);
 
     // TODO: $router->route is not a good solution.
     return $router->compose($payload, $router->route == self::config('default'));
   }
 
-  static public function set($path, ?callable $callback = null, array $config = []): Route
+  static public function set($path, callable $callback, array $config = []): Route
   {
     $path     = strtolower(trim($path, '/'));
     $instance = self::$paths[$path] ??= new self($path, $config['publish'] ?? 0);
     $instance->info += $config;
-    if ($callback === null) {
-      $instance->template = $config['src'];
-    } else {
-      // fuzzy checksum to aid caching
-      self::$id ^= crc32($path . join($config));
+    $instance->template = $config['src'] ?? null;
+    // fuzzy checksum to aid caching
+    self::$id ^= crc32($path . join($config));
 
-      $instance->info['route']   = $instance->path;
-      $instance->info['title'] ??= $instance->path;
-      $instance->then($callback);
-    }
+    $instance->then($callback);
 
     return $instance;
   }
@@ -73,55 +68,64 @@ class Route
     return self::set($action, ...$arguments);
   }
 
-  static public function gather($types): iterable
+  static private function prepare(routable $router): iterable
   {
-    // TODO: check and see if one glob can do the trick
-    // print_r(glob($root, GLOB_MARK|GLOB_NOSORT));
+    static $prepared = false;
+    if (! $prepared) {
 
-    $root    = self::config('directory') . '/*';
-    $files   = glob("{$root}.{{$types}}", GLOB_BRACE);
+      $root  = self::config('directory');
+      $scan  = scandir($root, SCANDIR_SORT_NONE);
+      $key   = array_reduce($scan, fn($c,$i) => $c^filemtime($root.'/'.$i), self::$id);
+      $stash = sprintf('%s/%X.json', sys_get_temp_dir(), $key);
+      $route = Closure::fromCallable([$router, 'record']);
 
-    $dir   = self::config('directory');
-    $scan  = scandir($dir, SCANDIR_SORT_NONE);
-    $key   = array_reduce($scan, fn($c,$i) => $c^filemtime($dir.'/'.$i), self::$id);
-    $stash = sprintf('%s/%X.json', sys_get_temp_dir(), $key);
+      if (is_file($stash)) {
+        $routes = json_decode(file_get_contents($stash), true);
+        foreach ($routes as $path => $info) {
+          if (isset($info['src'])) self::set($path, $route, $info);
+          if (isset($info['controller'])) self::set($path, new Proxy($info['controller']), $info);
+        }
 
-    foreach (glob($root, GLOB_ONLYDIR) as $path) {
-      [$dir, $name] = explode('/', $path);
-      $ctrl = sprintf('controller\%s', is_file("../src/controller/{$name}.php") ? $name : 'Page');
-      self::set($name, new Proxy($ctrl));
-    }
+      } else {
 
-    if (is_file($stash)) {
-      $routes = json_decode(file_get_contents($stash), true);
-      foreach ($routes as $path => $info)
-        if (isset($info['file']))
-          self::set($path, null, $info);
+        // scan for files (direct routes)
+        foreach(Data::apply(array_filter(array_map(fn($f) => $root.'/'.$f, $scan), 'is_file'), 'Document::open') as $DOM) {
+          $info = $DOM->info;
+          $info['route'] ??= $info['file']['filename'];
+          unset($info['file']);
+          self::set($info['route'], null, $info);
+        }
 
-    } else {
+        // scan for directories (controllers)
+        foreach (array_filter($scan, fn($f) => is_dir($root.'/'.$f) && $f[-1] != '.') as $name) {
+          $ctrl = sprintf('controller\%s', is_file("../src/controller/{$name}.php") ? $name : 'Page');
+          self::set($name, new Proxy($ctrl), ['controller' => $ctrl]);
+        }
 
-      foreach(Data::apply($files, 'Document::open') as $DOM) {
-        $path = $DOM->info['route'] ??= $DOM->info['file']['filename'];
-        self::set($path, null, $DOM->info);
+        uasort(self::$paths, fn($A, $B) => ($A->publish) <=> ($B->publish));
+
+        $routes =  array_map(fn($R) => $R->info, self::$paths);
+
+        file_put_contents($stash, json_encode($routes));
       }
 
-      uasort(self::$paths, fn($A, $B) => ($A->publish) <=> ($B->publish));
-
-      $routes = array_map(fn($R) => $R->info, self::$paths);
-      file_put_contents($stash, json_encode($routes));
+      $router->data[$root] = array_filter($routes, fn($route) => $route['publish'] ?? false);
+      $prepared = true;
     }
 
-    return array_filter($routes, fn($route) => $route['publish'] ?? false);
+    return self::$paths;
   }
 
 
   /**** Instance Properties and Methods **************************************/
 
   private $handle = null, $template = null, $exception = null;
-
   public $info = [];
 
-  private function __construct(public string $path, public int $publish = 0) { }
+  private function __construct(public string $path, public int $publish = 0) {
+    $this->info['route'] = $path;
+    $this->info['title'] = $path;
+  }
 
   public function then(callable $handle): self {
     $this->handle[] = $handle;
@@ -135,24 +139,24 @@ class Route
 
   public function fulfill(routable $response, $out = null, int $i = 0)
   {
-  if ($this->handle !== null) {
-      $out = $response->params;
-      try {
-        do
-          $out = $this->handle[$i++]->call($response, ...(is_array($out) ? $out : [$out]));
 
-        while (isset($this->handle[$i]) && ! $response->fulfilled);
+    $out = $response->params;
 
-      } catch (Status $e) {
-        $out = $test->exception?->call($response, $e) ?? throw $e;
-      }
+    try {
+      do
+        $out = $this->handle[$i++]->call($response, ...(is_array($out) ? $out : [$out]));
+
+      while (isset($this->handle[$i]) && ! $response->fulfilled);
+
+    } catch (Status $e) {
+      $out = $test->exception?->call($response, $e) ?? throw $e;
     }
 
     $response->fulfilled = true;
     $response->layout  ??= $this->info['layout'] ?? self::$paths[self::config('default')]->template;
     $response->render  ??= $this->info['render'] ?? null;
 
-    return $out ?? $response($this->template);
+    return $out ?? $response->record($this->template, 'farters');
   }
 }
 
@@ -312,10 +316,12 @@ class Response implements routable
     $this->basic     = $request->headers['HTTP_YIELD'] ?? ($request->type != 'html');
   }
 
-  public function __invoke($path): stringable | string
+  public function record($path = null, $more = ''): stringable | string
   {
+    $uri = $path ?? Route::config('directory') . $this->request->uri;
+    // echo $more;
     // when here, either no callback specified OR the callback returned void
-    return $path ? Document::open($path) : new Document("<p>\u{26A0} /{$this->route}</p>");
+    return Document::open($uri);
   }
 
   public function setBody($content): Response {

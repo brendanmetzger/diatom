@@ -55,25 +55,19 @@ Route::example(function($greeting = 'world') {
 
 try {
 
-  $request = new Request(headers: $_SERVER, root: realpath('.'));
+  $request  = new Request(headers: $_SERVER, root: realpath('.'));
+  $response = new Response($request, [
+    'date'  => fn ($format, $time = 'now') => date($format, strtotime($time)),
+    'model' => 'model::FACTORY',
+  ]);
 
-  if ($request->body) {
-    $response = new Response($request);
-  } else {
+  // WIP These are some interesting methods that allow templates to do more than they prob should.
+  // 'instance' => fn($name, $id, ...$params) => "Model\\$name"::ID($id, ...$params),
+  // 'factory'  => fn($name, $query) => Model::$name(urldecode($query)),
 
-    // Set Application data
-    $data = [
-      'pages' => Route::gather('html,md'),
-      'date'  => fn ($format, $time = 'now') => date($format, strtotime($time)),
-      'model' => 'model::FACTORY',
-    ];
 
-    // WIP These are some interesting methods that allow templates to do more than they prob should.
-    // 'instance' => fn($name, $id, ...$params) => "Model\\$name"::ID($id, ...$params),
-    // 'factory'  => fn($name, $query) => Model::$name(urldecode($query)),
-
-    $response = Route::delegate(new Response($request, $data));
-
+  if (! $request->body) {
+    Route::delegate($response);
   }
 
 } catch (Redirect $notice) {

@@ -64,7 +64,7 @@ function processElementChange(evt) {
   let context  = this;
   while (! context.dataset.doc) context = context.parentNode;
 
-  Request.PUT('edit/update.xml', context).then(result => {
+  Request.PUT('system/update.xml', context).then(result => {
     this.innerHTML = result.querySelector(`*[data-path='${this.dataset.path}']`).innerHTML;
   });
 
