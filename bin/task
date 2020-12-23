@@ -9,54 +9,13 @@
 
 
 Route::bench(function () {
-  $bench = new Util\Bench('start');
-  $dir = '/Volumes/media/mcachicago.org/data/mcachicago.org';
-  // $key = md5(array_reduce(scandir($dir, SCANDIR_SORT_NONE), fn($c, $i) => $c^filemtime($dir.'/'.$i), filemtime('index.php')));
+  $doc = new Document('<root><a><bob/><bob/><bob/></a><b></b></root>');
 
-
-  $init = 0;
-
-  for ($i=1; $i < 10; $i++) {
-    $init ^= crc32(join(['a' => 'c', 'c' => 'd', 'e' => 'f']) . $i);
-  }
-
-  echo $init . ' bit time = ' . $bench->split('bits', 'start');
-
-  $init = [];
-  for ($i=0; $i < 10; $i++) {
-    $init[] = $i . join(['a' => 'b', 'c' => 'd', 'e' => 'f']);
-  }
-
-  echo "\n" . crc32(join($init)) . ' join time = ' . $bench->split('join', 'bits');
-
-  return;
-  // reduce
-  for ($i=0; $i < 1000; $i++) {
-    clearstatcache();
-    $files = scandir($dir, SCANDIR_SORT_NONE);
-    $key = md5(array_reduce($files, fn($c, $i) => $c^filemtime($dir.'/'.$i), filemtime('index.php')));
-  }
-
-
-
-  echo 'red = ' . $bench->split('reduce', 'start') . " {$key} \n";
-
-
-  for ($i=0; $i < 1000; $i++) {
-    clearstatcache();
-    $files   = array_map(fn($p) => filemtime($dir.'/'.$p), scandir($dir, SCANDIR_SORT_NONE));
-    $files[] = filemtime('index.php');
-    $key = md5(join($files));
-  }
-
-  echo 'map = ' . $bench->split('map', 'reduce') . " {$key} \n";
-
-
-
-  // check readdir vs glob
-  // check non defined CONFIG
-  return 'done';
+  $doc->select('//b')->append(...$doc->select('//a')->childNodes);
+  return $doc;
 });
+
+
 
 
 Route::markdown(function($file = 'bootstrap', $type = 'local') {
@@ -176,7 +135,7 @@ Route::plain(function() {
 
 try {
 
-  Route::set('index', null, ['src' => 'bin/task']);
+  Route::set('index', fn() => "not implemented", ['src' => 'bin/task']);
 
   $command = new Command(array_slice($argv,1));
   $output  = Route::delegate($command);

@@ -7,7 +7,7 @@ spl_autoload_register();
 
 trait Configured
 {
-  static public $ini;
+  static public  $ini;
   static private $config;
 
   static public function config($key = null)
@@ -43,7 +43,7 @@ class Route
              ? $router->record($router->request)
              : $paths[$router->route]?->fulfill($router) ?? throw $router->reject(404, $paths);
 
-    // TODO: $router->route is not a good solution.
+    // TODO: $router->route is not a good solution. DELETE per constructor
     return $router->compose($payload, $router->route == self::config('default'));
   }
 
@@ -93,11 +93,12 @@ class Route
           $info = $DOM->info;
           $info['route'] ??= $info['file']['filename'];
           unset($info['file']);
-          self::set($info['route'], null, $info);
+          self::set($info['route'], $route, $info);
         }
 
         // scan for directories (controllers)
         foreach (array_filter($scan, fn($f) => is_dir($root.'/'.$f) && $f[-1] != '.') as $name) {
+          // TODO: use class exists autoload, then can get publish constant or similar
           $ctrl = sprintf('controller\%s', is_file("../src/controller/{$name}.php") ? $name : 'Page');
           self::set($name, new Proxy($ctrl), ['controller' => $ctrl]);
         }
@@ -105,7 +106,6 @@ class Route
         uasort(self::$paths, fn($A, $B) => ($A->publish) <=> ($B->publish));
 
         $routes =  array_map(fn($R) => $R->info, self::$paths);
-
         file_put_contents($stash, json_encode($routes));
       }
 
@@ -120,11 +120,16 @@ class Route
   /**** Instance Properties and Methods **************************************/
 
   private $handle = null, $template = null, $exception = null;
-  public $info = [];
+  public $info = [], $index = false;
 
   private function __construct(public string $path, public int $publish = 0) {
     $this->info['route'] = $path;
-    $this->info['title'] = $path;
+    $this->index = $path == self::config('default');
+  }
+
+  public function __toString()
+  {
+    return $this->path;
   }
 
   public function then(callable $handle): self {
@@ -139,9 +144,8 @@ class Route
 
   public function fulfill(routable $response, $out = null, int $i = 0)
   {
-
     $out = $response->params;
-
+    $response->template = $this->template;
     try {
       do
         $out = $this->handle[$i++]->call($response, ...(is_array($out) ? $out : [$out]));
@@ -153,10 +157,10 @@ class Route
     }
 
     $response->fulfilled = true;
-    $response->layout  ??= $this->info['layout'] ?? self::$paths[self::config('default')]->template;
+    $response->layout  ??= $this->info['layout'] ?? self::$paths[self::config('default')]?->template;
     $response->render  ??= $this->info['render'] ?? null;
 
-    return $out ?? $response->record($this->template, 'farters');
+    return $out;
   }
 }
 
@@ -303,7 +307,7 @@ class Response implements routable
 {
   use Registry;
 
-  public $status = 200, $route, $id, $params, $document, $basic, $headers = [], $fulfilled = false, $layout = null, $render = null;
+  public $status = 200, $route, $id, $params, $document, $basic, $headers = [], $fulfilled = false, $layout = null, $template, $render = null;
 
   public function __construct(public Request $request, array $data = [])
   {
@@ -316,9 +320,9 @@ class Response implements routable
     $this->basic     = $request->headers['HTTP_YIELD'] ?? ($request->type != 'html');
   }
 
-  public function record($path = null, $more = ''): stringable | string
+  public function record($path = null): stringable | string
   {
-    $uri = $path ?? Route::config('directory') . $this->request->uri;
+    $uri = $path ?? $this->template ?? Route::config('directory') . $this->request->uri;
     // echo $more;
     // when here, either no callback specified OR the callback returned void
     return Document::open($uri);
@@ -557,7 +561,7 @@ class Template
     }
   }
 
-  public function render($data = [], $ruid = null): Document
+  public function render(iterable $data = [], $ruid = null): Document
   {
     foreach ($this->getStubs('yield') as [$cmd, $prop, $exp, $ref]) {
       if ($DOM = self::$yield[$prop ?? $ruid] ?? null) {
@@ -572,11 +576,11 @@ class Template
 
     foreach ($this->getStubs('iterate') as [$cmd, $key, $exp, $ref]) {
 
-      $template = new self($ref->nextSibling->parentNode->removeChild($ref->nextSibling));
+      $template = new self($ref->nextElementSibling->parentNode->removeChild($ref->nextElementSibling));
       $template->getSlugs("[not(ancestor-or-self::*/preceding-sibling::comment()[starts-with(normalize-space(.), 'iterate')])]");
 
       $reset  = $template->DOM->documentElement->cloneNode(true);
-      $invert = $exp !== '/';
+      $invert = $exp !== '/' ;
       $slug   = $ref;
 
       foreach (Data::fetch($key, $data) ?? [] as $datum) {
@@ -611,7 +615,7 @@ class Template
   }
 
 
-  private function getStubs($key): iterable
+  private function getStubs(string $key): iterable
   {
     $x = "comment()[starts-with(normalize-space(.), '{$key}')]";
 
@@ -797,15 +801,14 @@ class Element extends DOMElement implements ArrayAccess
   {
     if ($element->ownerDocument != $this->ownerDocument)
       $element = $this->ownerDocument->importNode($element, true);
+
+    // TODO: can now do $this->append(...$element->childNodes);
+
     while($node = $element->firstChild)
       $this->appendChild($node);
     return $this;
   }
 
-  public function rename(Element $node)
-  {
-    return $node->adopt($this->parentNode->replaceChild($node, $this));
-  }
 
   public function offsetExists($key) {
     return $this->find($key)->length > 0;
@@ -860,6 +863,7 @@ class Text extends DOMText
   {
     if ($data instanceof DOMNode) {
       $stub = $this->splitText($start)->splitText($length)->previousSibling;
+      // TODO: can now do $stub->replaceWith($this->ownerDocument->importNode($data, true));
       $this->parentNode->replaceChild($this->ownerDocument->importNode($data, true), $stub);
     } else {
       $this->replaceData($start, $length, $data);

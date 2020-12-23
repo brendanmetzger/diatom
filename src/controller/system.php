@@ -85,7 +85,7 @@ class System extends \Controller
       if ($context = $original->select($node['@data-path'])) {
         // cache literals to swap back in ${}..
 
-        $context->parentNode->replaceChild($original->importNode($node, true), $context);
+        $context->replaceWith($original->importNode($node, true));
       }
     }
 
