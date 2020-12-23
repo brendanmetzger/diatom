@@ -22,7 +22,7 @@ trait Configured
 
 interface routable
 {
-  public function record($instruction = null)     : stringable | string;
+  public function output($instruction = null)     : stringable | string;
   public function reject(int $reason, $info)      : Exception;
   public function compose($payload, bool $default): self;
 }
@@ -40,8 +40,8 @@ class Route
   {
     $paths   = self::prepare($router);
     $payload = $router->fulfilled
-             ? $router->record($router->request)
-             : $paths[$router->route]?->fulfill($router) ?? throw $router->reject(404, $paths);
+             ? $router->output($router->request)
+             : ($paths[$router->route] ?? throw $router->reject(404, $paths))->fulfill($router);
 
     // TODO: $router->route is not a good solution. DELETE per constructor
     return $router->compose($payload, $router->route == self::config('default'));
@@ -52,7 +52,7 @@ class Route
     $path     = strtolower(trim($path, '/'));
     $instance = self::$paths[$path] ??= new self($path, $config['publish'] ?? 0);
     $instance->info += $config;
-    $instance->template = $config['src'] ?? null;
+
     // fuzzy checksum to aid caching
     self::$id ^= crc32($path . join($config));
 
@@ -63,8 +63,7 @@ class Route
 
   // Note: this is really an alias for the above, but I like for writing quick bin/task stuff.
   // Warning: __callStatic to set route can potentially collide with an existing Route method
-  static public function __callStatic($action, $arguments): Route
-  {
+  static public function __callStatic($action, $arguments): Route {
     return self::set($action, ...$arguments);
   }
 
@@ -77,13 +76,13 @@ class Route
       $scan  = scandir($root, SCANDIR_SORT_NONE);
       $key   = array_reduce($scan, fn($c,$i) => $c^filemtime($root.'/'.$i), self::$id);
       $stash = sprintf('%s/%X.json', sys_get_temp_dir(), $key);
-      $route = Closure::fromCallable([$router, 'record']);
+      $route = Closure::fromCallable([$router, 'output']);
 
       if (is_file($stash)) {
         $routes = json_decode(file_get_contents($stash), true);
         foreach ($routes as $path => $info) {
-          if (isset($info['src'])) self::set($path, $route, $info);
-          if (isset($info['controller'])) self::set($path, new Proxy($info['controller']), $info);
+          if      (isset($info['controller'])) self::set($path, new Proxy($info['controller']), $info);
+          else if (isset($info['src'])) self::set($path, $route, $info);
         }
 
       } else {
@@ -98,9 +97,9 @@ class Route
 
         // scan for directories (controllers)
         foreach (array_filter($scan, fn($f) => is_dir($root.'/'.$f) && $f[-1] != '.') as $name) {
-          // TODO: use class exists autoload, then can get publish constant or similar
-          $ctrl = sprintf('controller\%s', is_file("../src/controller/{$name}.php") ? $name : 'Page');
-          self::set($name, new Proxy($ctrl), ['controller' => $ctrl]);
+          $ctrl = "controller\\{$name}";
+          $ctrl = class_exists($ctrl, true) ? $ctrl : "controller\Page";
+          self::set($name, new Proxy($ctrl), ['controller' => $ctrl, 'publish' => $ctrl::PUBLISH, 'src' => glob("{$root}/{$name}/index.*")[0] ?? null]);
         }
 
         uasort(self::$paths, fn($A, $B) => ($A->publish) <=> ($B->publish));
@@ -119,7 +118,7 @@ class Route
 
   /**** Instance Properties and Methods **************************************/
 
-  private $handle = null, $template = null, $exception = null;
+  private $handle = null, $exception = null;
   public $info = [], $index = false;
 
   private function __construct(public string $path, public int $publish = 0) {
@@ -127,8 +126,7 @@ class Route
     $this->index = $path == self::config('default');
   }
 
-  public function __toString()
-  {
+  public function __toString() {
     return $this->path;
   }
 
@@ -137,30 +135,28 @@ class Route
     return $this;
   }
 
-  public function catch(callable $handle): void
-  {
+  public function catch(callable $handle): void {
     $this->exception = $handle;
   }
 
   public function fulfill(routable $response, $out = null, int $i = 0)
   {
     $out = $response->params;
-    $response->template = $this->template;
+    $response->template = $this->info['src'] ?? null;
     try {
-      do
+      do {
         $out = $this->handle[$i++]->call($response, ...(is_array($out) ? $out : [$out]));
-
-      while (isset($this->handle[$i]) && ! $response->fulfilled);
+      } while (isset($this->handle[$i]) && ! $response->fulfilled);
 
     } catch (Status $e) {
       $out = $test->exception?->call($response, $e) ?? throw $e;
     }
 
     $response->fulfilled = true;
-    $response->layout  ??= $this->info['layout'] ?? self::$paths[self::config('default')]?->template;
+    $response->layout  ??= $this->info['layout'] ?? self::$paths[self::config('default')]?->info['src'];
     $response->render  ??= $this->info['render'] ?? null;
 
-    return $out;
+    return $out ?? $response->output();
   }
 }
 
@@ -292,8 +288,7 @@ class Request extends File
     return Route::delegate(new Response($request, $data));
   }
 
-  public function authorization($key): string
-  {
+  public function authorization($key): string {
     return $_COOKIE[$key] ?? $this->headers['Authorization'] ?? '';
   }
 }
@@ -320,12 +315,9 @@ class Response implements routable
     $this->basic     = $request->headers['HTTP_YIELD'] ?? ($request->type != 'html');
   }
 
-  public function record($path = null): stringable | string
-  {
-    $uri = $path ?? $this->template ?? Route::config('directory') . $this->request->uri;
-    // echo $more;
-    // when here, either no callback specified OR the callback returned void
-    return Document::open($uri);
+  // when here, either no callback specified OR the callback returned void
+  public function output($path = null): stringable | string {
+    return Document::open($path ?? $this->template ?? throw $this->reject(404));
   }
 
   public function setBody($content): Response {
@@ -410,12 +402,16 @@ class Response implements routable
 
 abstract class Controller
 {
+  const PUBLISH = 0;
   protected $response;
 
-  final public function __invoke($action, $params) {
+  final public function __invoke($action, $params)
+  {
 
-    if (! method_exists($this, $action))
-      return $this->open($params);
+    if (! method_exists($this, $action)) {
+      $path = glob(Route::config('directory') . $this->response->request->origin . '.*')[0] ?? null;
+      return $this->response->output($path);
+    }
 
     $method = new ReflectionMethod($this, $action);
 
@@ -460,15 +456,6 @@ abstract class Controller
     return call_user_func($this->response, $this->response->layout);
   }
 
-  protected function open(array $ns = []): Document
-  {
-    $path = Route::config('directory') . $this->request->origin;
-
-    if (! $file = (glob($path.'.*')[0] ?? false))
-      $file = $path . '/index.html';
-
-    return Document::open($file);
-  }
 }
 
 Class Proxy extends Controller {
@@ -490,8 +477,7 @@ class Redirect extends Exception {
     ['Pragma: no-cache'],
   ];
 
-  public function __construct(public string $location, $code = 'temporary')
-  {
+  public function __construct(public string $location, $code = 'temporary') {
     $this->headers['location'] = ["Location: {$location}", false, self::STATUS[$code]];
   }
 
@@ -518,8 +504,7 @@ class Redirect extends Exception {
 class Template
 {
   static private $yield = [];
-  static public function set(string $key, Document|Element $stub): void
-  {
+  static public function set(string $key, Document|Element $stub): void {
     self::$yield[$key] = $stub;
   }
 
@@ -723,18 +708,15 @@ class Document extends DOMDocument
     return $prefix . $this->saveXML($this->documentElement);
   }
 
-  public function find($exp, ?DOMNode $context = null): DOMNodelist
-  {
+  public function find($exp, ?DOMNode $context = null): DOMNodelist {
     return $this->xpath->query($exp, $context) ?: throw new Exception("Malformed predicate: {$exp}", 500);
   }
 
-  public function select($exp, ?DOMNode $context = null): ?DOMNode
-  {
+  public function select($exp, ?DOMNode $context = null): ?DOMNode {
     return $this->find($exp, $context)[0] ?? null;
   }
 
-  public function evaluate(string $exp, ?DOMNode $context = null): string
-  {
+  public function evaluate(string $exp, ?DOMNode $context = null): string {
     return $this->xpath->evaluate("string({$exp})", $context);
   }
 
@@ -782,18 +764,15 @@ class Element extends DOMElement implements ArrayAccess
     if ($value) $this($value);
   }
 
-  public function find(string $path)
-  {
+  public function find(string $path) {
     return $this->ownerDocument->find($path, $this);
   }
 
-  public function select(string $path)
-  {
+  public function select(string $path) {
     return $this->ownerDocument->select($path, $this);
   }
 
-  public function map(string $exp, callable $callback)
-  {
+  public function map(string $exp, callable $callback) {
     return $this->ownerDocument->map($exp, $callback, $this);
   }
 
@@ -849,13 +828,11 @@ class Text extends DOMText
 {
   use DOMtextUtility;
 
-  public function __construct(string $input, ...$args)
-  {
+  public function __construct(string $input, ...$args) {
     parent::__construct($args ? vsprintf($input, $args) : $input);
   }
 
-  public function remove(): void
-  {
+  public function remove(): void {
     $this->parentNode->remove();
   }
 
@@ -875,13 +852,11 @@ class Attr extends DOMAttr
 {
   use DOMtextUtility;
 
-  public function replace(string $data, int $start, int $length)
-  {
+  public function replace(string $data, int $start, int $length) {
     $this(substr_replace($this->value, $data, $start, $length));
   }
 
-  public function remove()
-  {
+  public function remove() {
     return ($elem = $this->ownerElement) ? $elem->removeAttribute($this->nodeName) : null;
   }
 }
@@ -967,8 +942,7 @@ class Data extends ArrayIterator
     return $this;
   }
 
-  public function filter(callable $callback)
-  {
+  public function filter(callable $callback) {
     return new CallbackFilterIterator($this, $callback);
   }
 
@@ -996,8 +970,7 @@ abstract class Model implements ArrayAccess
 
   public $initialized;
 
-  protected function initialize($context): bool
-  {
+  protected function initialize($context): bool {
     return true;
   }
 
@@ -1007,7 +980,7 @@ abstract class Model implements ArrayAccess
     return Document::open($model::SOURCE)->map(join('|', $query), fn($node) => new $model($node));
   }
 
-
+  // TODO: This can go eventually
   static public function FACTORY($model, $method, ...$args)
   {
     $model = "\\model\\{$model}";
@@ -1030,8 +1003,7 @@ abstract class Model implements ArrayAccess
 
   public function __construct(public DOMNode $context) {}
 
-  public function offsetExists($key)
-  {
+  public function offsetExists($key) {
     return isset($this->context[$key]) || method_exists($this, "get{$key}");
   }
 
@@ -1040,24 +1012,20 @@ abstract class Model implements ArrayAccess
     if (property_exists($this, $key)) return $this->{$key};
 
     $initialized ??= $this->initialize($this->context);
-
-    $method  = "get{$key}";
+    $method       = "get{$key}";
 
     return method_exists($this, $method) ? $this->{$method}($this->context) : $this->context[$key];
   }
 
-  public function offSetSet($key, $value)
-  {
+  public function offSetSet($key, $value) {
     return $this->context[$key] = $value;
   }
 
-  public function offsetUnset($key)
-  {
+  public function offsetUnset($key) {
     unset($this->context[$key]);
   }
 
-  final public function __toString()
-  {
+  final public function __toString() {
     return $this->context->getAttribute(static::ID);
   }
 }

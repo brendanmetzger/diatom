@@ -41,7 +41,7 @@ class Command implements routable
   }
 
 
-  public function record($instruction = null, ...$data): stringable | string {
+  public function output($instruction = null, ...$data): stringable | string {
     return vsprintf($instruction . "\n", $data);
   }
 
