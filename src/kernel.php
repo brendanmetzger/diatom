@@ -49,16 +49,14 @@ class Route
 
   static public function set($path, callable $callback, array $config = []): Route
   {
-    $path     = strtolower(trim($path, '/'));
-    $instance = self::$paths[$path] ??= new self($path, $config['publish'] ?? 0);
-    $instance->info += $config;
-
+    $path  = strtolower(trim($path, '/'));
+    $route = self::$paths[$path] ??= new self($path, $config['publish'] ?? 0);
+    $route->info += $config;
+    $route->info['title'] ??= ucwords(preg_replace('/[_-]+/', ' ', $route->path));
     // fuzzy checksum to aid caching
     self::$id ^= crc32($path . join($config));
 
-    $instance->then($callback);
-
-    return $instance;
+    return $route->then($callback);
   }
 
   // Note: this is really an alias for the above, but I like for writing quick bin/task stuff.
@@ -81,7 +79,7 @@ class Route
       if (is_file($stash)) {
         $routes = json_decode(file_get_contents($stash), true);
         foreach ($routes as $path => $info) {
-          if      (isset($info['controller'])) self::set($path, new Proxy($info['controller']), $info);
+          if      (key_exists('controller',$info)) self::set($path, new Controller($info['controller']?:null), $info);
           else if (isset($info['src'])) self::set($path, $route, $info);
         }
 
@@ -97,21 +95,18 @@ class Route
 
         // scan for directories (controllers)
         foreach (array_filter($scan, fn($f) => is_dir($root.'/'.$f) && $f[-1] != '.') as $name) {
-          $ctrl = "controller\\{$name}";
-          $ctrl = class_exists($ctrl, true) ? $ctrl : "controller\Page";
-          self::set($name, new Proxy($ctrl), ['controller' => $ctrl, 'publish' => $ctrl::PUBLISH, 'src' => glob("{$root}/{$name}/index.*")[0] ?? null]);
+          $ctrl = new Controller(class_exists("controller\\{$name}", true) ? "controller\\{$name}" : null);
+          $info = ['controller' => $ctrl->name, 'publish' => $ctrl::PUBLISH, 'src' => glob("{$root}/{$name}/index.*")[0] ?? null];
+          self::set($name, $ctrl, $info);
         }
 
         uasort(self::$paths, fn($A, $B) => ($A->publish) <=> ($B->publish));
-
         $routes =  array_map(fn($R) => $R->info, self::$paths);
         file_put_contents($stash, json_encode($routes));
       }
-
       $router->data[$root] = array_filter($routes, fn($route) => $route['publish'] ?? false);
       $prepared = true;
     }
-
     return self::$paths;
   }
 
@@ -147,7 +142,6 @@ class Route
       do {
         $out = $this->handle[$i++]->call($response, ...(is_array($out) ? $out : [$out]));
       } while (isset($this->handle[$i]) && ! $response->fulfilled);
-
     } catch (Status $e) {
       $out = $test->exception?->call($response, $e) ?? throw $e;
     }
@@ -229,25 +223,22 @@ class File
 
   public function setBody($content): File
   {
-    $this->body = $content;
-    $this->size = strlen($content);
+    $this->size = strlen($this->body = $content);
     return $this;
   }
 
   public function save(bool $overwrite = false): bool
   {
-    if (! $overwrite && is_file($this->uri))
-      throw new Error("File cannot be written", 1);
-    return file_put_contents($this->uri, $this->body, LOCK_EX);
+    return ! is_file($this->uri) || $overwrite
+           ? file_put_contents($this->uri, $this->body, LOCK_EX)
+           : throw new Error("File cannot be written", 1);
   }
 
-  public function verify(string $hash, string $algo = 'md5'): bool
-  {
+  public function verify(string $hash, string $algo = 'md5'): bool {
     return hash($algo, $this->body) === trim($hash, '"');
   }
 
-  public function __toString()
-  {
+  public function __toString() {
     return (string) $this->body;
   }
 }
@@ -302,9 +293,9 @@ class Response implements routable
 {
   use Registry;
 
-  public $status = 200, $route, $id, $params, $document, $basic, $headers = [], $fulfilled = false, $layout = null, $template, $render = null;
+  public $status = 200, $route, $id, $params, $document, $basic, $fulfilled = false, $layout = null, $template, $render = null;
 
-  public function __construct(public Request $request, array $data = [])
+  public function __construct(public Request $request, array $data = [], public array $headers = [])
   {
     $this->merge($data);
     $this->header('Content-Type', $this->request->mime);
@@ -326,18 +317,15 @@ class Response implements routable
                     : $content;
 
     $this->request->setBody((string) $content);
-
-    // $this->header('Content-Length', $this->request->size);
+    $this->header('Content-Length', $this->request->size);
     return $this;
   }
 
-  public function yield(string $key, string|Document $source): void
-  {
+  public function yield(string $key, string|Document $source): void {
     Template::set($key, $source instanceof Document ? $source : Document::open($source));
   }
 
-  public function reject(int $reason, $info = null): Exception
-  {
+  public function reject(int $reason, $info = null): Exception {
     return new Status($this->route . ' ' . Status::REASON[$reason], $reason);
   }
 
@@ -355,22 +343,17 @@ class Response implements routable
 
   public function compose($payload, bool $is_index): self
   {
-    // if payload is not a DOM component or proper request, no processing to do
-    // TODO: becomes $this->request->setBody($payload);
     if (! $payload instanceof DOMNode || $this->id === null) return $this->setBody($payload);
 
     if ($this->basic) {
-
        //no layout needed, just use payload document
       $layout = new Template($payload);
     } else {
       // find main document to use as layout
-
       $layout = new Template(Document::open($payload->info['layout'] ?? $this->layout));
 
       // make sure we aren't putting the layout into itself
       if (! $is_index) {
-
         $this->render = $payload->info['render'] ?? $this->render;
         Template::set($this->id, $payload);
       }
@@ -400,14 +383,15 @@ class Response implements routable
  * or B) Load a file should a method not exist.
 **/
 
-abstract class Controller
+class Controller
 {
   const PUBLISH = 0;
   protected $response;
 
+  public function __construct(public $name = null, protected array $params = []) {}
+
   final public function __invoke($action, $params)
   {
-
     if (! method_exists($this, $action)) {
       $path = glob(Route::config('directory') . $this->response->request->origin . '.*')[0] ?? null;
       return $this->response->output($path);
@@ -420,11 +404,9 @@ abstract class Controller
       // A token is found + verified, or the Authorization process will be thrown
       $digest = $this->request->authorization(Auth\Token::NAME);
       $token  = Auth\Token::verify($digest) ?? Auth\Token::authorize($this->request);
-
       $method->setAccessible(true);
       array_unshift($params, Model\User::ID($token));
     }
-
     return $method->invokeArgs($this, $params);
   }
 
@@ -442,24 +424,12 @@ abstract class Controller
 
   public function call(routable $response, $action = 'index', ...$params)
   {
-    $instance = $this instanceof Proxy
-              ? new $this->proxy($response, ...$this->props)
-              : $this;
-
+    $instance = $this->name ? new $this->name($response, ...$this->props) : $this;
     $instance->response = $response;
     $instance->action   = strtolower($action);
     return $instance($response->request->method . str_replace('-','_',$instance->action), $params);
   }
 
-  public function GETindex() {
-    $this->response->basic = true;
-    return call_user_func($this->response, $this->response->layout);
-  }
-
-}
-
-Class Proxy extends Controller {
-  public function __construct(protected string $proxy, protected array $props = []) { }
 }
 
 
@@ -507,7 +477,6 @@ class Template
   static public function set(string $key, Document|Element $stub): void {
     self::$yield[$key] = $stub;
   }
-
 
   private $DOM, $slugs = [];
 
@@ -936,7 +905,6 @@ class Data extends ArrayIterator
   {
     if (is_callable($callback)) {
       if (!empty($this->maps)) return (new Data ($this))->sort($callback);
-
       $this->uasort($callback);
     }
     return $this;

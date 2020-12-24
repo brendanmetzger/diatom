@@ -1,6 +1,6 @@
 <?php namespace Controller;
 
-use Document, Model, Auth, HTTP;
+use Document, Model, Auth;
 
 class System extends \Controller
 {
@@ -8,7 +8,7 @@ class System extends \Controller
 
   final static public function load($flag) {
     if (self::config($flag)) {
-      \Route::system(new \Proxy('Controller\System'));
+      \Route::system(new \Controller('Controller\System'));
 
       \Render::set('before', function($node) {
         [$doc, $context] = $node instanceof Document ? [$node, $node->documentElement] : [$node->ownerDocument, $node];
@@ -43,7 +43,7 @@ class System extends \Controller
     if ($verified = Auth\Token::verify($_GET['state'])) {
 
       $token = Auth\Token::generate($_GET['code']);
-      $keys  = HTTP::GET('https://api.github.com/user/emails', $token->headers('json'));
+      $keys  = \HTTP::GET('https://api.github.com/user/emails', $token->headers('json'));
       $value = join(array_column($keys->data, 'email'));
 
       if ($user = Model\User::ID($value)) {
