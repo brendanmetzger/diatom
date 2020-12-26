@@ -29,11 +29,7 @@ Route::promisy(function($message = 'add a param to address') {
 
   return $payload;
 
-})->catch(function(Status $exception) {
-
-  return new Document('<p>this cannot happen</p>');
-
-});
+})->catch(fn (Status $notice) => new Document('<p>this cannot happen</p>'));
 
 
 
@@ -56,22 +52,27 @@ Route::example(function($greeting = 'world') {
 try {
 
   $request  = new Request(headers: $_SERVER, root: realpath('.'));
-  $response = new Response($request, [
-    'date'  => fn ($format, $time = 'now') => date($format, strtotime($time)),
-    'model' => 'model::FACTORY',
-  ]);
 
   // WIP These are some interesting methods that allow templates to do more than they prob should.
   // 'instance' => fn($name, $id, ...$params) => "Model\\$name"::ID($id, ...$params),
   // 'factory'  => fn($name, $query) => Model::$name(urldecode($query)),
 
+  $response = Route::delegate(new Response($request, [
+    'date'  => fn ($format, $time = 'now') => date($format, strtotime($time)),
+    'model' => 'model::FACTORY',
+  ]));
 
-  if (! $request->body) {
-    Route::delegate($response);
+} catch (WIP_Status $notice) {
+
+  if ($notice->getCode() == 201) {
+    $notice->request->body = file_get_contents($notice->location);
   }
+
+  $response = new Response($notice->request);
 
 } catch (Redirect $notice) {
 
+  // TODO: refactor this into above, and no need to exit, rather run regular headers on a standard response.
   call_user_func($notice);
 
   exit;
@@ -85,6 +86,7 @@ try {
   $response->status = $e->getCode() ?: 400;
 
 } finally {
+
 
   echo $response;
 

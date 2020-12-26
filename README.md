@@ -5,7 +5,6 @@
 
 > This file is written in an extended markdown that includes definition lists (`<dl>`), disclosure elements (`<details>`) as well as many other inline elements such as `<time>`, `<data>`, `<cite>`,  `<dfn>`, `<abbr>`, `<small>`, `<mark>` and `<q>`, `<input>` checklists and `<table>`. Raw HTML is never allowed, for reasons that become clearer with use.
 
-
 ## Definitions
 
 : Document
@@ -65,7 +64,5 @@ Create models, work with a database, connect to APIs for Oauth, etc.
 Almost any site could employ some feature of this framework methodology. At its very lightest, an application can be an easily editable boilerplate producer--incredibly convenient for sites that don't require user-generated content. The next step up would be a framework that does employ some sort of database, but still has pretty standard layouts and several pages of boilerplate--this framework makes an excellent template preprocessor.
 
 An API could be facilitated with the routing paradigm, or a receiver of webhooks.
-
-
 
 // insert ../docs/*.md

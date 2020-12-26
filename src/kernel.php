@@ -143,7 +143,7 @@ class Route
         $out = $this->handle[$i++]->call($response, ...(is_array($out) ? $out : [$out]));
       } while (isset($this->handle[$i]) && ! $response->fulfilled);
     } catch (Status $e) {
-      $out = $test->exception?->call($response, $e) ?? throw $e;
+      $out = $this->exception?->call($response, $e) ?? throw $e;
     }
 
     $response->fulfilled = true;
@@ -159,6 +159,7 @@ class Route
 */
 class Status extends Exception {
   const REASON = [
+    201 => "Created",
     401 => 'Unauthorized',
     404 => 'Not Found',
     500 => 'Internal Server Error',
@@ -260,10 +261,12 @@ class Request extends File
 
     parent::__construct(($host ?? self::config('host')) . $this->origin, type: 'html');
 
-    if (is_file($root . $this->uri)) {
-      $this->setBody(file_get_contents($root.$this->uri));
-    } else if ($this->method[0] === 'P' && ($headers['CONTENT_LENGTH'] ?? 0) > 0) {
+    if ($this->method[0] === 'P' && ($headers['CONTENT_LENGTH'] ?? 0) > 0) {
       $this->setBody(file_get_contents('php://input'));
+    }
+
+    if (is_file($root . $this->uri)) {
+      throw new WIP_Status($root . $this->uri, $this, 201);
     }
   }
 
@@ -284,6 +287,17 @@ class Request extends File
   }
 }
 
+/**
+ * WIP
+ */
+class WIP_Status extends Exception
+{
+  function __construct(public string $location, public Request $request, int $code) {
+    parent::__construct($location, $code);
+  }
+}
+
+
 
 /**
  * Response | finds correct template object, renders it, tracks headers...
@@ -299,7 +313,6 @@ class Response implements routable
   {
     $this->merge($data);
     $this->header('Content-Type', $this->request->mime);
-    $this->fulfilled = ! is_null($request->body);
     $this->params    = explode('/', substr($request->uri, 1, ~strlen($request->type)));
     $this->route     = strtolower(array_shift($this->params));
     $this->id        = md5(join($request->headers));
@@ -326,7 +339,7 @@ class Response implements routable
   }
 
   public function reject(int $reason, $info = null): Exception {
-    return new Status($this->route . ' ' . Status::REASON[$reason], $reason);
+    return new Status($this->request->origin . ' ' . Status::REASON[$reason], $reason);
   }
 
   public function header($key, $header): int
@@ -424,7 +437,7 @@ class Controller
 
   public function call(routable $response, $action = 'index', ...$params)
   {
-    $instance = $this->name ? new $this->name($response, ...$this->props) : $this;
+    $instance = $this->name ? new $this->name($response, ...$this->params) : $this;
     $instance->response = $response;
     $instance->action   = strtolower($action);
     return $instance($response->request->method . str_replace('-','_',$instance->action), $params);
@@ -440,7 +453,7 @@ class Controller
 **/
 
 class Redirect extends Exception {
-  const STATUS    = ['permanent' => 301, 'temporary' => 302, 'other' => 303];
+  const STATUS    = ['created' => 201, 'permanent' => 301, 'temporary' => 302, 'other' => 303];
   public $headers = [
     ['Cache-Control: no-store, no-cache, must-revalidate, max-age=0'],
     ['Cache-Control: post-check=0, pre-check=0', false],
@@ -448,6 +461,7 @@ class Redirect extends Exception {
   ];
 
   public function __construct(public string $location, $code = 'temporary') {
+    parent::__construct($location, self::STATUS[$code]);
     $this->headers['location'] = ["Location: {$location}", false, self::STATUS[$code]];
   }
 
@@ -721,12 +735,16 @@ trait DOMtextUtility
 
 
 
-class Element extends DOMElement implements ArrayAccess
+class Element extends DOMElement implements ArrayAccess, JsonSerializable
 {
   use DOMtextUtility;
 
   public $info = [];
 
+  public function jsonSerialize()
+  {
+    return simplexml_import_dom($this);
+  }
   public function __construct($name, $value = null)
   {
     parent::__construct($name);

@@ -31,10 +31,6 @@ class System extends \Controller
     }
   }
 
-  public function __construct($request)
-  {
-  }
-
   public function GETauth()
   {
     // these variables are the ones we get from the oAuth requst
@@ -62,15 +58,16 @@ class System extends \Controller
   }
 
 
-  public function GETraw($file)
-  {
+  public function GETraw($file) {
     return \Parser::check(Document::open(base64_decode($file)), $this->type);
   }
+
 
   public function PUTupdate()
   {
     // TODO, parse request type so don't have to create document, and this would strip out xmlns perhaps
-    $updated  = new Document(preg_replace('/\sxmlns=[\"\'][^\"\']+[\"\'](*ACCEPT)/', '', $this->request->data));
+    $updated  = new Document(preg_replace('/\sxmlns=[\"\'][^\"\']+[\"\'](*ACCEPT)/', '', $this->response->request->body));
+
     $filepath = $updated->documentElement->getAttribute('data-doc');
     $original = Document::open($filepath);
 
@@ -84,18 +81,21 @@ class System extends \Controller
     foreach ($updated->find('//*[@data-path]') as $node) {
       if ($context = $original->select($node['@data-path'])) {
         // cache literals to swap back in ${}..
-
-        $context->replaceWith($original->importNode($node, true));
+        $context->parentNode->replaceChild($original->importNode($node, true), $context);
       }
     }
 
+
     foreach ($cache as $path => $value)
       $original->select($path)($value);
+
 
     $copy = new Document($original->saveXML());
 
     foreach($copy->find('//*[@data-path or @data-doc]') as $node)
       array_map([$node, 'removeAttribute'], ['data-doc', 'data-path', 'contenteditable', 'spellcheck']);
+
+    print_r($original->info);
 
     if (file_put_contents($filepath, \Parser::check($copy, $original->info['file']['extension'])))
       return $updated;
