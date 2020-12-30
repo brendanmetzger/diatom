@@ -84,12 +84,15 @@ class System extends \Controller
 
     $copy = new Document($original->saveXML());
 
-
     foreach($copy->find('//*[@data-path or @data-doc]') as $node)
       array_map([$node, 'removeAttribute'], ['data-doc', 'data-path', 'contenteditable', 'spellcheck']);
 
-    if (file_put_contents($filepath, \Parser::check($copy, $original->info['file']['extension'])->saveXML()))
-      return $copy;
+    $output = \Parser::check($copy, $original->info['file']['extension']);
+    if ($output instanceof Document) {
+      $output = $output->saveXML();
+    }
+    if (file_put_contents($filepath, $output))
+      return $output;
   }
 
 }
