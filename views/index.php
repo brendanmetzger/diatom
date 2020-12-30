@@ -53,17 +53,19 @@ try {
 
   $request  = new Request(headers: $_SERVER, root: realpath('.'));
 
-  // WIP These are some interesting methods that allow templates to do more than they prob should.
-  // 'instance' => fn($name, $id, ...$params) => "Model\\$name"::ID($id, ...$params),
-  // 'factory'  => fn($name, $query) => Model::$name(urldecode($query)),
-
   $response = Route::delegate(new Response($request, [
     'date'  => fn ($format, $time = 'now') => date($format, strtotime($time)),
     'model' => 'model::FACTORY',
   ]));
 
+  // WIP These are some interesting examples data callbacks that allow templates to do more than they prob should.
+  // 'instance' => fn($name, $id, ...$params) => "Model\\$name"::ID($id, ...$params),
+  // 'factory'  => fn($name, $query) => Model::$name(urldecode($query)),
+
+
 } catch (WIP_Status $notice) {
 
+  // Represents an existing file—either cached or a static file
   if ($notice->getCode() == 201) {
     $notice->request->body = file_get_contents($notice->location);
   }
@@ -79,9 +81,9 @@ try {
 
 } catch (Exception | Error $e) {
 
+  $keys     = ['message', 'code', 'file', 'line', 'trace'];
+  $data     = ['error' => array_combine($keys, array_map(fn($m) => $e->{"get$m"}(), $keys))];
 
-  $keys   = ['message', 'code', 'file', 'line', 'trace'];
-  $data   = ['error' => array_combine($keys, array_map(fn($m) => $e->{"get$m"}(), $keys))];
   $response = Request::GET('system/error', $data, yield: false);
   $response->status = $e->getCode() ?: 400;
 

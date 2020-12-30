@@ -59,5 +59,4 @@ section[id$=tasks] li ul {
   padding-left: 0.75rem;
   margin:0.25rem 0.25rem;
 }
-
 ```

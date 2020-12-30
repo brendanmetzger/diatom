@@ -13,7 +13,7 @@ const balance = function (n, aspect) {
 
 /*
   Use case is primarily mousemove or touchmove. This method reterns the angle (in rad)
-  created between the centerpoint of the eventTarget and cursor/finger [x,y] at time of event. 
+  created between the centerpoint of the eventTarget and cursor/finger [x,y] at time of event.
 */
 
 Object.defineProperty(Event.prototype, 'theta', {
@@ -48,9 +48,9 @@ const SVG = function (width, height, context) {
   this.root   = this.add('svg', {
     'xmlns:xlink': this.NS.xlink, 'xmlns': this.NS.svg, 'version': 1.1, 'viewBox': `0 0 ${width} ${height}`
   }, null);
-  
+
   if (context) context.appendChild(this.root);
-  
+
   this.point = this.root.createSVGPoint();
 };
 
@@ -67,10 +67,10 @@ Object.assign(SVG.prototype, {
     return parent === null ? node : (parent || this.root).appendChild(node);
   },
   cursorPoint: function (evt) { // Get point in global SVG space
-    this.point.x = evt.clientX; 
+    this.point.x = evt.clientX;
     this.point.y = evt.clientY;
     return this.point.matrixTransform(this.root.getScreenCTM().inverse());
-    
+
   }
 });
 
@@ -91,27 +91,30 @@ class Request {
     });
     return this;
   }
-  
+
   static GET (url, headers = {}) {
     return Request.make('GET', url, null, headers);
   }
-  
+
   static PUT (url, data, headers = {}) {
     if (data instanceof Element) {
+      headers["Content-Type"] = "application/xml";
       data = new XMLSerializer().serializeToString(data);
+    } else if (typeof data == 'object') {
+      headers["Content-Type"] = "application/json";
+      data = JSON.stringify(data);
     }
-    // headers["Content-Type"] = "application/x-www-form-urlencoded"
     return Request.make('PUT', url, data, headers);
   }
-  
+
   static POST (url, data, headers = {}) {
     return Request.make('POST', url, data, headers);
   }
-  
+
   static make (type, url, data, headers) {
     url = new URL(url, location.origin);
     headers.yield = 'XHR';
-    
+
     return new Promise((resolve, reject) => {
       let dot = url.pathname.lastIndexOf('.');
       let ext = dot > 0 ? url.pathname.slice(dot+1) : 'json';
@@ -122,18 +125,18 @@ class Request {
         },
         error: reject
       });
-      
-      
-      
+
+
+
       instance.xhr.responseType = ({webp:'blob',jpg:'blob',png:'blob',md:'text',txt:'text',json:'json'})[ext] || 'document';
-      
-      
+
+
       instance.xhr.open(type, url.href);
       for(let key in headers) instance.xhr.setRequestHeader(key, headers[key]);
       instance.xhr.send(data);
-            
+
     });
-    
+
   }
 }
 
@@ -147,5 +150,3 @@ Object.defineProperty(String.prototype, 'soundex', {
     return id + (a.map(letter => c.findIndex(g => g.includes(letter))).join('').replace(re, '') + '000').slice(0,3);
   }
 });
-
-

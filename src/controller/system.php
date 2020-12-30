@@ -65,26 +65,18 @@ class System extends \Controller
 
   public function PUTupdate()
   {
-    // TODO, parse request type so don't have to create document, and this would strip out xmlns perhaps
-    $updated  = new Document(preg_replace('/\sxmlns=[\"\'][^\"\']+[\"\'](*ACCEPT)/', '', $this->response->request->body));
-
-    $filepath = $updated->documentElement->getAttribute('data-doc');
+    $filepath = $this->request->resource->documentElement->getAttribute('data-doc');
     $original = Document::open($filepath);
 
     $xp = '//*[contains(.,"${") and not(*) and not(self::script or self::code)]|//*/@*[contains(.,"${")]';
 
-    $cache = [];
-    foreach ( $original->find($xp) as $template)
+    $cache = []; // cache template literals to swap back in ${} after edits
+    foreach ($original->find($xp) as $template)
       $cache[$template->getNodePath()] = $template->nodeValue;
 
-
-    foreach ($updated->find('//*[@data-path]') as $node) {
-      if ($context = $original->select($node['@data-path'])) {
-        // cache literals to swap back in ${}..
+    foreach ($this->request->resource->find('//*[@data-path]') as $node)
+      if ($context = $original->select($node['@data-path']))
         $context->parentNode->replaceChild($original->importNode($node, true), $context);
-      }
-    }
-
 
     foreach ($cache as $path => $value)
       $original->select($path)($value);
@@ -92,13 +84,12 @@ class System extends \Controller
 
     $copy = new Document($original->saveXML());
 
+
     foreach($copy->find('//*[@data-path or @data-doc]') as $node)
       array_map([$node, 'removeAttribute'], ['data-doc', 'data-path', 'contenteditable', 'spellcheck']);
 
-    print_r($original->info);
-
-    if (file_put_contents($filepath, \Parser::check($copy, $original->info['file']['extension'])))
-      return $updated;
+    if (file_put_contents($filepath, \Parser::check($copy, $original->info['file']['extension'])->saveXML()))
+      return $copy;
   }
 
 }

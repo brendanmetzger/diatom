@@ -1,11 +1,12 @@
 <?php
 
-define('CONFIG', parse_ini_file('../data/config', true));
 set_include_path(__DIR__);
 libxml_use_internal_errors(true);
 spl_autoload_register();
 
-trait Configured
+
+
+trait Configured ####################################################################### CONFIGURED
 {
   static public  $ini;
   static private $config;
@@ -20,19 +21,20 @@ trait Configured
 
 
 
-interface routable
+
+
+interface routable ####################################################################### ROUTABLE
 {
   public function output($instruction = null)     : stringable | string;
   public function reject(int $reason, $info)      : Exception;
-  public function compose($payload, bool $default): self;
+  public function compose($payload): self;
 }
 
-/**
- * Route | Provides to enable default and callback routing
- *
-**/
 
-class Route
+
+
+
+class Route ################################################################################# ROUTE
 {
   use Configured;
   static private $paths = [], $id = 0, $prepared = false;
@@ -43,8 +45,7 @@ class Route
              ? $router->output($router->request)
              : ($paths[$router->route] ?? throw $router->reject(404, $paths))->fulfill($router);
 
-    // TODO: $router->route is not a good solution. DELETE per constructor
-    return $router->compose($payload, $router->route == self::config('default'));
+    return $router->compose($payload);
   }
 
   static public function set($path, callable $callback, array $config = []): Route
@@ -59,8 +60,7 @@ class Route
     return $route->then($callback);
   }
 
-  // Note: this is really an alias for the above, but I like for writing quick bin/task stuff.
-  // Warning: __callStatic to set route can potentially collide with an existing Route method
+  // WARNING: an alias for the above, can potentially collide with an existing Route method
   static public function __callStatic($action, $arguments): Route {
     return self::set($action, ...$arguments);
   }
@@ -107,11 +107,9 @@ class Route
       $router->data[$root] = array_filter($routes, fn($route) => $route['publish'] ?? false);
       $prepared = true;
     }
+
     return self::$paths;
   }
-
-
-  /**** Instance Properties and Methods **************************************/
 
   private $handle = null, $exception = null;
   public $info = [], $index = false;
@@ -154,10 +152,12 @@ class Route
   }
 }
 
-/**
-* Description
-*/
-class Status extends Exception {
+
+
+
+
+class Status extends Exception ############################################################# STATUS
+{
   const REASON = [
     201 => "Created",
     401 => 'Unauthorized',
@@ -166,13 +166,11 @@ class Status extends Exception {
   ];
 }
 
-/**
- * File | Construct an object that represents something that can be openclose
- * shows up alot i other classes ie., funcion someMethod(File $arg) {...}
- *
-**/
 
-class File
+
+
+
+class File ################################################################################### FILE
 {
   public const MIME = [
     'png'  => 'image/png',
@@ -200,9 +198,9 @@ class File
     'srt'  => 'text/srt',
   ];
 
-  public $uri, $url, $type, $info, $mime, $local = true, $size = 0, $body = null;
+  public $uri, $info, $mime, $local = true, $size = 0, $body = null, $resource;
 
-  public function __construct(string $url, $type = 'txt')
+  public function __construct(public string $url, public $type = 'txt')
   {
     $this->info  = parse_url($url);
     $this->uri   = $this->info['path'] ?? '/';
@@ -214,7 +212,6 @@ class File
     $this->mime  = self::MIME[$this->type] ?? 'text/plain';
   }
 
-  // TODO: get rid of this eventually
   static public function load($path): File
   {
     $instance = new self((strncmp($path, '.', 1) ? $path : __DIR__.'/'.$path));
@@ -222,8 +219,18 @@ class File
     return $instance->setBody($content);
   }
 
-  public function setBody($content): File
+  public function setBody($content, ?string $mime = null): File
   {
+    if ($content instanceof Element) {
+      $this->resource = new Document($content->ownerDocument->saveXML($content));
+    } else if ($mime) {
+      $type = explode(';', $mime)[0];
+      if (preg_match('/application\/\S*json/', $type))
+        $this->resource = json_decode($content, true);
+      else if (substr($type, -2) == 'ml')
+        $this->resource = new Document(preg_replace('/\sxmlns=[\"\'][^\"\']+[\"\'](*ACCEPT)/', '', $content));
+    }
+
     $this->size = strlen($this->body = $content);
     return $this;
   }
@@ -245,11 +252,10 @@ class File
 }
 
 
-/**
- * Request | This is used to configure an variable request (like a web server) via the constructor
-**/
 
-class Request extends File
+
+
+class Request extends File ################################################################ REQUEST
 {
   use Configured;
   public $origin, $method;
@@ -262,7 +268,7 @@ class Request extends File
     parent::__construct(($host ?? self::config('host')) . $this->origin, type: 'html');
 
     if ($this->method[0] === 'P' && ($headers['CONTENT_LENGTH'] ?? 0) > 0) {
-      $this->setBody(file_get_contents('php://input'));
+      $this->setBody(file_get_contents('php://input'), $headers['CONTENT_TYPE'] ?? $this->mime);
     }
 
     if (is_file($root . $this->uri)) {
@@ -287,10 +293,11 @@ class Request extends File
   }
 }
 
-/**
- * WIP
- */
-class WIP_Status extends Exception
+
+
+
+
+class WIP_Status extends Exception ###############################################################
 {
   function __construct(public string $location, public Request $request, int $code) {
     parent::__construct($location, $code);
@@ -299,11 +306,10 @@ class WIP_Status extends Exception
 
 
 
-/**
- * Response | finds correct template object, renders it, tracks headers...
- *
-**/
-class Response implements routable
+
+
+
+class Response implements routable ####################################################### RESPONSE
 {
   use Registry;
 
@@ -330,7 +336,8 @@ class Response implements routable
                     : $content;
 
     $this->request->setBody((string) $content);
-    $this->header('Content-Length', $this->request->size);
+    // TODO: this should not be set before the final printing, as it could change
+    // $this->header('Content-Length', $this->request->size);
     return $this;
   }
 
@@ -354,7 +361,7 @@ class Response implements routable
     return strlen($header); // required by the cURL (see @HTTP class + cURL documentation)
   }
 
-  public function compose($payload, bool $is_index): self
+  public function compose($payload): self
   {
     if (! $payload instanceof DOMNode || $this->id === null) return $this->setBody($payload);
 
@@ -366,7 +373,7 @@ class Response implements routable
       $layout = new Template(Document::open($payload->info['layout'] ?? $this->layout));
 
       // make sure we aren't putting the layout into itself
-      if (! $is_index) {
+      if ($this->route != Route::config('default')) {
         $this->render = $payload->info['render'] ?? $this->render;
         Template::set($this->id, $payload);
       }
@@ -389,14 +396,7 @@ class Response implements routable
 }
 
 
-/**
- * Controller
- *
- * The premise of a controller is to A. call a method corresponding to the first parameter
- * or B) Load a file should a method not exist.
-**/
-
-class Controller
+class Controller ####################################################################### CONTROLLER
 {
   const PUBLISH = 0;
   protected $response;
@@ -406,7 +406,8 @@ class Controller
   final public function __invoke($action, $params)
   {
     if (! method_exists($this, $action)) {
-      $path = glob(Route::config('directory') . $this->response->request->origin . '.*')[0] ?? null;
+      $fuzzy = preg_replace('/(x|ht)ml$/', '*', $this->response->request->uri);
+      $path  = glob(Route::config('directory') . $fuzzy)[0] ?? null;
       return $this->response->output($path);
     }
 
@@ -447,12 +448,9 @@ class Controller
 
 
 
-/**
- * Redirect | use as a controller, or throw anywhere to get a redirect going
- *
-**/
-
-class Redirect extends Exception {
+// TODO: This should be refactored into a General status object
+class Redirect extends Exception ######################################################### REDIRECT
+{
   const STATUS    = ['created' => 201, 'permanent' => 301, 'temporary' => 302, 'other' => 303];
   public $headers = [
     ['Cache-Control: no-store, no-cache, must-revalidate, max-age=0'],
@@ -477,15 +475,7 @@ class Redirect extends Exception {
 
 }
 
-
-
-/**
- * Template | rarely need to interact with this directly, it is responsible for plopping
- *          | data variables into the appropriate Document objects
- *
-**/
-
-class Template
+class Template ########################################################################### TEMPLATE
 {
   static private $yield = [];
   static public function set(string $key, Document|Element $stub): void {
@@ -607,21 +597,17 @@ class Template
         $text = $node->textContent;
 
         $this->slugs[$path] ??= [];
+        
+        preg_match_all('/\$\{([^}]+)\}+/i', $text, $match, PREG_OFFSET_CAPTURE|PREG_SET_ORDER);
 
-        preg_match_all('/\$\{[^}]+\}+/i', $text, $match, PREG_OFFSET_CAPTURE);
-
-        foreach (array_reverse($match[0]) as [$k, $i]) {
-
-          $split = [mb_strlen(substr($text, 0, $i)), mb_strlen($k)];
-          $key   = substr($text, $split[0]+2, $split[1] - 3);
-
-          // Scope change, ie, ${${key}}. Skip and adjust offset starts of already-set slugs
-          if ($key[0] == '$') {
+        foreach (array_reverse($match) as [$full, $key]) {
+          $split = [mb_strlen(substr($text, 0, $full[1]), 'utf-8'), mb_strlen($full[0])];
+          if ($key[0][0] == '$') {
             foreach($this->slugs[$path] as &$item) $item[1][0] -= 3;
-            $node->replace($key, ...$split);
+            $node->replace($key[0], ...$split);
             continue;
           }
-          $this->slugs[$path][] = [$key, $split];
+          $this->slugs[$path][] = [$key[0], $split];
         }
       }
     }
@@ -630,16 +616,9 @@ class Template
 }
 
 
-/**
- * Document | Loads and creates documents that can be searched and modified.
- *          | Extends the language-supplied DOMDocument and several subclasses
- *
-**/
-
-class Document extends DOMDocument
+class Document extends DOMDocument ####################################################### DOCUMENT
 {
   static private $cache = [];
-
   static public function open(string|File $path, array $opt = []): Document
   {
     $key = is_string($path) ? $path : $path->url;
@@ -649,14 +628,12 @@ class Document extends DOMDocument
     $file = $path instanceof File ? $path : File::load($path);
 
     try {
-      if (str_starts_with($file->url, 'http'))
-        $file->body = preg_replace('/\sxmlns=[\"\'][^\"\']+[\"\'](*ACCEPT)/', '', $file->body);
-
       $DOM = (substr($file->mime, -2) == 'ml') ? new self($file->body, $opt) : Parser::load($file);
     } catch (ParseError $e) {
       $err = (object)libxml_get_errors()[0];
       $hint = substr(file($path)[$err->line-1], max($err->column - 10, 0), 20);
-      throw new ErrorException($err->message . " in {$path}, around: '{$hint}'", 500, E_ERROR, realpath($path), $err->line, $e);
+      $msg  = $err->message . " in {$path}, around: '{$hint}'";
+      throw new ErrorException($msg, 500, E_ERROR, realpath($path), $err->line, $e);
     }
 
     foreach ($DOM->find("/processing-instruction()") as $pi)
@@ -666,6 +643,7 @@ class Document extends DOMDocument
     $DOM->info['file']    = $file->info;
     $DOM->info['title'] ??= ucwords(str_replace('-', ' ', $DOM->info['file']['filename']));
     $DOM->info['size']    = $file->size;
+
     return self::$cache[$key] = $DOM;
   }
 
@@ -718,7 +696,8 @@ class Document extends DOMDocument
   }
 }
 
-trait DOMtextUtility
+
+trait DOMtextUtility ############################################################### DOMtextUtility
 {
   public function __invoke($input): self
   {
@@ -734,19 +713,17 @@ trait DOMtextUtility
 }
 
 
-
-class Element extends DOMElement implements ArrayAccess, JsonSerializable
+class Element extends DOMElement implements ArrayAccess, JsonSerializable ################# ELEMENT
 {
   use DOMtextUtility;
 
   public $info = [];
 
-  public function jsonSerialize()
-  {
+  public function jsonSerialize() {
     return simplexml_import_dom($this);
   }
-  public function __construct($name, $value = null)
-  {
+
+  public function __construct($name, $value = null) {
     parent::__construct($name);
     if ($value) $this($value);
   }
@@ -769,12 +746,10 @@ class Element extends DOMElement implements ArrayAccess, JsonSerializable
       $element = $this->ownerDocument->importNode($element, true);
 
     // TODO: can now do $this->append(...$element->childNodes);
-
     while($node = $element->firstChild)
       $this->appendChild($node);
     return $this;
   }
-
 
   public function offsetExists($key) {
     return $this->find($key)->length > 0;
@@ -810,8 +785,7 @@ class Element extends DOMElement implements ArrayAccess, JsonSerializable
 }
 
 
-
-class Text extends DOMText
+class Text extends DOMText ################################################################### TEXT
 {
   use DOMtextUtility;
 
@@ -835,7 +809,8 @@ class Text extends DOMText
   }
 }
 
-class Attr extends DOMAttr
+
+class Attr extends DOMAttr ################################################################### Attr
 {
   use DOMtextUtility;
 
@@ -849,9 +824,7 @@ class Attr extends DOMAttr
 }
 
 
-
-
-trait Registry
+trait Registry ########################################################################### Registry
 {
   public $data = [];
 
@@ -869,8 +842,7 @@ trait Registry
 }
 
 
-
-class Data extends ArrayIterator
+class Data extends ArrayIterator ############################################################# DATA
 {
   public $length = 0;
   private $maps = [];
@@ -943,12 +915,8 @@ class Data extends ArrayIterator
 
 }
 
-/**
- * Model | typ. used to model DOM accessable data with CRUD-able interfaces
- *
-**/
 
-abstract class Model implements ArrayAccess
+abstract class Model implements ArrayAccess ################################################# MODEL
 {
   const SOURCE = null;
   const IDPATH = '//*[@id="%s"]';
@@ -973,13 +941,6 @@ abstract class Model implements ArrayAccess
     return $model::$method(...$args);
   }
 
-  /**
-   * Create an instance by id
-   *
-   * This has some magic so it can be directly used from a template w/
-   * Model.name.2343.whatevermethod.whatevermethod
-   *
-   */
   static public function ID($id, ...$params)
   {
     $filepath = static::SOURCE ?? throw new Error("No specified source for model data", 500);

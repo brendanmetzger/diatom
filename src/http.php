@@ -61,6 +61,7 @@ class HTTP {
     $type = explode(';', $response->headers['content-type'] ??= 'text/plain')[0];
     if (preg_match('/application\/\S*json/', $type))
       $response->merge(json_decode($response->body, true));
+    else if (str_ends_with($type, 'ml'))
     else if (substr($type, -2) == 'ml')
       $response->data = Document::open($response);
 
@@ -109,16 +110,14 @@ class HTTP {
     }
 
     // TODO: see if setBody could take care of all of this.
-    $this->response->body = curl_exec($this->handle);
+    $this->response->setBody(curl_exec($this->handle));
 
-    curl_close($this->handle);
-
-    $type = explode(';', $this->response->headers['content-type'] ??= 'text/plain')[0];
-
-    if (preg_match('/application\/\S*json/', $type))
-      $this->response->merge(json_decode($this->response->body, true));
-    else if (substr($type, -2) == 'ml')
-      $this->response->data = Document::open($this->response);
+    // $type = explode(';', $this->response->headers['content-type'] ??= 'text/plain')[0];
+    //
+    // if (preg_match('/application\/\S*json/', $type))
+    //   $this->response->merge(json_decode($this->response->request->body, true));
+    // else if (substr($type, -2) == 'ml')
+    //   $this->response->data = Document::open($this->response);
 
     return $this->response;
   }

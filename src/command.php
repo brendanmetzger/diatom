@@ -50,7 +50,7 @@ class Command implements routable
     return $this->payload;
   }
 
-  public function compose($payload, bool $default): self {
+  public function compose($payload): self {
     $this->payload = $payload;
     return $this;
   }
