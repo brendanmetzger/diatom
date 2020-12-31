@@ -67,7 +67,7 @@ try {
 
   // Represents an existing file—either cached or a static file
   if ($notice->getCode() == 201) {
-    $notice->request->body = file_get_contents($notice->location);
+    $notice->request->setBody(file_get_contents($notice->location));
   }
 
   $response = new Response($notice->request);

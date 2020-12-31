@@ -22,14 +22,12 @@ trait Configured ###############################################################
 
 
 
-
 interface routable ####################################################################### ROUTABLE
 {
   public function output($instruction = null)     : stringable | string;
   public function reject(int $reason, $info)      : Exception;
   public function compose($payload): self;
 }
-
 
 
 
@@ -155,7 +153,6 @@ class Route ####################################################################
 
 
 
-
 class Status extends Exception ############################################################# STATUS
 {
   const REASON = [
@@ -165,7 +162,6 @@ class Status extends Exception #################################################
     500 => 'Internal Server Error',
   ];
 }
-
 
 
 
@@ -219,10 +215,10 @@ class File #####################################################################
     return $instance->setBody($content);
   }
 
-  public function setBody($content, ?string $mime = null): File
+  public function setBody(string|stringable $content, ?string $mime = null): File
   {
-    if ($content instanceof Element) {
-      $this->resource = new Document($content->ownerDocument->saveXML($content));
+    if ($content instanceof DOMNode && !$mime) {
+      $this->resource = $content instanceof Document ? $content : new Document($content->ownerDocument->saveXML($content));
     } else if ($mime) {
       $type = explode(';', $mime)[0];
       if (preg_match('/application\/\S*json/', $type))
@@ -231,7 +227,7 @@ class File #####################################################################
         $this->resource = new Document(preg_replace('/\sxmlns=[\"\'][^\"\']+[\"\'](*ACCEPT)/', '', $content));
     }
 
-    $this->size = strlen($this->body = $content);
+    $this->size = strlen($this->body = (string)$content);
     return $this;
   }
 
@@ -250,7 +246,6 @@ class File #####################################################################
     return (string) $this->body;
   }
 }
-
 
 
 
@@ -296,15 +291,12 @@ class Request extends File #####################################################
 
 
 
-
 class WIP_Status extends Exception ###############################################################
 {
   function __construct(public string $location, public Request $request, int $code) {
     parent::__construct($location, $code);
   }
 }
-
-
 
 
 
@@ -330,17 +322,6 @@ class Response implements routable #############################################
     return Document::open($path ?? $this->template ?? throw $this->reject(404));
   }
 
-  public function setBody($content): Response {
-    $this->document = $content instanceof Element
-                    ? new Document($content->ownerDocument->saveXML($content))
-                    : $content;
-
-    $this->request->setBody((string) $content);
-    // TODO: this should not be set before the final printing, as it could change
-    // $this->header('Content-Length', $this->request->size);
-    return $this;
-  }
-
   public function yield(string $key, string|Document $source): void {
     Template::set($key, $source instanceof Document ? $source : Document::open($source));
   }
@@ -363,37 +344,45 @@ class Response implements routable #############################################
 
   public function compose($payload): self
   {
-    if (! $payload instanceof DOMNode || $this->id === null) return $this->setBody($payload);
+    if ($payload instanceof DOMNode && $this->id) {
 
-    if ($this->basic) {
-       //no layout needed, just use payload document
-      $layout = new Template($payload);
-    } else {
-      // find main document to use as layout
-      $layout = new Template(Document::open($payload->info['layout'] ?? $this->layout));
+      if ($this->basic) {
+         //no layout needed, just use payload document
+        $layout = new Template($payload);
+      } else {
+        // find main document to use as layout
+        $layout = new Template(Document::open($payload->info['layout'] ?? $this->layout));
 
-      // make sure we aren't putting the layout into itself
-      if ($this->route != Route::config('default')) {
-        $this->render = $payload->info['render'] ?? $this->render;
-        Template::set($this->id, $payload);
+        // make sure we aren't putting the layout into itself
+        if ($this->route != Route::config('default')) {
+          $this->render = $payload->info['render'] ?? $this->render;
+          Template::set($this->id, $payload);
+        }
       }
-    }
-    // render and transform the document layout
-    $data   = ['route' => $this->route] + $payload->info + $this->data + Request::config();
-    $output = Render::transform($layout->render($data, $this->basic ? true : $this->id), $this->render);
 
-    // convert if request type is not markup
-    return $this->setBody(Parser::check($output, $this->request->type));
+      // render and transform the document layout
+      $data   = ['route' => $this->route] + $payload->info + $this->data + Request::config();
+      $payload = Render::transform($layout->render($data, $this->basic ?: $this->id), $this->render);
+
+      // convert if request type is not markup
+      $payload = Parser::check($payload, $this->request->type);
+    }
+
+    $this->request->setBody($payload);
+    return $this;
   }
 
   public function __toString() {
     // write headers
     http_response_code($this->status);
+    $this->header('Content-Length', $this->request->size);
     foreach ($this->headers as $key => $value)
       header("{$key}: {$value}");
     return (string) $this->request->body;
   }
 }
+
+
 
 
 class Controller ####################################################################### CONTROLLER
@@ -475,6 +464,8 @@ class Redirect extends Exception ###############################################
 
 }
 
+
+
 class Template ########################################################################### TEMPLATE
 {
   static private $yield = [];
@@ -505,7 +496,7 @@ class Template #################################################################
         continue;
       }
 
-      $DOM = is_file($path) ? Document::open($path) : Request::GET($path, $data)->document;
+      $DOM = is_file($path) ? Document::open($path) : Request::GET($path, $data)->request->resource;
       $ref = $context->parentNode;
 
       foreach ($DOM->find($xpath) as $node) {
@@ -561,7 +552,6 @@ class Template #################################################################
     $audit = [];
     foreach ($this->getSlugs() as $path => $slugs) {
       if ($node = $this->DOM->select($path)) {
-
         foreach ($slugs as [$key, $offset]) {
           $replacement = Data::fetch($key, $data);
           if ($replacement === null && $audit[] = $node) continue 2;
@@ -571,7 +561,6 @@ class Template #################################################################
     }
     foreach ($audit as $node) $node->remove();
   }
-
 
   private function getStubs(string $key): iterable
   {
@@ -585,7 +574,6 @@ class Template #################################################################
     );
   }
 
-
   protected function getSlugs($skip = ''): iterable
   {
     if (empty($this->slugs)) {
@@ -597,7 +585,7 @@ class Template #################################################################
         $text = $node->textContent;
 
         $this->slugs[$path] ??= [];
-        
+
         preg_match_all('/\$\{([^}]+)\}+/i', $text, $match, PREG_OFFSET_CAPTURE|PREG_SET_ORDER);
 
         foreach (array_reverse($match) as [$full, $key]) {
@@ -614,6 +602,8 @@ class Template #################################################################
     return $this->slugs;
   }
 }
+
+
 
 
 class Document extends DOMDocument ####################################################### DOCUMENT
@@ -697,6 +687,8 @@ class Document extends DOMDocument #############################################
 }
 
 
+
+
 trait DOMtextUtility ############################################################### DOMtextUtility
 {
   public function __invoke($input): self
@@ -711,6 +703,8 @@ trait DOMtextUtility ###########################################################
     return $this->nodeValue;
   }
 }
+
+
 
 
 class Element extends DOMElement implements ArrayAccess, JsonSerializable ################# ELEMENT
@@ -785,6 +779,8 @@ class Element extends DOMElement implements ArrayAccess, JsonSerializable ######
 }
 
 
+
+
 class Text extends DOMText ################################################################### TEXT
 {
   use DOMtextUtility;
@@ -810,6 +806,8 @@ class Text extends DOMText #####################################################
 }
 
 
+
+
 class Attr extends DOMAttr ################################################################### Attr
 {
   use DOMtextUtility;
@@ -822,6 +820,8 @@ class Attr extends DOMAttr #####################################################
     return ($elem = $this->ownerElement) ? $elem->removeAttribute($this->nodeName) : null;
   }
 }
+
+
 
 
 trait Registry ########################################################################### Registry
@@ -840,6 +840,8 @@ trait Registry #################################################################
     return $this->data = array_merge($this->data, $data);
   }
 }
+
+
 
 
 class Data extends ArrayIterator ############################################################# DATA
@@ -914,6 +916,8 @@ class Data extends ArrayIterator ###############################################
   }
 
 }
+
+
 
 
 abstract class Model implements ArrayAccess ################################################# MODEL
