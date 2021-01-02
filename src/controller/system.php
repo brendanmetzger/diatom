@@ -1,6 +1,6 @@
 <?php namespace Controller;
 
-use Document, Model, Auth;
+use Document, Model, Auth, WIP_Status;
 
 class System extends \Controller
 {
@@ -44,17 +44,17 @@ class System extends \Controller
 
       if ($user = Model\User::ID($value)) {
         $token->save($user);
-        throw new \Redirect($verified);
+        throw $this->response->state(WIP_Status::REDIRECT, $verified);
       }
-      throw $this->response->reject(401);
+      throw $this->response->state(WIP_Status::UNAUTHORIZED);
     }
 
     // Logout I s'pose
     if ($this->response->request->authorization(Auth\Token::NAME)) {
       Auth\Token::invalidate();
-      throw new \Redirect('/');
+      throw new $this->response->state(WIP_Status::REDIRECT, '/');
     }
-    throw $this->response->reject(404);
+    throw $this->response->state(WIP_Status::NOT_FOUND);
   }
 
 

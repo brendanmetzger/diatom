@@ -11,11 +11,11 @@ Controller\System::load('enabled');
 Route::promisy(function($message = 'add a param to address') {
 
   $this->message = strtolower($message);
-
+  $this->list    = [['key' => 'alpha'], ['key' => 'beta']];
   // visit  /promisy/blorf to see how fullfilled might work
   $this->fulfilled = ($this->message === 'blorf');
 
-  return new Document('<main><h2>${message}</h2></main>');
+  return new Document('<main><h2>${message}</h2><!-- iterate list --><mark>${${message}}: ${key}</mark></main>');
 
 })->then(function($payload){
   // otherwise document is not fullfilled, so the return value(s) of the
@@ -25,11 +25,11 @@ Route::promisy(function($message = 'add a param to address') {
   $payload->documentElement->appendChild(new Element('h1', 'cool?'));
 
   // to see the final catch, uncomment
-  // throw $this->reject(404);
+  // throw $this->state(404);
 
   return $payload;
 
-})->catch(fn (Status $notice) => new Document('<p>this cannot happen</p>'));
+})->catch(fn (WIP_Status $notice) => new Document('<p>this cannot happen</p>'));
 
 
 
@@ -65,12 +65,18 @@ try {
 
 } catch (WIP_Status $notice) {
 
-  // Represents an existing file—either cached or a static file
-  if ($notice->getCode() == 201) {
-    $notice->request->setBody(file_get_contents($notice->location));
+  $response = new Response($notice->request);
+  $status   = $notice->getCode();
+  if ($status == $notice::CREATED) {
+    // Represents an existing file—either cached or a static file
+    $notice->request->setBody(file_get_contents($notice->getFile()));
+  } elseif (! floor($status / 399)) {
+    // represents a 3xx code, redirect to another resource
+    $response->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    $response->header("Location", $notice);
   }
 
-  $response = new Response($notice->request);
+
 
 } catch (Redirect $notice) {
 

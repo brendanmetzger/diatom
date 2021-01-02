@@ -25,7 +25,7 @@ trait Configured ###############################################################
 interface routable ####################################################################### ROUTABLE
 {
   public function output($instruction = null)     : stringable | string;
-  public function reject(int $reason, $info)      : Exception;
+  public function state(int $reason, $info)      : Exception;
   public function compose($payload): self;
 }
 
@@ -41,7 +41,7 @@ class Route ####################################################################
     $paths   = self::prepare($router);
     $payload = $router->fulfilled
              ? $router->output($router->request)
-             : ($paths[$router->route] ?? throw $router->reject(404, $paths))->fulfill($router);
+             : ($paths[$router->route] ?? throw $router->state(404, $paths))->fulfill($router);
 
     return $router->compose($payload);
   }
@@ -143,6 +143,8 @@ class Route ####################################################################
     }
 
     $response->fulfilled = true;
+    $response->request->status->report(WIP_Status::SUCCESS);
+
     $response->layout  ??= $this->info['layout'] ?? self::$paths[self::config('default')]?->info['src'];
     $response->render  ??= $this->info['render'] ?? null;
 
@@ -153,14 +155,23 @@ class Route ####################################################################
 
 
 
-class Status extends Exception ############################################################# STATUS
+class WIP_Status extends Exception ###############################################################
 {
-  const REASON = [
-    201 => "Created",
-    401 => 'Unauthorized',
-    404 => 'Not Found',
-    500 => 'Internal Server Error',
-  ];
+  const SUCCESS = 200, CREATED = 201, UNAUTHORIZED = 401, REDIRECT = 307, MOVED = 308, NOT_FOUND = 404, ERROR = 500;
+
+  public function __construct(public Request $request, string $file)
+  {
+    parent::__construct($request->origin);
+    if (is_file($this->file = $file))
+      $this->code = 201;
+  }
+
+  public function report(int $code, string|stringable $message = ''): self
+  {
+    $this->message = $message;
+    $this->code    = $code;
+    return $this;
+  }
 }
 
 
@@ -253,7 +264,7 @@ class File #####################################################################
 class Request extends File ################################################################ REQUEST
 {
   use Configured;
-  public $origin, $method;
+  public $origin, $method, $status;
 
   public function __construct(?string $host = null, public array $headers, public $root = '')
   {
@@ -262,13 +273,13 @@ class Request extends File #####################################################
 
     parent::__construct(($host ?? self::config('host')) . $this->origin, type: 'html');
 
-    if ($this->method[0] === 'P' && ($headers['CONTENT_LENGTH'] ?? 0) > 0) {
-      $this->setBody(file_get_contents('php://input'), $headers['CONTENT_TYPE'] ?? $this->mime);
-    }
+    $this->status = new WIP_Status($this, $root.$this->uri);
 
-    if (is_file($root . $this->uri)) {
-      throw new WIP_Status($root . $this->uri, $this, 201);
-    }
+    if ($this->method[0] === 'P' && ($headers['CONTENT_LENGTH'] ?? 0) > 0)
+      $this->setBody(file_get_contents('php://input'), $headers['CONTENT_TYPE'] ?? $this->mime);
+
+    if ($this->status->getCode() != 0)
+      throw $this->status;
   }
 
   static public function GET($uri, array $data = [], array $headers = [], $yield = true): Response
@@ -291,21 +302,11 @@ class Request extends File #####################################################
 
 
 
-class WIP_Status extends Exception ###############################################################
-{
-  function __construct(public string $location, public Request $request, int $code) {
-    parent::__construct($location, $code);
-  }
-}
-
-
-
-
 class Response implements routable ####################################################### RESPONSE
 {
   use Registry;
 
-  public $status = 200, $route, $id, $params, $document, $basic, $fulfilled = false, $layout = null, $template, $render = null;
+  public $route, $id, $params, $document, $basic, $fulfilled = false, $layout = null, $template, $render = null;
 
   public function __construct(public Request $request, array $data = [], public array $headers = [])
   {
@@ -319,15 +320,15 @@ class Response implements routable #############################################
 
   // when here, either no callback specified OR the callback returned void
   public function output($path = null): stringable | string {
-    return Document::open($path ?? $this->template ?? throw $this->reject(404));
+    return Document::open($path ?? $this->template ?? throw $this->state(404));
   }
 
   public function yield(string $key, string|Document $source): void {
     Template::set($key, $source instanceof Document ? $source : Document::open($source));
   }
 
-  public function reject(int $reason, $info = null): Exception {
-    return new Status($this->request->origin . ' ' . Status::REASON[$reason], $reason);
+  public function state(int $reason, $info = null): Exception {
+    return $this->request->status->report($reason, $info ?? $this->request->origin);
   }
 
   public function header($key, $header): int
@@ -374,7 +375,7 @@ class Response implements routable #############################################
 
   public function __toString() {
     // write headers
-    http_response_code($this->status);
+    http_response_code($this->request->status->getCode());
     $this->header('Content-Length', $this->request->size);
     foreach ($this->headers as $key => $value)
       header("{$key}: {$value}");
@@ -443,8 +444,6 @@ class Redirect extends Exception ###############################################
   const STATUS    = ['created' => 201, 'permanent' => 301, 'temporary' => 302, 'other' => 303];
   public $headers = [
     ['Cache-Control: no-store, no-cache, must-revalidate, max-age=0'],
-    ['Cache-Control: post-check=0, pre-check=0', false],
-    ['Pragma: no-cache'],
   ];
 
   public function __construct(public string $location, $code = 'temporary') {
@@ -586,7 +585,7 @@ class Template #################################################################
 
         $this->slugs[$path] ??= [];
 
-        preg_match_all('/\$\{([^}]+)\}+/i', $text, $match, PREG_OFFSET_CAPTURE|PREG_SET_ORDER);
+        preg_match_all('/\$\{([^}]+)\}/i', $text, $match, PREG_OFFSET_CAPTURE|PREG_SET_ORDER);
 
         foreach (array_reverse($match) as [$full, $key]) {
           $split = [mb_strlen(substr($text, 0, $full[1]), 'utf-8'), mb_strlen($full[0])];
