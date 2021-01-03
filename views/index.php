@@ -8,6 +8,12 @@
 Controller\System::load('enabled');
 
 
+Route::set('redirector', function () {
+  throw $this->status(Status::REDIRECT, '/index');
+  return new Document('<p>'.Status::REDIRECT.'</p>');
+});
+
+
 Route::promisy(function($message = 'add a param to address') {
 
   $this->message = strtolower($message);
@@ -75,9 +81,10 @@ try {
       // Represents an existing file—either cached or a static file
       $notice->request->setBody(file_get_contents($notice->getFile()));
     } elseif (! floor($status / 399)) {
+
       // represents a 3xx code, redirect to another resource
       $response->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-      $response->header("Location", $notice);
+      $response->header("Location", $notice->getMessage());
     }
   }
 

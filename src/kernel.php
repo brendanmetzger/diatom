@@ -357,16 +357,14 @@ class Response implements routable #############################################
         $layout = new Template(Document::open($payload->info['layout'] ?? $this->layout));
 
         // make sure we aren't putting the layout into itself
-        
         if ($this->route != Route::config('default')) {
-
           $this->render = $payload->info['render'] ?? $this->render;
           Template::set($this->id, $payload);
         }
       }
 
       // render and transform the document layout
-      $data   = ['route' => $this->route] + $payload->info + $this->data + Request::config();
+      $data    = ['route' => $this->route] + $payload->info + $this->data + Request::config();
       $payload = Render::transform($layout->render($data, $this->basic ?: $this->id), $this->render);
 
       // convert if request type is not markup
