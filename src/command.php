@@ -31,7 +31,7 @@ class Command implements routable
     return trim(fgets($this->input));
   }
 
-  public function state(int $reason, $message): Exception {
+  public function status(int $reason, $message): Exception {
     if (is_array($message)) {
       $message = "hmm, {$this->route}' not a thing..\n\n >";
       $message .= join("\n > ", array_keys($message));

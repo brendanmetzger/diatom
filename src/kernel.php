@@ -24,9 +24,9 @@ trait Configured ###############################################################
 
 interface routable ####################################################################### ROUTABLE
 {
-  public function output($instruction = null)     : stringable | string;
-  public function state(int $reason, $info)      : Exception;
-  public function compose($payload): self;
+  public function output($instruction = null) : stringable | string;
+  public function status(int $reason, $info)  : Exception;
+  public function compose($payload)           : self;
 }
 
 
@@ -39,10 +39,7 @@ class Route ####################################################################
   static public function delegate(routable $router): routable
   {
     $paths   = self::prepare($router);
-    $payload = $router->fulfilled
-             ? $router->output($router->request)
-             : ($paths[$router->route] ?? throw $router->state(404, $paths))->fulfill($router);
-
+    $payload = ($paths[$router->route] ?? throw $router->status(Status::NOT_FOUND, $paths))->fulfill($router);
     return $router->compose($payload);
   }
 
@@ -84,12 +81,15 @@ class Route ####################################################################
       } else {
 
         // scan for files (direct routes)
-        foreach(Data::apply(array_filter(array_map(fn($f) => $root.'/'.$f, $scan), 'is_file'), 'Document::open') as $DOM) {
-          $info = $DOM->info;
-          $info['route'] ??= $info['file']['filename'];
-          unset($info['file']);
-          self::set($info['route'], $route, $info);
-        }
+
+          foreach(Data::apply(array_filter(array_map(fn($f) => $root.'/'.$f, $scan), 'is_file'), 'Document::open') as $DOM) {
+            $info = $DOM->info;
+            $info['route'] ??= $info['file']['filename'];
+            unset($info['file']);
+            self::set($info['route'], $route, $info);
+          }
+
+
 
         // scan for directories (controllers)
         foreach (array_filter($scan, fn($f) => is_dir($root.'/'.$f) && $f[-1] != '.') as $name) {
@@ -137,13 +137,13 @@ class Route ####################################################################
     try {
       do {
         $out = $this->handle[$i++]->call($response, ...(is_array($out) ? $out : [$out]));
-      } while (isset($this->handle[$i]) && ! $response->fulfilled);
+      } while (isset($this->handle[$i]) && $response->request->status->getCode() === 0);
     } catch (Status $e) {
       $out = $this->exception?->call($response, $e) ?? throw $e;
     }
 
     $response->fulfilled = true;
-    $response->request->status->report(WIP_Status::SUCCESS);
+    $response->status(Status::SUCCESS);
 
     $response->layout  ??= $this->info['layout'] ?? self::$paths[self::config('default')]?->info['src'];
     $response->render  ??= $this->info['render'] ?? null;
@@ -155,9 +155,9 @@ class Route ####################################################################
 
 
 
-class WIP_Status extends Exception ###############################################################
+class Status extends Exception ###############################################################
 {
-  const SUCCESS = 200, CREATED = 201, UNAUTHORIZED = 401, REDIRECT = 307, MOVED = 308, NOT_FOUND = 404, ERROR = 500;
+  const SUCCESS = 200, CREATED = 201, REDIRECT = 307, MOVED = 308, UNAUTHORIZED = 401, NOT_FOUND = 404, ERROR = 500;
 
   public function __construct(public Request $request, string $file)
   {
@@ -166,7 +166,7 @@ class WIP_Status extends Exception #############################################
       $this->code = 201;
   }
 
-  public function report(int $code, string|stringable $message = ''): self
+  public function report(int $code, $message = ''): self
   {
     $this->message = $message;
     $this->code    = $code;
@@ -273,7 +273,7 @@ class Request extends File #####################################################
 
     parent::__construct(($host ?? self::config('host')) . $this->origin, type: 'html');
 
-    $this->status = new WIP_Status($this, $root.$this->uri);
+    $this->status = new Status($this, $root.$this->uri);
 
     if ($this->method[0] === 'P' && ($headers['CONTENT_LENGTH'] ?? 0) > 0)
       $this->setBody(file_get_contents('php://input'), $headers['CONTENT_TYPE'] ?? $this->mime);
@@ -290,6 +290,7 @@ class Request extends File #####################################################
       'CONTENT_TYPE'   => $headers['content-type'] ?? null,
       'HTTP_YIELD'     => $yield,
     ]), realpath('.'));
+
 
     return Route::delegate(new Response($request, $data));
   }
@@ -320,14 +321,14 @@ class Response implements routable #############################################
 
   // when here, either no callback specified OR the callback returned void
   public function output($path = null): stringable | string {
-    return Document::open($path ?? $this->template ?? throw $this->state(404));
+    return Document::open($path ?? $this->template ?? throw $this->status(404));
   }
 
   public function yield(string $key, string|Document $source): void {
     Template::set($key, $source instanceof Document ? $source : Document::open($source));
   }
 
-  public function state(int $reason, $info = null): Exception {
+  public function status(int $reason, $info = null): Exception {
     return $this->request->status->report($reason, $info ?? $this->request->origin);
   }
 
@@ -350,12 +351,15 @@ class Response implements routable #############################################
       if ($this->basic) {
          //no layout needed, just use payload document
         $layout = new Template($payload);
+
       } else {
         // find main document to use as layout
         $layout = new Template(Document::open($payload->info['layout'] ?? $this->layout));
 
         // make sure we aren't putting the layout into itself
+        
         if ($this->route != Route::config('default')) {
+
           $this->render = $payload->info['render'] ?? $this->render;
           Template::set($this->id, $payload);
         }
@@ -431,37 +435,12 @@ class Controller ###############################################################
     $instance = $this->name ? new $this->name($response, ...$this->params) : $this;
     $instance->response = $response;
     $instance->action   = strtolower($action);
+
     return $instance($response->request->method . str_replace('-','_',$instance->action), $params);
   }
 
 }
 
-
-
-// TODO: This should be refactored into a General status object
-class Redirect extends Exception ######################################################### REDIRECT
-{
-  const STATUS    = ['created' => 201, 'permanent' => 301, 'temporary' => 302, 'other' => 303];
-  public $headers = [
-    ['Cache-Control: no-store, no-cache, must-revalidate, max-age=0'],
-  ];
-
-  public function __construct(public string $location, $code = 'temporary') {
-    parent::__construct($location, self::STATUS[$code]);
-    $this->headers['location'] = ["Location: {$location}", false, self::STATUS[$code]];
-  }
-
-  public function __invoke(...$path) {
-    foreach ($this->headers as $header) header(...$header);
-  }
-
-  public function call(routable $response, ...$path)
-  {
-    $this->headers['location'][0] = sprintf($this->headers['location'][0], join('/', $path));
-    throw $this;
-  }
-
-}
 
 
 
@@ -620,9 +599,7 @@ class Document extends DOMDocument #############################################
       $DOM = (substr($file->mime, -2) == 'ml') ? new self($file->body, $opt) : Parser::load($file);
     } catch (ParseError $e) {
       $err = (object)libxml_get_errors()[0];
-      $hint = substr(file($path)[$err->line-1], max($err->column - 10, 0), 20);
-      $msg  = $err->message . " in {$path}, around: '{$hint}'";
-      throw new ErrorException($msg, 500, E_ERROR, realpath($path), $err->line, $e);
+      throw new ErrorException($err->message, 500, E_ERROR, realpath($path), $err->line, $e);
     }
 
     foreach ($DOM->find("/processing-instruction()") as $pi)

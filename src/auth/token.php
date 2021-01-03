@@ -118,7 +118,7 @@ class Token
       'state'     => $instance->write($request->origin),
     ]);
 
-    throw $request->status->report(\WIP_Status::REDIRECT, self::config('endpoint', $endpoint));
+    throw $request->status->report(\Status::REDIRECT, self::config('endpoint', $endpoint));
   }
 
   static public function invalidate(): void {

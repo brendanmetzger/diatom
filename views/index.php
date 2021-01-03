@@ -29,7 +29,7 @@ Route::promisy(function($message = 'add a param to address') {
 
   return $payload;
 
-})->catch(fn (WIP_Status $notice) => new Document('<p>this cannot happen</p>'));
+})->catch(fn (Status $notice) => new Document('<p>this cannot happen</p>'));
 
 
 
@@ -63,35 +63,35 @@ try {
   // 'factory'  => fn($name, $query) => Model::$name(urldecode($query)),
 
 
-} catch (WIP_Status $notice) {
+} catch (Status $notice) {
 
-  $response = new Response($notice->request);
   $status   = $notice->getCode();
-  if ($status == $notice::CREATED) {
-    // Represents an existing file—either cached or a static file
-    $notice->request->setBody(file_get_contents($notice->getFile()));
-  } elseif (! floor($status / 399)) {
-    // represents a 3xx code, redirect to another resource
-    $response->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-    $response->header("Location", $notice);
+
+  if ($status == $notice::NOT_FOUND) {
+    $response = Request::GET('system/error/404', yield: false);
+  } else {
+    $response = new Response($notice->request);
+    if ($status == $notice::CREATED) {
+      // Represents an existing file—either cached or a static file
+      $notice->request->setBody(file_get_contents($notice->getFile()));
+    } elseif (! floor($status / 399)) {
+      // represents a 3xx code, redirect to another resource
+      $response->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+      $response->header("Location", $notice);
+    }
   }
 
 
-
-} catch (Redirect $notice) {
-
-  // TODO: refactor this into above, and no need to exit, rather run regular headers on a standard response.
-  call_user_func($notice);
-
-  exit;
-
 } catch (Exception | Error $e) {
+  //at this level, router may have not finished preparing, so directly call a controller
 
   $keys     = ['message', 'code', 'file', 'line', 'trace'];
   $data     = ['error' => array_combine($keys, array_map(fn($m) => $e->{"get$m"}(), $keys))];
 
-  $response = Request::GET('system/error', $data, yield: false);
-  $response->status = $e->getCode() ?: 400;
+  $controller = new Controller\System;
+
+  $response = new Response($request, $data);
+  $response->compose($controller->call($response, $response->route = 'error', $e->getCode()));
 
 } finally {
 

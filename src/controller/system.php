@@ -1,6 +1,6 @@
 <?php namespace Controller;
 
-use Document, Model, Auth, WIP_Status;
+use Document, Model, Auth, Status;
 
 class System extends \Controller
 {
@@ -18,7 +18,6 @@ class System extends \Controller
 
         if ($path = $doc->info['src'] ?? false)
           $context->setAttribute('data-doc', $path);
-
       });
 
       \Render::set('after', function($context) {
@@ -29,6 +28,16 @@ class System extends \Controller
         }
       });
     }
+  }
+
+  public function GETerror(int $code = 404)
+  {
+    $this->error ??= [
+      'code'    => $code,
+      'message' => 'Resource Not Found',
+    ];
+
+    return Document::open("system/{$code}.html");
   }
 
   public function GETauth()
@@ -44,17 +53,17 @@ class System extends \Controller
 
       if ($user = Model\User::ID($value)) {
         $token->save($user);
-        throw $this->response->state(WIP_Status::REDIRECT, $verified);
+        throw $this->response->state(Status::REDIRECT, $verified);
       }
-      throw $this->response->state(WIP_Status::UNAUTHORIZED);
+      throw $this->response->state(Status::UNAUTHORIZED);
     }
 
     // Logout I s'pose
     if ($this->response->request->authorization(Auth\Token::NAME)) {
       Auth\Token::invalidate();
-      throw new $this->response->state(WIP_Status::REDIRECT, '/');
+      throw new $this->response->state(Status::REDIRECT, '/');
     }
-    throw $this->response->state(WIP_Status::NOT_FOUND);
+    throw $this->response->state(Status::NOT_FOUND);
   }
 
 
