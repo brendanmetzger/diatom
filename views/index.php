@@ -14,12 +14,16 @@ Route::set('redirector', function () {
 });
 
 
-Route::promisy(function($message = 'add a param to address') {
+Route::promisy(function($message = 'go to /promisy/blorf') {
 
   $this->message = strtolower($message);
   $this->list    = [['key' => 'alpha'], ['key' => 'beta']];
-  // visit  /promisy/blorf to see how fullfilled might work
-  $this->fulfilled = ($this->message === 'blorf');
+
+  // visit  /promisy/blorf
+  if ($this->message === 'blorf') {
+    // setting 200 bypasses next action, because request is successful at this point
+    $this->status(200);
+  }
 
   return new Document('<main><h2>${message}</h2><!-- iterate list --><mark>${${message}}: ${key}</mark></main>');
 
@@ -31,7 +35,7 @@ Route::promisy(function($message = 'add a param to address') {
   $payload->documentElement->appendChild(new Element('h1', 'cool?'));
 
   // to see the final catch, uncomment
-  // throw $this->state(404);
+  // throw $this->status(404);
 
   return $payload;
 

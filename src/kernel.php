@@ -142,7 +142,6 @@ class Route ####################################################################
       $out = $this->exception?->call($response, $e) ?? throw $e;
     }
 
-    $response->fulfilled = true;
     $response->status(Status::SUCCESS);
 
     $response->layout  ??= $this->info['layout'] ?? self::$paths[self::config('default')]?->info['src'];
@@ -307,7 +306,7 @@ class Response implements routable #############################################
 {
   use Registry;
 
-  public $route, $id, $params, $document, $basic, $fulfilled = false, $layout = null, $template, $render = null;
+  public $route, $id, $params, $document, $basic, $layout = null, $template, $render = null;
 
   public function __construct(public Request $request, array $data = [], public array $headers = [])
   {
