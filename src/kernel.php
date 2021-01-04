@@ -5,23 +5,6 @@ libxml_use_internal_errors(true);
 spl_autoload_register();
 
 
-
-trait Configured ####################################################################### CONFIGURED
-{
-  static public  $ini;
-  static private $config;
-
-  static public function config($key = null)
-  {
-    self::$ini ??= parse_ini_file('../data/config', true);
-    self::$config ??= self::$ini[strtolower(self::class)] ?? [];
-    return self::$config[$key] ?? self::$config;
-  }
-}
-
-
-
-
 interface routable ####################################################################### ROUTABLE
 {
   public function output($instruction = null) : stringable | string;
@@ -32,14 +15,74 @@ interface routable #############################################################
 
 
 
-class Route ################################################################################# ROUTE
+trait Configured ####################################################################### CONFIGURED
 {
-  use Configured;
+  static private $config;
+  static public function config($key = null) {
+    self::$config ??= App::config(strtolower(self::class));
+    return self::$config[$key] ?? self::$config;
+  }
+}
+
+
+
+
+trait Registry ########################################################################### REGISTRY
+{
+  public $data = [];
+
+  public function __set($key, $value) {
+    $this->data[$key] = $value;
+  }
+
+  public function __get($key) {
+    return $this->data[$key] ?? null;
+  }
+
+  public function merge(array $data) {
+    return $this->data = array_merge($this->data, $data);
+  }
+}
+
+
+
+
+trait DOMtextUtility ############################################################### DOMtextUtility
+{
+  public function __invoke($input): self
+  {
+    $this->nodeValue = '';
+    if ($input instanceof DOMNode) $this->appendChild($input);
+    else $this->nodeValue = htmlspecialchars($input, ENT_XHTML, 'UTF-8', false);
+    return $this;
+  }
+
+  public function __toString(): string {
+    return $this->nodeValue;
+  }
+}
+
+
+
+
+class App #################################################################################### APP
+{ use Configured;
+  static public function config($class) {
+    return (self::$config ??= parse_ini_file('../data/config', true))[$class] ?? [];
+  }
+}
+
+
+
+
+class Route ################################################################################# ROUTE
+{ use Configured;
+
   static private $paths = [], $id = 0, $prepared = false;
   static public function delegate(routable $router): routable
   {
     $paths   = self::prepare($router);
-    $payload = ($paths[$router->route] ?? throw $router->status(Status::NOT_FOUND, $paths))->fulfill($router);
+    $payload = ($paths[$router->route] ?? throw $router->status(404, $paths))->fulfill($router);
     return $router->compose($payload);
   }
 
@@ -79,17 +122,13 @@ class Route ####################################################################
         }
 
       } else {
-
         // scan for files (direct routes)
-
-          foreach(Data::apply(array_filter(array_map(fn($f) => $root.'/'.$f, $scan), 'is_file'), 'Document::open') as $DOM) {
-            $info = $DOM->info;
-            $info['route'] ??= $info['file']['filename'];
-            unset($info['file']);
-            self::set($info['route'], $route, $info);
-          }
-
-
+        foreach(Data::apply(array_filter(array_map(fn($f) => $root.'/'.$f, $scan), 'is_file'), 'Document::open') as $DOM) {
+          $info = $DOM->info;
+          $info['route'] ??= $info['file']['filename'];
+          unset($info['file']);
+          self::set($info['route'], $route, $info);
+        }
 
         // scan for directories (controllers)
         foreach (array_filter($scan, fn($f) => is_dir($root.'/'.$f) && $f[-1] != '.') as $name) {
@@ -137,7 +176,7 @@ class Route ####################################################################
     try {
       do {
         $out = $this->handle[$i++]->call($response, ...(is_array($out) ? $out : [$out]));
-      } while (isset($this->handle[$i]) && $response->request->status->getCode() === 0);
+      } while (isset($this->handle[$i]) && $response->request->status->getCode() < 100);
     } catch (Status $e) {
       $out = $this->exception?->call($response, $e) ?? throw $e;
     }
@@ -261,8 +300,8 @@ class File #####################################################################
 
 
 class Request extends File ################################################################ REQUEST
-{
-  use Configured;
+{ use Configured;
+
   public $origin, $method, $status;
 
   public function __construct(?string $host = null, public array $headers, public $root = '')
@@ -277,7 +316,7 @@ class Request extends File #####################################################
     if ($this->method[0] === 'P' && ($headers['CONTENT_LENGTH'] ?? 0) > 0)
       $this->setBody(file_get_contents('php://input'), $headers['CONTENT_TYPE'] ?? $this->mime);
 
-    if ($this->status->getCode() != 0)
+    if ($this->status->getCode())
       throw $this->status;
   }
 
@@ -303,8 +342,7 @@ class Request extends File #####################################################
 
 
 class Response implements routable ####################################################### RESPONSE
-{
-  use Registry;
+{ use Registry;
 
   public $route, $id, $params, $document, $basic, $layout = null, $template, $render = null;
 
@@ -312,10 +350,10 @@ class Response implements routable #############################################
   {
     $this->merge($data);
     $this->header('Content-Type', $this->request->mime);
-    $this->params    = explode('/', substr($request->uri, 1, ~strlen($request->type)));
-    $this->route     = strtolower(array_shift($this->params));
-    $this->id        = md5(join($request->headers));
-    $this->basic     = $request->headers['HTTP_YIELD'] ?? ($request->type != 'html');
+    $this->params = explode('/', substr($request->uri, 1, ~strlen($request->type)));
+    $this->route  = strtolower(array_shift($this->params));
+    $this->id     = md5(join($request->headers));
+    $this->basic  = $request->headers['HTTP_YIELD'] ?? ($request->type != 'html');
   }
 
   // when here, either no callback specified OR the callback returned void
@@ -662,27 +700,8 @@ class Document extends DOMDocument #############################################
 
 
 
-trait DOMtextUtility ############################################################### DOMtextUtility
-{
-  public function __invoke($input): self
-  {
-    $this->nodeValue = '';
-    if ($input instanceof DOMNode) $this->appendChild($input);
-    else $this->nodeValue = htmlspecialchars($input, ENT_XHTML, 'UTF-8', false);
-    return $this;
-  }
-
-  public function __toString(): string {
-    return $this->nodeValue;
-  }
-}
-
-
-
-
 class Element extends DOMElement implements ArrayAccess, JsonSerializable ################# ELEMENT
-{
-  use DOMtextUtility;
+{ use DOMtextUtility;
 
   public $info = [];
 
@@ -755,8 +774,7 @@ class Element extends DOMElement implements ArrayAccess, JsonSerializable ######
 
 
 class Text extends DOMText ################################################################### TEXT
-{
-  use DOMtextUtility;
+{ use DOMtextUtility;
 
   public function __construct(string $input, ...$args) {
     parent::__construct($args ? vsprintf($input, $args) : $input);
@@ -782,8 +800,7 @@ class Text extends DOMText #####################################################
 
 
 class Attr extends DOMAttr ################################################################### Attr
-{
-  use DOMtextUtility;
+{ use DOMtextUtility;
 
   public function replace(string $data, int $start, int $length) {
     $this(substr_replace($this->value, $data, $start, $length));
@@ -791,26 +808,6 @@ class Attr extends DOMAttr #####################################################
 
   public function remove() {
     return ($elem = $this->ownerElement) ? $elem->removeAttribute($this->nodeName) : null;
-  }
-}
-
-
-
-
-trait Registry ########################################################################### Registry
-{
-  public $data = [];
-
-  public function __set($key, $value) {
-    $this->data[$key] = $value;
-  }
-
-  public function __get($key) {
-    return $this->data[$key] ?? null;
-  }
-
-  public function merge(array $data) {
-    return $this->data = array_merge($this->data, $data);
   }
 }
 
