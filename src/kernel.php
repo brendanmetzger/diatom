@@ -19,8 +19,8 @@ trait Configured ###############################################################
 {
   static private $config;
   static public function config($key = null) {
-    self::$config ??= App::config(strtolower(self::class));
-    return self::$config[$key] ?? self::$config;
+    static::$config ??= App::config(strtolower(static::class));
+    return static::$config[$key] ?? static::$config;
   }
 }
 
@@ -426,7 +426,7 @@ class Response implements routable #############################################
 
 
 class Controller ####################################################################### CONTROLLER
-{
+{ use Configured;
   const PUBLISH = 0;
   protected $response;
 
@@ -891,7 +891,7 @@ class Data extends ArrayIterator ###############################################
 
 
 abstract class Model implements ArrayAccess ################################################# MODEL
-{
+{ use Configured;
   const SOURCE = null;
   const IDPATH = '//*[@id="%s"]';
   const ID     = 'id';

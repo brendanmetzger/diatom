@@ -72,10 +72,9 @@ try {
   // 'instance' => fn($name, $id, ...$params) => "Model\\$name"::ID($id, ...$params),
   // 'factory'  => fn($name, $query) => Model::$name(urldecode($query)),
 
-
 } catch (Status $notice) {
 
-  $status   = $notice->getCode();
+  $status = $notice->getCode();
 
   if ($status == $notice::NOT_FOUND) {
     $response = Request::GET('system/error/404', yield: false);
@@ -91,25 +90,17 @@ try {
       $response->header("Location", $notice->getMessage());
     }
   }
-
-
 } catch (Exception | Error $e) {
-  //at this level, router may have not finished preparing, so directly call a controller
 
   $keys     = ['message', 'code', 'file', 'line', 'trace'];
   $data     = ['error' => array_combine($keys, array_map(fn($m) => $e->{"get$m"}(), $keys))];
-
-  $controller = new Controller\System;
-
   $response = new Response($request, $data);
-  $response->compose($controller->call($response, $response->route = 'error', $e->getCode()));
+
+  // at this level, router may have not finished preparing, so directly call a controller
+  $response->compose((new Controller\System)->call($response, $response->route = 'error', $e->getCode() ?: 500));
 
 } finally {
 
-
   echo $response;
 
-  // TODO: flush everything, run cleanups
-
-  exit;
 }

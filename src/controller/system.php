@@ -4,11 +4,11 @@ use Document, Model, Auth, Status;
 
 class System extends \Controller
 {
-  use \Configured;
 
   final static public function load($flag) {
     if (self::config($flag)) {
-      \Route::system(new \Controller('Controller\System'));
+
+      \Route::system(new \Controller(self::class));
 
       \Render::set('before', function($node) {
         [$doc, $context] = $node instanceof Document ? [$node, $node->documentElement] : [$node->ownerDocument, $node];
@@ -30,14 +30,15 @@ class System extends \Controller
     }
   }
 
+
   public function GETerror(int $code = 404)
   {
     $this->error ??= [
       'code'    => $code,
-      'message' => 'Resource Not Found',
+      'message' => 'Not Found',
     ];
-
-    return Document::open("system/{$code}.html");
+    $code = floor($code / 100);
+    return Document::open("system/{$code}xx.html");
   }
 
   public function GETauth()
